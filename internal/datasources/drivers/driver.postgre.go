@@ -1,65 +1,47 @@
 package drivers
 
 import (
-	"errors"
 	"fmt"
+	"time"
 
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
-	configEnv "github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
-type ConfigPostgreSQL struct {
-	DB_Username string
-	DB_Password string
-	DB_Host     string
-	DB_Port     int
-	DB_Database string
-	DB_DSN      string
+// DBConfig holds the configuration for the database instance
+type DBConfig struct {
+	DriverName     string
+	DataSourceName string
+	MaxOpenConns   int
+	MaxIdleConns   int
+	MaxLifetime    time.Duration
 }
 
-func dbMigrate(db *gorm.DB) (err error) {
-	return
-}
-
-func (config *ConfigPostgreSQL) InitializeDatabasePostgreSQL() (*gorm.DB, error) {
-	var dsn string
-
-	if configEnv.AppConfig.Environment == constants.EnvironmentDevelopment {
-		dsn = fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
-			config.DB_Host, config.DB_Port, config.DB_Database,
-			config.DB_Username, config.DB_Password)
-	} else if configEnv.AppConfig.Environment == constants.EnvironmentProduction {
-		dsn = config.DB_DSN
-	}
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
+// InitializeDatabase returns a new DBInstance
+func (config *DBConfig) InitializeDatabase() (*sqlx.DB, error) {
+	db, err := sqlx.Open(config.DriverName, config.DataSourceName)
 	if err != nil {
-		return nil, errors.New("failed connecting to PostgreSQL")
-	}
-	logger.Info("connected to PostgreSQL", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
-
-	// if configEnv.AppConfig.Environment == constants.EnvironmentDevelopment {
-	// 	if err = db.Migrator().DropTable("users", "roles", "genders", "books", "reviews"); err != nil {
-	// 		return nil, errors.New("failed droping tables:" + err.Error())
-	// 	}
-	// 	logger.Info("droping tables success", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
-	// }
-
-	err = dbMigrate(db)
-	if err != nil {
-		return nil, errors.New("failed when running migration")
+		return nil, fmt.Errorf("error opening database: %v", err)
 	}
 
-	logger.Info("migration success", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
+	// set maximum number of open connections to database
+	logger.Info(fmt.Sprintf("Setting maximum number of open connections to %d", config.MaxOpenConns), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryDatabase})
+	db.SetMaxOpenConns(config.MaxOpenConns)
 
-	// if configEnv.AppConfig.Environment == constants.EnvironmentDevelopment {
-	// 	logger.Info("lazy seeders success")
-	// }
+	// set maximum number of idle connections in the pool
+	logger.Info(fmt.Sprintf("Setting maximum number of idle connections to %d", config.MaxIdleConns), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryDatabase})
+	db.SetMaxIdleConns(config.MaxIdleConns)
+
+	// set maximum time to wait for new connection
+	logger.Info(fmt.Sprintf("Setting maximum lifetime for a connection to %s", config.MaxLifetime), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryDatabase})
+	db.SetConnMaxLifetime(config.MaxLifetime)
+
+	if err = db.Ping(); err != nil {
+		return nil, fmt.Errorf("error pinging database: %v", err)
+	}
 
 	return db, nil
 }

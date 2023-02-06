@@ -1,8 +1,7 @@
 package config
 
 import (
-	"errors"
-
+	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/spf13/viper"
 )
 
@@ -13,12 +12,9 @@ type Config struct {
 	Environment string `mapstructure:"ENVIRONMENT"`
 	Debug       bool   `mapstructure:"DEBUG"`
 
-	DBHost     string `mapstructure:"DB_HOST"`
-	DBPort     int    `mapstructure:"DB_PORT"`
-	DBDatabase string `mapstructure:"DB_DATABASE"`
-	DBUsername string `mapstructure:"DB_USERNAME"`
-	DBPassword string `mapstructure:"DB_PASSWORD"`
-	DBDsn      string `mapstructure:"DB_DSN"`
+	DBPostgreDriver string `mapstructure:"DB_POSTGRE_DRIVER"`
+	DBPostgreDsn    string `mapstructure:"DB_POSTGRE_DSN"`
+	DBPostgreURL    string `mapstructure:"DB_POSTGRE_URL"`
 
 	JWTSecret  string `mapstructure:"JWT_SECRET"`
 	JWTExpired int    `mapstructure:"JWT_EXPIRED"`
@@ -42,27 +38,27 @@ func InitializeAppConfig() error {
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
 	if err != nil {
-		return errors.New("failed to load config file")
+		return constants.ErrLoadConfig
 	}
 
 	err = viper.Unmarshal(&AppConfig)
 	if err != nil {
-		return errors.New("failed to parse env to config struct")
+		return constants.ErrParseConfig
 	}
 
 	// check
-	if AppConfig.Port == 0 || AppConfig.Environment == "" || AppConfig.JWTSecret == "" || AppConfig.JWTExpired == 0 || AppConfig.JWTIssuer == "" || AppConfig.OTPEmail == "" || AppConfig.OTPPassword == "" || AppConfig.REDISHost == "" || AppConfig.REDISPassword == "" || AppConfig.REDISExpired == 0 {
-		return errors.New("required variabel environment is empty")
+	if AppConfig.Port == 0 || AppConfig.Environment == "" || AppConfig.JWTSecret == "" || AppConfig.JWTExpired == 0 || AppConfig.JWTIssuer == "" || AppConfig.OTPEmail == "" || AppConfig.OTPPassword == "" || AppConfig.REDISHost == "" || AppConfig.REDISPassword == "" || AppConfig.REDISExpired == 0 || AppConfig.DBPostgreDriver == "" {
+		return constants.ErrEmptyVar
 	}
 
 	switch AppConfig.Environment {
-	case "development":
-		if AppConfig.DBHost == "" || AppConfig.DBPort == 0 || AppConfig.DBDatabase == "" || AppConfig.DBUsername == "" || AppConfig.DBPassword == "" {
-			return errors.New("required variabel environment is empty")
+	case constants.EnvironmentDevelopment:
+		if AppConfig.DBPostgreDsn == "" {
+			return constants.ErrEmptyVar
 		}
-	case "production":
-		if AppConfig.DBDsn == "" {
-			return errors.New("required variabel environment is empty")
+	case constants.EnvironmentProduction:
+		if AppConfig.DBPostgreURL == "" {
+			return constants.ErrEmptyVar
 		}
 	}
 
