@@ -14,11 +14,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
-	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/internal/http/routes"
+	"github.com/snykk/go-rest-boilerplate/internal/utils"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
-	"gorm.io/gorm"
 )
 
 type App struct {
@@ -27,7 +26,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	// setup databases
-	_, err := setupDatabse()
+	_, err := utils.SetupDatabse()
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +70,7 @@ func NewApp() (*App, error) {
 func (a *App) Run() (err error) {
 	// Gracefull Shutdown
 	go func() {
-		logger.Info(fmt.Sprintf("success to listen and serve on :%d", config.AppConfig.Port), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
+		logger.InfoF("success to listen and serve on :%d", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, config.AppConfig.Port)
 		if err := a.HttpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to listen and serve: %+v", err)
 		}
@@ -82,7 +81,7 @@ func (a *App) Run() (err error) {
 
 	// make blocking channel and waiting for a signal
 	<-quit
-	logger.Info("shutdown server ...", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryClose})
+	logger.Info("shutdown server ...", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -93,29 +92,9 @@ func (a *App) Run() (err error) {
 
 	// catching ctx.Done(). timeout of 5 seconds.
 	<-ctx.Done()
-	logger.Info("timeout of 5 seconds.", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryClose})
-	logger.Info("server exiting", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryClose})
+	logger.Info("timeout of 5 seconds.", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
+	logger.Info("server exiting", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 	return
-}
-
-func setupDatabse() (*gorm.DB, error) {
-	// Setup Config Databse
-	configDB := drivers.ConfigPostgreSQL{
-		DB_Username: config.AppConfig.DBUsername,
-		DB_Password: config.AppConfig.DBPassword,
-		DB_Host:     config.AppConfig.DBHost,
-		DB_Port:     config.AppConfig.DBPort,
-		DB_Database: config.AppConfig.DBDatabase,
-		DB_DSN:      config.AppConfig.DBDsn,
-	}
-
-	// Initialize Database driversSQL
-	conn, err := configDB.InitializeDatabasePostgreSQL()
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
 }
 
 func setupRouter() *gin.Engine {

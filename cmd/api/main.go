@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
 
 	"github.com/sirupsen/logrus"
@@ -13,14 +12,14 @@ import (
 
 func init() {
 	if err := config.InitializeAppConfig(); err != nil {
-		logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
+		logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig})
 	}
-	logger.Info("configuration loaded", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
+	logger.Info("configuration loaded", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig})
 }
 
 func main() {
 	numCPU := runtime.NumCPU()
-	logger.Info(fmt.Sprintf("The project is running on %d CPU(s)", numCPU), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryDevice})
+	logger.InfoF("The project is running on %d CPU(s)", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig}, numCPU)
 
 	if runtime.NumCPU() > 2 {
 		runtime.GOMAXPROCS(numCPU / 2)
@@ -28,9 +27,9 @@ func main() {
 
 	app, err := server.NewApp()
 	if err != nil {
-		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryInit})
+		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 	}
 	if err := app.Run(); err != nil {
-		logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryClose})
+		logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 	}
 }
