@@ -33,8 +33,8 @@ func init() {
 }
 
 func main() {
-	flag.BoolVar(&up, "up", false, "run all available migrations")
-	flag.BoolVar(&down, "down", false, "rollback the last applied migration")
+	flag.BoolVar(&up, "up", false, "involves creating new tables, columns, or other database structures")
+	flag.BoolVar(&down, "down", false, "involves dropping tables, columns, or other structures")
 	flag.Parse()
 
 	db, err := utils.SetupDatabse()
@@ -72,13 +72,12 @@ func migrate(db *sqlx.DB, action string) (err error) {
 	}
 
 	for _, file := range files {
-		fmt.Println("Executing migration:", file)
+		logger.Info("Executing migration", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration, constants.LoggerFile: file})
 		data, err := ioutil.ReadFile(file)
 		if err != nil {
 			return errors.New("error when read file")
 		}
 
-		fmt.Println(string(data))
 		_, err = db.Exec(string(data))
 		if err != nil {
 			fmt.Println(err)

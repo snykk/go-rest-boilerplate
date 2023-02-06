@@ -14,9 +14,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/internal/http/routes"
 	"github.com/snykk/go-rest-boilerplate/internal/utils"
+	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -26,7 +28,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	// setup databases
-	_, err := utils.SetupDatabse()
+	conn, err := utils.SetupDatabse()
 	if err != nil {
 		return nil, err
 	}
@@ -34,24 +36,24 @@ func NewApp() (*App, error) {
 	// setup router
 	router := setupRouter()
 
-	// // jwt service
-	// jwtService := jwt.NewJWTService()
+	// jwt service
+	jwtService := jwt.NewJWTService()
 
-	// // cache
-	// redisCache := caches.NewRedisCache(config.AppConfig.REDISHost, 0, config.AppConfig.REDISPassword, time.Duration(config.AppConfig.REDISExpired))
-	// ristrettoCache, err := caches.NewRistrettoCache()
+	// cache
+	redisCache := caches.NewRedisCache(config.AppConfig.REDISHost, 0, config.AppConfig.REDISPassword, time.Duration(config.AppConfig.REDISExpired))
+	ristrettoCache, err := caches.NewRistrettoCache()
 	if err != nil {
 		panic(err)
 	}
 
-	// // user middleware
-	// authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
+	// user middleware
+	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
 	// // admin middleware
 	// authAdminMiddleware := middlewares.NewAuthMiddleware(jwtService, true)
 
 	// Routes
 	router.GET("/", routes.RootHandler)
-	// routes.NewUsersRoute(conn, jwtService, redisCache, ristrettoCache, router, authMiddleware).UsersRoute()
+	routes.NewUsersRoute(router, conn, jwtService, redisCache, ristrettoCache, authMiddleware).Routes()
 
 	// setup http server
 	server := &http.Server{
@@ -110,9 +112,9 @@ func setupRouter() *gin.Engine {
 
 	// set up middlewares
 	router.Use(middlewares.CORSMiddleware())
-	if mode == gin.DebugMode {
-		router.Use(gin.LoggerWithFormatter(logger.CustomLogFormatter))
-	}
+	// if mode == gin.DebugMode {
+	router.Use(gin.LoggerWithFormatter(logger.CustomLogFormatter))
+	// }
 	router.Use(gin.Recovery())
 
 	return router

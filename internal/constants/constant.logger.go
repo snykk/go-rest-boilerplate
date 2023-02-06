@@ -7,4 +7,6 @@ const (
 	LoggerCategoryDatabase  = "database"
 	LoggerCategoryHTTP      = "http"
 	LoggerCategoryMigration = "migration"
+
+	LoggerFile = "file"
 )
