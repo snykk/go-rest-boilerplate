@@ -106,9 +106,9 @@ func (a *App) Run() (err error) {
 func setupRouter() *gin.Engine {
 	// set the runtime mode
 	var mode = gin.ReleaseMode
-	// if config.AppConfig.Debug {
-	// 	mode = gin.DebugMode
-	// }
+	if config.AppConfig.Debug {
+		mode = gin.DebugMode
+	}
 	gin.SetMode(mode)
 
 	// create a new router instance
@@ -116,9 +116,7 @@ func setupRouter() *gin.Engine {
 
 	// set up middlewares
 	router.Use(middlewares.CORSMiddleware())
-	// if mode == gin.DebugMode {
 	router.Use(gin.LoggerWithFormatter(logger.HTTPLogger))
-	// }
 	router.Use(gin.Recovery())
 
 	return router

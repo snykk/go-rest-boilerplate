@@ -3,7 +3,7 @@ package responses
 import (
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/domains"
+	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 )
 
 type UserResponse struct {
@@ -17,8 +17,8 @@ type UserResponse struct {
 	UpdatedAt *time.Time `json:"updated_at"`
 }
 
-func (u *UserResponse) ToDomain() domains.UserDomain {
-	return domains.UserDomain{
+func (u *UserResponse) ToV1Domain() V1Domains.UserDomain {
+	return V1Domains.UserDomain{
 		ID:        u.Id,
 		Username:  u.Username,
 		Password:  u.Password,
@@ -29,7 +29,7 @@ func (u *UserResponse) ToDomain() domains.UserDomain {
 	}
 }
 
-func FromDomain(u domains.UserDomain) UserResponse {
+func FromV1Domain(u V1Domains.UserDomain) UserResponse {
 	return UserResponse{
 		Id:        u.ID,
 		Username:  u.Username,
@@ -42,11 +42,11 @@ func FromDomain(u domains.UserDomain) UserResponse {
 	}
 }
 
-func ToResponseList(domains []domains.UserDomain) []UserResponse {
+func ToResponseList(domains []V1Domains.UserDomain) []UserResponse {
 	var result []UserResponse
 
 	for _, val := range domains {
-		result = append(result, FromDomain(val))
+		result = append(result, FromV1Domain(val))
 	}
 
 	return result

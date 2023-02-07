@@ -2,8 +2,6 @@ package records
 
 import (
 	"time"
-
-	"github.com/snykk/go-rest-boilerplate/internal/business/domains"
 )
 
 type Users struct {
@@ -18,38 +16,3 @@ type Users struct {
 	DeletedAt *time.Time `db:"deleted_at"`
 }
 
-func (u *Users) ToDomain() domains.UserDomain {
-	return domains.UserDomain{
-		ID:        u.Id,
-		Username:  u.Username,
-		Email:     u.Email,
-		Password:  u.Password,
-		Active:    u.Active,
-		RoleID:    u.RoleId,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
-	}
-}
-
-func FromUsersDomain(u *domains.UserDomain) Users {
-	return Users{
-		Id:        u.ID,
-		Username:  u.Username,
-		Email:     u.Email,
-		Password:  u.Password,
-		Active:    u.Active,
-		RoleId:    u.RoleID,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
-	}
-}
-
-func ToArrayOfUsersDomain(u *[]Users) []domains.UserDomain {
-	var result []domains.UserDomain
-
-	for _, val := range *u {
-		result = append(result, val.ToDomain())
-	}
-
-	return result
-}

@@ -1,11 +1,11 @@
-package handlers
+package v1
 
 import (
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/snykk/go-rest-boilerplate/internal/business/domains"
+	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
@@ -13,12 +13,12 @@ import (
 )
 
 type UserHandler struct {
-	usecase        domains.UserUsecase
+	usecase        V1Domains.UserUsecase
 	redisCache     caches.RedisCache
 	ristrettoCache caches.RistrettoCache
 }
 
-func NewUserHandler(usecase domains.UserUsecase, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache) UserHandler {
+func NewUserHandler(usecase V1Domains.UserUsecase, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache) UserHandler {
 	return UserHandler{
 		usecase:        usecase,
 		redisCache:     redisCache,
@@ -38,7 +38,7 @@ func (userH UserHandler) Regis(ctx *gin.Context) {
 		return
 	}
 
-	userDomain := UserRegisRequest.ToDomain()
+	userDomain := UserRegisRequest.ToV1Domain()
 	userDomainn, statusCode, err := userH.usecase.Store(ctx.Request.Context(), userDomain)
 	fmt.Println(userDomain, statusCode, err)
 	if err != nil {
@@ -47,7 +47,7 @@ func (userH UserHandler) Regis(ctx *gin.Context) {
 	}
 
 	NewSuccessResponse(ctx, statusCode, "registration user success", map[string]interface{}{
-		"user": responses.FromDomain(userDomainn),
+		"user": responses.FromV1Domain(userDomainn),
 	})
 }
 
@@ -63,13 +63,13 @@ func (userH UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	userDomain, statusCode, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToDomain())
+	userDomain, statusCode, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
 	if err != nil {
 		NewErrorResponse(ctx, statusCode, err.Error())
 		return
 	}
 
-	NewSuccessResponse(ctx, statusCode, "login success", responses.FromDomain(userDomain))
+	NewSuccessResponse(ctx, statusCode, "login success", responses.FromV1Domain(userDomain))
 }
 
 func (userH UserHandler) SendOTP(ctx *gin.Context) {
