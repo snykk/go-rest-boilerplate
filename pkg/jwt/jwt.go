@@ -5,7 +5,6 @@ import (
 	"time"
 
 	driJWT "github.com/dgrijalva/jwt-go"
-	"github.com/snykk/go-rest-boilerplate/internal/config"
 )
 
 type JWTService interface {
@@ -24,27 +23,14 @@ type JwtCustomClaim struct {
 type jwtService struct {
 	secretKey string
 	issuer    string
+	expired   int
 }
 
-func NewJWTService() JWTService {
-	issuer, secretKey := getConfigClaims()
+func NewJWTService(secretKey, issuer string, expired int) JWTService {
 	return &jwtService{
 		issuer:    issuer,
 		secretKey: secretKey,
 	}
-}
-
-// defautt value if config is not exists
-func getConfigClaims() (issuer string, secretKey string) {
-	issuer = config.AppConfig.JWTIssuer
-	secretKey = config.AppConfig.JWTSecret
-	if issuer == "" {
-		issuer = "john-doe"
-	}
-	if secretKey == "" {
-		secretKey = "this-is-not-secret-anymore-mwuehehe"
-	}
-	return
 }
 
 func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string, password string) (t string, err error) {
@@ -54,7 +40,7 @@ func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string, pa
 		email,
 		password,
 		driJWT.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * time.Duration(config.AppConfig.JWTExpired)).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * time.Duration(j.expired)).Unix(),
 			Issuer:    j.issuer,
 			IssuedAt:  time.Now().Unix(),
 		},

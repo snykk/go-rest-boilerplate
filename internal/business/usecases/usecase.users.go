@@ -11,17 +11,20 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
+	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 )
 
 type userUsecase struct {
 	jwtService jwt.JWTService
 	repo       domains.UserRepository
+	mailer     mailer.OTPMailer
 }
 
-func NewUserUsecase(repo domains.UserRepository, jwtService jwt.JWTService) domains.UserUsecase {
+func NewUserUsecase(repo domains.UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer) domains.UserUsecase {
 	return &userUsecase{
 		repo:       repo,
 		jwtService: jwtService,
+		mailer:     mailer,
 	}
 }
 
@@ -83,12 +86,12 @@ func (userUC *userUsecase) SendOTP(ctx context.Context, email string) (otpCode s
 		return "", http.StatusBadRequest, errors.New("account already activated")
 	}
 
-	code, err := helpers.GenerateCode(6)
+	code, err := helpers.GenerateOTPCode(6)
 	if err != nil {
 		return "", http.StatusInternalServerError, err
 	}
 
-	if err = helpers.SendOTP(code, email); err != nil {
+	if err = userUC.mailer.SendOTP(code, email); err != nil {
 		return "", http.StatusInternalServerError, err
 	}
 

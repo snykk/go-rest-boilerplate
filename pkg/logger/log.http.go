@@ -12,7 +12,7 @@ const (
 	green  = "42"
 )
 
-func CustomLogFormatter(param gin.LogFormatterParams) string {
+func HTTPLogger(param gin.LogFormatterParams) string {
 	var color string
 	switch {
 	case param.StatusCode >= 500:

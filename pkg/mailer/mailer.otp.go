@@ -1,20 +1,28 @@
-package helpers
+package mailer
 
 import (
-	"crypto/rand"
 	"fmt"
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/config"
 	gomail "gopkg.in/mail.v2"
 )
 
-const otpPayloads = "0123456789"
+type OTPMailer struct {
+	email    string
+	password string
+}
 
-func SendOTP(code string, receiver string) (err error) {
+func NewOTPMailer(email, password string) OTPMailer {
+	return OTPMailer{
+		email:    email,
+		password: password,
+	}
+}
+
+func (mailer *OTPMailer) SendOTP(otpCode string, receiver string) (err error) {
 	now := time.Now()
 	configMessage := gomail.NewMessage()
-	configMessage.SetHeader("From", config.AppConfig.OTPEmail)
+	configMessage.SetHeader("From", mailer.email)
 	configMessage.SetHeader("To", receiver)
 	configMessage.SetHeader("Subject", "Verification Email")
 	configMessage.SetBody("text/html",
@@ -25,7 +33,7 @@ func SendOTP(code string, receiver string) (err error) {
 			</div>
 			<p style="font-size:1.1em">Hi,</p>
 			<p>Thank you for choosing Our Services. Use the following OTP to complete your Sign Up procedures. OTP is valid for 5 minutes</p>
-			<h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">`+code+`</h2>
+			<h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">`+otpCode+`</h2>
 			<p style="font-size:0.9em;">Regards,<br />Go Rest boilerplate</p>
 			<hr style="border:none;border-top:1px solid #eee" />
 			<div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300">
@@ -36,23 +44,8 @@ func SendOTP(code string, receiver string) (err error) {
 		</div>
 		`)
 
-	dialer := gomail.NewDialer("smtp.gmail.com", 587, config.AppConfig.OTPEmail, config.AppConfig.OTPPassword)
+	dialer := gomail.NewDialer("smtp.gmail.com", 587, mailer.email, mailer.password)
 
 	err = dialer.DialAndSend(configMessage)
 	return
-}
-
-func GenerateCode(length int) (string, error) {
-	buffer := make([]byte, length)
-	_, err := rand.Read(buffer)
-	if err != nil {
-		return "", err
-	}
-
-	otpCharsLength := len(otpPayloads)
-	for i := 0; i < length; i++ {
-		buffer[i] = otpPayloads[int(buffer[i])%otpCharsLength]
-	}
-
-	return string(buffer), nil
 }

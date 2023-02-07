@@ -20,6 +20,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/utils"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
+	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 )
 
 type App struct {
@@ -37,7 +38,7 @@ func NewApp() (*App, error) {
 	router := setupRouter()
 
 	// jwt service
-	jwtService := jwt.NewJWTService()
+	jwtService := jwt.NewJWTService(config.AppConfig.JWTSecret, config.AppConfig.JWTIssuer, config.AppConfig.JWTExpired)
 
 	// cache
 	redisCache := caches.NewRedisCache(config.AppConfig.REDISHost, 0, config.AppConfig.REDISPassword, time.Duration(config.AppConfig.REDISExpired))
@@ -46,6 +47,9 @@ func NewApp() (*App, error) {
 		panic(err)
 	}
 
+	// mailer
+	mailerService := mailer.NewOTPMailer(config.AppConfig.OTPEmail, config.AppConfig.OTPPassword)
+
 	// user middleware
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
 	// // admin middleware
@@ -53,7 +57,7 @@ func NewApp() (*App, error) {
 
 	// Routes
 	router.GET("/", routes.RootHandler)
-	routes.NewUsersRoute(router, conn, jwtService, redisCache, ristrettoCache, authMiddleware).Routes()
+	routes.NewUsersRoute(router, conn, jwtService, redisCache, ristrettoCache, authMiddleware, mailerService).Routes()
 
 	// setup http server
 	server := &http.Server{
@@ -113,7 +117,7 @@ func setupRouter() *gin.Engine {
 	// set up middlewares
 	router.Use(middlewares.CORSMiddleware())
 	// if mode == gin.DebugMode {
-	router.Use(gin.LoggerWithFormatter(logger.CustomLogFormatter))
+	router.Use(gin.LoggerWithFormatter(logger.HTTPLogger))
 	// }
 	router.Use(gin.Recovery())
 

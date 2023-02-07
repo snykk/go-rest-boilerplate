@@ -8,6 +8,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres"
 	"github.com/snykk/go-rest-boilerplate/internal/http/handlers"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
+	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 )
 
 type usersRoutes struct {
@@ -17,9 +18,9 @@ type usersRoutes struct {
 	authMiddleware gin.HandlerFunc
 }
 
-func NewUsersRoute(router *gin.Engine, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc) *usersRoutes {
+func NewUsersRoute(router *gin.Engine, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer) *usersRoutes {
 	userRepository := postgres.NewUserRepository(db)
-	userUsecase := usecases.NewUserUsecase(userRepository, jwtService)
+	userUsecase := usecases.NewUserUsecase(userRepository, jwtService, mailer)
 	UserHandler := handlers.NewUserHandler(userUsecase, redisCache, ristrettoCache)
 
 	return &usersRoutes{handlers: UserHandler, router: router, db: db, authMiddleware: authMiddleware}
