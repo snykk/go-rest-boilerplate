@@ -9,12 +9,12 @@ import (
 )
 
 type JWTService interface {
-	GenerateToken(bookID int, isAdmin bool, email string, password string) (t string, err error)
+	GenerateToken(userId string, isAdmin bool, email string, password string) (t string, err error)
 	ParseToken(tokenString string) (claims JwtCustomClaim, err error)
 }
 
 type JwtCustomClaim struct {
-	UserID   int
+	UserID   string
 	IsAdmin  bool
 	Email    string
 	Password string
@@ -47,7 +47,7 @@ func getConfigClaims() (issuer string, secretKey string) {
 	return
 }
 
-func (j *jwtService) GenerateToken(userID int, isAdmin bool, email string, password string) (t string, err error) {
+func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string, password string) (t string, err error) {
 	claims := &JwtCustomClaim{
 		userID,
 		isAdmin,

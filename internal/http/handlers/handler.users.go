@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -37,9 +38,9 @@ func (userH UserHandler) Regis(ctx *gin.Context) {
 		return
 	}
 
-	ctxx := ctx.Request.Context()
 	userDomain := UserRegisRequest.ToDomain()
-	userDomainn, statusCode, err := userH.usecase.Store(ctxx, userDomain)
+	userDomainn, statusCode, err := userH.usecase.Store(ctx.Request.Context(), userDomain)
+	fmt.Println(userDomain, statusCode, err)
 	if err != nil {
 		NewErrorResponse(ctx, statusCode, err.Error())
 		return
@@ -51,12 +52,85 @@ func (userH UserHandler) Regis(ctx *gin.Context) {
 }
 
 func (userH UserHandler) Login(ctx *gin.Context) {
+	var UserLoginRequest requests.UserLoginRequest
+	if err := ctx.ShouldBindJSON(&UserLoginRequest); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
 
+	if err := validators.ValidatePayloads(UserLoginRequest); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	userDomain, statusCode, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToDomain())
+	if err != nil {
+		NewErrorResponse(ctx, statusCode, err.Error())
+		return
+	}
+
+	NewSuccessResponse(ctx, statusCode, "login success", responses.FromDomain(userDomain))
 }
 
 func (userH UserHandler) SendOTP(ctx *gin.Context) {
+	var userOTP requests.UserSendOTPRequest
 
+	if err := ctx.ShouldBindJSON(&userOTP); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := validators.ValidatePayloads(userOTP); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	otpCode, statusCode, err := userH.usecase.SendOTP(ctx.Request.Context(), userOTP.Email)
+	if err != nil {
+		NewErrorResponse(ctx, statusCode, err.Error())
+		return
+	}
+
+	otpKey := fmt.Sprintf("user_otp:%s", userOTP.Email)
+	go userH.redisCache.Set(otpKey, otpCode)
+
+	NewSuccessResponse(ctx, statusCode, fmt.Sprintf("otp code has been send to %s", userOTP.Email), nil)
 }
-func (userH UserHandler) VerifOTP(ctx *gin.Context) {
 
+func (userH UserHandler) VerifOTP(ctx *gin.Context) {
+	var userOTP requests.UserVerifOTPRequest
+
+	if err := ctx.ShouldBindJSON(&userOTP); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := validators.ValidatePayloads(userOTP); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	otpKey := fmt.Sprintf("user_otp:%s", userOTP.Email)
+	otpRedis, err := userH.redisCache.Get(otpKey)
+	if err != nil {
+		NewErrorResponse(ctx, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	statusCode, err := userH.usecase.VerifOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code, otpRedis)
+	if err != nil {
+		NewErrorResponse(ctx, statusCode, err.Error())
+		return
+	}
+
+	statusCode, err = userH.usecase.ActivateUser(ctx.Request.Context(), userOTP.Email)
+	if err != nil {
+		NewErrorResponse(ctx, statusCode, err.Error())
+		return
+	}
+
+	go userH.redisCache.Del(otpKey)
+	go userH.ristrettoCache.Del("users")
+
+	NewSuccessResponse(ctx, statusCode, "otp verification success", nil)
 }

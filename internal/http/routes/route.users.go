@@ -19,7 +19,7 @@ type usersRoutes struct {
 
 func NewUsersRoute(router *gin.Engine, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc) *usersRoutes {
 	userRepository := postgres.NewUserRepository(db)
-	userUsecase := usecases.NewUserUsecase(userRepository)
+	userUsecase := usecases.NewUserUsecase(userRepository, jwtService)
 	UserHandler := handlers.NewUserHandler(userUsecase, redisCache, ristrettoCache)
 
 	return &usersRoutes{handlers: UserHandler, router: router, db: db, authMiddleware: authMiddleware}

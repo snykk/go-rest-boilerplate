@@ -22,7 +22,7 @@ func CustomLogFormatter(param gin.LogFormatterParams) string {
 	default:
 		color = green
 	}
-	return fmt.Sprintf("[LOGGER] [%s] \033[%sm %d \033[0m %s %s %d %s %s %s\n",
+	return fmt.Sprintf("[LOGGING HTTP] [%s] \033[%sm %d \033[0m %s %s %d %s %s %s\n",
 		param.TimeStamp.Format("2006-01-02 15:04:05"),
 		color,
 		param.StatusCode,

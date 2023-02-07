@@ -38,7 +38,7 @@ func ValidatePayloads(payload interface{}) (err error) {
 			}
 
 			if value != "" {
-				value = fmt.Sprintf("\"%s\" ", value)
+				value = fmt.Sprintf("'%s' ", value)
 			}
 			message = fmt.Sprintf("%s: %s%s", strings.ToLower(field), value, mapHelepr[tag])
 		}
@@ -57,8 +57,8 @@ func errWithParam(field, value, tag, param string) string {
 	case "max":
 		message = fmt.Sprintf("must be less than %s characters", param)
 	case "containsany":
-		message = fmt.Sprintf("must contain at least one symbol of \"%s\"", param)
+		message = fmt.Sprintf("must contain at least one symbol of '%s'", param)
 	}
 
-	return fmt.Sprintf("%s: \"%s\" %s", field, value, message)
+	return fmt.Sprintf("%s: '%s' %s", field, value, message)
 }

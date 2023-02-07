@@ -1,1 +1,40 @@
+### GET A ROOT ENDPOINT
 GET http://localhost:8080/
+
+### REGISTRATION FOR NEW USER
+POST http://localhost:8080/auth/regis
+Content-Type: application/json
+
+{
+  "username": "najibfikri",
+  "email": "najibfikri26@gmail.com",
+  "password":"123123sdf!"
+}
+
+### Send OTP 
+POST http://localhost:8080/auth/send-otp
+Content-Type: application/json
+
+{
+  "email": "najibfikri26@gmail.com"
+}
+
+
+### Verif OTP 
+POST http://localhost:8080/auth/verif-otp
+Content-Type: application/json
+
+{
+  "email": "najibfikri26@gmail.com",
+  "code":"102429"
+}
+
+
+### Login 
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "najibfikri26@gmail.com",
+  "password":"123123sdf!"
+}

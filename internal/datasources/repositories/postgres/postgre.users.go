@@ -21,7 +21,7 @@ func NewUserRepository(conn *sqlx.DB) domains.UserRepository {
 func (r *postgreUserRepository) Store(ctx context.Context, inDom *domains.UserDomain) (err error) {
 	userRecord := records.FromUsersDomain(inDom)
 
-	_, err = r.conn.NamedQueryContext(ctx, `INSERT INTO users(id, username, email, password, active, created_at) VALUES (uuid_generate_v4(), :username, :email, :password, false, :created_at)`, userRecord)
+	_, err = r.conn.NamedQueryContext(ctx, `INSERT INTO users(id, username, email, password, active, role_id, created_at) VALUES (uuid_generate_v4(), :username, :email, :password, false, :role_id, :created_at)`, userRecord)
 	if err != nil {
 		return err
 	}
@@ -38,4 +38,12 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *domains.U
 	}
 
 	return userRecord.ToDomain(), nil
+}
+
+func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *domains.UserDomain) (err error) {
+	userRecord := records.FromUsersDomain(inDom)
+
+	_, err = r.conn.NamedQueryContext(ctx, `UPDATE users SET active = :active WHERE id = :id`, userRecord)
+
+	return
 }
