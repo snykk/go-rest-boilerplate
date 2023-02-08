@@ -7,19 +7,23 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
-type OTPMailer struct {
+type OTPMailer interface {
+	SendOTP(otpCode string, receiver string) (err error)
+}
+
+type otpMailer struct {
 	email    string
 	password string
 }
 
 func NewOTPMailer(email, password string) OTPMailer {
-	return OTPMailer{
+	return &otpMailer{
 		email:    email,
 		password: password,
 	}
 }
 
-func (mailer *OTPMailer) SendOTP(otpCode string, receiver string) (err error) {
+func (mailer *otpMailer) SendOTP(otpCode string, receiver string) (err error) {
 	now := time.Now()
 	configMessage := gomail.NewMessage()
 	configMessage.SetHeader("From", mailer.email)

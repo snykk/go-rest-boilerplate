@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	domains "github.com/snykk/go-rest-boilerplate/internal/business/domains"
+	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -15,11 +15,11 @@ type UserRepository struct {
 }
 
 // ChangeActiveUser provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *domains.UserDomain) error {
+func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *V1Domains.UserDomain) error {
 	ret := _m.Called(ctx, inDom)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domains.UserDomain) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *V1Domains.UserDomain) error); ok {
 		r0 = rf(ctx, inDom)
 	} else {
 		r0 = ret.Error(0)
@@ -29,18 +29,18 @@ func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *domains.U
 }
 
 // GetByEmail provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *domains.UserDomain) (domains.UserDomain, error) {
+func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {
 	ret := _m.Called(ctx, inDom)
 
-	var r0 domains.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, *domains.UserDomain) domains.UserDomain); ok {
+	var r0 V1Domains.UserDomain
+	if rf, ok := ret.Get(0).(func(context.Context, *V1Domains.UserDomain) V1Domains.UserDomain); ok {
 		r0 = rf(ctx, inDom)
 	} else {
-		r0 = ret.Get(0).(domains.UserDomain)
+		r0 = ret.Get(0).(V1Domains.UserDomain)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *domains.UserDomain) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *V1Domains.UserDomain) error); ok {
 		r1 = rf(ctx, inDom)
 	} else {
 		r1 = ret.Error(1)
@@ -50,11 +50,11 @@ func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *domains.UserDom
 }
 
 // Store provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) Store(ctx context.Context, inDom *domains.UserDomain) error {
+func (_m *UserRepository) Store(ctx context.Context, inDom *V1Domains.UserDomain) error {
 	ret := _m.Called(ctx, inDom)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domains.UserDomain) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *V1Domains.UserDomain) error); ok {
 		r0 = rf(ctx, inDom)
 	} else {
 		r0 = ret.Error(0)

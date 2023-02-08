@@ -1,8 +1,16 @@
 package helpers
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"errors"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 func GenerateHash(passwd string) (string, error) {
+	if passwd == "" {
+		return "", errors.New("password cannot empty")
+	}
+
 	result, err := bcrypt.GenerateFromPassword([]byte(passwd), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err

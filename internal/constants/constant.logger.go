@@ -7,6 +7,14 @@ const (
 	LoggerCategoryDatabase  = "database"
 	LoggerCategoryHTTP      = "http"
 	LoggerCategoryMigration = "migration"
+	LoggerCategoryCORS      = "cors"
 
 	LoggerFile = "file"
+)
+
+// color ascii
+const (
+	Red    = "41"
+	Yellow = "43"
+	Green  = "42"
 )
