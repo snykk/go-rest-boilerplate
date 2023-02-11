@@ -17,3 +17,7 @@ mig-up:
 	go run cmd/migration/main.go -up
 mig-down:
 	go run cmd/migration/main.go -down
+coverage:
+	go test -v ./...
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
