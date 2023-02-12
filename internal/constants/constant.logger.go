@@ -8,6 +8,7 @@ const (
 	LoggerCategoryHTTP      = "http"
 	LoggerCategoryMigration = "migration"
 	LoggerCategoryCORS      = "cors"
+	LoggerCategorySeeder    = "seeder"
 
 	LoggerFile = "file"
 )

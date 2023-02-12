@@ -17,7 +17,7 @@ A boilerplate for creating RESTful APIs in Go using Gin framework, and sqlx for 
 
 ##### Prerequisites
 
--   Go version 1.62 or higher
+-   Go version 1.17 or higher
 -   PostgreSQL version 9.1 or higher
 
 To get up and running with the Go-REST-Boilerplate, follow these simple steps:
