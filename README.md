@@ -1,6 +1,6 @@
 # go-rest-boilerplate
 
-A boilerplate for creating RESTful APIs in Go using Gin framework, and sqlx for connecting to a PostgreSQL database. The implementation follows Clean Architecture principles as described by Uncle Bob.
+A great starting point for building RESTful APIs in Go using Gin framework, and sqlx for connecting to a PostgreSQL database. The implementation follows Clean Architecture principles as described by Uncle Bob.
 
 ### Features
 
@@ -51,7 +51,7 @@ PostgreSQL
 ##### JWT
 
 -   `JWT_SECRET`: The secret key used to sign and verify JWT tokens (defaults to "dont-tuch-mytralalala-mydangdingdong")
--   `JWT_EXPIRED`: The number of minutes until JWT tokens expire (defaults to 5)
+-   `JWT_EXPIRED`: The number of hours until JWT tokens expire (defaults to 5)
 -   `JWT_ISSUER`: The issuer of JWT tokens (defaults to "snykk_here")
 
 ##### OTP
@@ -156,7 +156,7 @@ root/
 
 ##### `cmd` folder
 
-This folder contains all the entry points of the application. There are three sub-folders in the `cmd` folder:
+This folder contains all the entry points of the application. There are four sub-folders in the `cmd` folder:
 
 -   `api`: This folder contains the main entry point of the REST API server. The `main.go` file in the `server` sub-folder is responsible for starting the server and setting up all the necessary routes.
 
@@ -208,8 +208,8 @@ This folder contains all the business logic and other implementation details of 
 -   `http` folder
 
     -   `datatransfers` folder: This folder contains the implementation of data transfer objects, such as request and response objects.
-    -   `handlers` folder: This folder contains the implementation of HTTP handlers, which handle incoming HTTP requests.
-    -   `middlewares` folder: This folder contains the implementation of middlewares, which are executed before and after the request is handled by the handler.
+    -   `handlers` folder: This folder contains the implementation of HTTP handlers, which handle incoming HTTP requests and send responses back to the client.
+    -   `middlewares` folder: This folder contains the implementation of middlewares, which are executed before the request is handled by the handler.
     -   `routes` folder: This folder contains the implementation of routes, which map URLs to handlers.
 
 -   `mocks` folder
