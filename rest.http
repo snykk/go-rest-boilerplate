@@ -1,5 +1,5 @@
 ### GET A ROOT ENDPOINT
-GET http://localhost:8080/
+GET http://localhost:8080/api/
 
 ### REGISTRATION FOR NEW USER
 POST http://localhost:8080/api/v1/auth/regis
@@ -11,7 +11,7 @@ Content-Type: application/json
   "password":"123123sdf!"
 }
 
-### Send OTP 
+### SEND OTP 
 POST http://localhost:8080/api/v1/auth/send-otp
 Content-Type: application/json
 
@@ -20,7 +20,7 @@ Content-Type: application/json
 }
 
 
-### Verif OTP 
+### VERIF OTP 
 POST http://localhost:8080/api/v1/auth/verif-otp
 Content-Type: application/json
 
@@ -30,7 +30,7 @@ Content-Type: application/json
 }
 
 
-### Login 
+### LOGIN 
 POST http://localhost:8080/api/v1/auth/login
 Content-Type: application/json
 

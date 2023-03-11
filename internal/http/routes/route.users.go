@@ -13,12 +13,12 @@ import (
 
 type usersRoutes struct {
 	V1Handler      V1Handler.UserHandler
-	router         *gin.Engine
+	router         *gin.RouterGroup
 	db             *sqlx.DB
 	authMiddleware gin.HandlerFunc
 }
 
-func NewUsersRoute(router *gin.Engine, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer) *usersRoutes {
+func NewUsersRoute(router *gin.RouterGroup, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer) *usersRoutes {
 	V1UserRepository := V1PostgresRepository.NewUserRepository(db)
 	V1UserUsecase := V1Usecase.NewUserUsecase(V1UserRepository, jwtService, mailer)
 	V1UserHandler := V1Handler.NewUserHandler(V1UserUsecase, redisCache, ristrettoCache)
@@ -28,7 +28,7 @@ func NewUsersRoute(router *gin.Engine, db *sqlx.DB, jwtService jwt.JWTService, r
 
 func (r *usersRoutes) Routes() {
 	// Routes V1
-	V1Route := r.router.Group("/api/v1")
+	V1Route := r.router.Group("/v1")
 	{
 		// auth
 		V1AuhtRoute := V1Route.Group("/auth")

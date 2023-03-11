@@ -29,7 +29,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	// setup databases
-	conn, err := utils.SetupDatabse()
+	conn, err := utils.SetupDatabase()
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +58,14 @@ func NewApp() (*App, error) {
 	// only user with valid admin token can access endpoint
 	_ = middlewares.NewAuthMiddleware(jwtService, true)
 
-	// Routes
-	router.GET("/", routes.RootHandler)
-	routes.NewUsersRoute(router, conn, jwtService, redisCache, ristrettoCache, authMiddleware, mailerService).Routes()
+	// API Routes
+	api := router.Group("api")
+	api.GET("/", routes.RootHandler)
+	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, mailerService).Routes()
+
+	// we can add web pages if needed
+	// web := router.Group("web")
+	// ...
 
 	// setup http server
 	server := &http.Server{
