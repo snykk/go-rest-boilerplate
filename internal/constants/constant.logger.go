@@ -12,10 +12,3 @@ const (
 
 	LoggerFile = "file"
 )
-
-// color ascii
-const (
-	Red    = "41"
-	Yellow = "43"
-	Green  = "42"
-)

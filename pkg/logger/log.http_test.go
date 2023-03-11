@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,11 +34,11 @@ func TestHTTPLogger(t *testing.T) {
 	var color string
 	switch {
 	case sampleParams.StatusCode >= 500:
-		color = constants.Red
+		color = logger.Red
 	case sampleParams.StatusCode >= 400:
-		color = constants.Yellow
+		color = logger.Yellow
 	default:
-		color = constants.Green
+		color = logger.Green
 	}
 
 	// Call the CustomLogFormatter function
