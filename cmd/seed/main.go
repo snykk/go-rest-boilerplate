@@ -18,7 +18,7 @@ func init() {
 }
 
 func main() {
-	db, err := utils.SetupDatabse()
+	db, err := utils.SetupPostgresConnection()
 	if err != nil {
 		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 	}

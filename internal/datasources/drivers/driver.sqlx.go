@@ -11,8 +11,8 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
-// DBConfig holds the configuration for the database instance
-type DBConfig struct {
+// SQLXConfig holds the configuration for the database instance
+type SQLXConfig struct {
 	DriverName     string
 	DataSourceName string
 	MaxOpenConns   int
@@ -20,8 +20,8 @@ type DBConfig struct {
 	MaxLifetime    time.Duration
 }
 
-// InitializeDatabase returns a new DBInstance
-func (config *DBConfig) InitializeDatabase() (*sqlx.DB, error) {
+// InitializeSQLXDatabase returns a new DBInstance
+func (config *SQLXConfig) InitializeSQLXDatabase() (*sqlx.DB, error) {
 	db, err := sqlx.Open(config.DriverName, config.DataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("error opening database: %v", err)

@@ -37,7 +37,7 @@ func main() {
 	flag.BoolVar(&down, "down", false, "involves dropping tables, columns, or other structures")
 	flag.Parse()
 
-	db, err := utils.SetupDatabse()
+	db, err := utils.SetupPostgresConnection()
 	if err != nil {
 		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 	}

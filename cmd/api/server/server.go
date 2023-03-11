@@ -29,7 +29,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	// setup databases
-	conn, err := utils.SetupDatabase()
+	conn, err := utils.SetupPostgresConnection()
 	if err != nil {
 		return nil, err
 	}
