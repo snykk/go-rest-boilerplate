@@ -1,0 +1,452 @@
+swagger: '2.0'
+info:
+  description: A starting point for building RESTful APIs 
+  version: 1.0.0
+  title: Go Rest Boilerplate
+  
+  contact:
+    email: najibfikri13@gmail.com
+
+  license:
+    name: MIT License
+    url: https://github.com/snykk/go-rest-boilerplate/blob/master/LICENSE
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+
+
+tags:
+- name: Auth
+- name: User
+paths:
+  /api/v1/auth/regis:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: |
+        Use this endpoint to register a new user with the application.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          description: JSON object containing user registration information
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              email:
+                type: string
+              password:
+                type: string
+      responses:
+        '201':
+          description: User registration successful
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: registration user success
+              data:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: 0c360f23-d339-499c-a4fe-841daa499aab
+                      username:
+                        type: string
+                        example: patrickstar
+                      email:
+                        type: string
+                        example: patrickstar@gmail.com
+                      password:
+                        type: string
+                        example: $2a$10$PHRsgqe69m069qZe0rprpuhz7T.MjjDadLm.PcVczjgBy7KRjzki6
+                      role_id:
+                        type: integer
+                        example: 2
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2023-04-26T11:15:37.642067+07:00"
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: null
+        '400':
+          description: Bad request (when error happen in user request)
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some messages
+        '500':
+          description: Error from server
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some error messages
+  /api/v1/auth/send-otp:
+    post:
+      tags:
+        - Auth
+      summary: Send otp code to user email
+      description: |
+        Use this endpoint to send otp code to user email using smtp mailer
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          description: JSON object containing send otp payload information
+          required: true
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+      responses:
+        '200':
+          description: Send otp code success
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: otp code has been send to najibfikri13@gmail.com
+        '400':
+          description: Bad request (when error happen in user request)
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some messages
+        '404':
+          description: Email is not registered in application
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: email not found
+        '500':
+          description: Error from server
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some error messages
+  /api/v1/auth/verif-otp:
+    post:
+      tags:
+        - Auth
+      summary: Verif otp code that have been send
+      description: |
+        Use this endpoint to verif otp code that have been send to the user email
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          description: JSON object containing verif otp payload information
+          required: true
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+              code:
+                type: string
+      responses:
+        '200':
+          description: Success to verify otp code
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: otp verification success
+        '400':
+          description: Bad request (when error happen in user request)
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some messages
+        '404':
+          description: Email is not registered in application
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: email not found
+        '500':
+          description: Error from server
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some error messages
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in to get the token
+      description: |
+        Use this endpoint to log in to the application and obtain an access token.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          description: JSON object containing user login information
+          required: true
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+              password:
+                type: string
+      responses:
+        '200':
+          description: User login successful
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: login success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: 0c360f23-d339-499c-a4fe-841daa499aab
+                  username:
+                    type: string
+                    example: patrickstar
+                  email:
+                    type: string
+                    example: patrickstar@gmail.com
+                  password:
+                    type: string
+                    example: $2a$10$PHRsgqe69m069qZe0rprpuhz7T.MjjDadLm.PcVczjgBy7KRjzki6
+                  role_id:
+                    type: integer
+                    example: 2
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySUQiOiJiYTEyM2EwNS0yYzcwLTQ2MGQtODRkOS1lNmViMzFkODBhNmEiLCJJc0FkbWluIjpmYWxzZSwiRW1haWwiOiJuYWppYmZpa3JpMjZAZ21haWwuY29tIiwiUGFzc3dvcmQiOiIkMmEkMTAkSVd5M0FBaThxUnZWZlcydFgzSHdBdUZEenE5ZGRIVi5WTElhVTVObm5UbVd5LlZ5RmowTEciLCJleHAiOjE2ODI1MDA5NTAsImlhdCI6MTY4MjQ4Mjk1MCwiaXNzIjoiaXRzbWVfc255a2sifQ.F_krVv5LTWLO4VdmzP6BEdALsKWzi2VtWS614Io1fjs
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "2023-04-20T22:11:41.266758+07:00"
+                  updated_at:
+                    type: string
+                    format: date-time
+                    example: null
+        '400':
+          description: Bad request (when error happen in user request)
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some messages
+        '401':
+          description: Email or password is not valid
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: invalid email or password
+        '403':
+          description: User account is not activated
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: account is not activated
+        '500':
+          description: Error from server
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some error messages
+  /api/v1/users/me:
+    get:
+      tags:
+        - User
+      summary: "Get information of authenticated user"
+      description: "Retrieve information of authenticated user based on token passed in Authorization header"
+      produces:
+        - "application/json"
+      security:
+        - Bearer: []
+      responses:
+        '200':
+          description: "Success"
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+              message:
+                type: string
+                example: user data fetched successfully
+              data:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      username:
+                        type: string
+                      email:
+                        type: string
+                      password:
+                        type: string
+                      role_id:
+                        type: integer
+                      created_at:
+                        type: string
+                      updated_at:
+                        type: string
+                    example:
+                      id: "ba123a05-2c70-460d-84d9-e6eb31d80a6a"
+                      username: "najibfikri"
+                      email: "najibfikri26@gmail.com"
+                      password: "$2a$10$IWy3AAi8qRvVfW2tX3HwAuFDzq9ddHV.VLIaU5NnnTmWy.VyFj0LG"
+                      role_id: 2
+                      created_at: "2023-04-20T22:11:41.266758+07:00"
+                      updated_at: null
+        '500':
+          description: Error from server
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: some error messages
+
+  
+definitions:
+  User:
+    required:
+     - id
+     - role_id
+     - username
+     - email
+     - password
+     - active
+     - created_at
+    type: object
+    properties:
+      id:
+        type: integer
+        format: uuid
+      role_id:
+        type: integer
+        format: int64
+      username:
+        type: string
+      email:
+        type: string
+        format: email
+      password:
+        type: string
+        format: password
+      active:
+        type: boolean
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+      deleted_at:
+        type: string
+        format: date-time
