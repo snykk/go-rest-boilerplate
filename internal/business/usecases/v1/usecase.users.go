@@ -127,3 +127,12 @@ func (userUC *userUsecase) ActivateUser(ctx context.Context, email string) (stat
 
 	return http.StatusOK, nil
 }
+
+func (uc *userUsecase) GetByEmail(ctx context.Context, email string) (outDom V1Domains.UserDomain, statusCode int, err error) {
+	user, err := uc.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
+	if err != nil {
+		return V1Domains.UserDomain{}, http.StatusNotFound, errors.New("email not found")
+	}
+
+	return user, http.StatusOK, nil
+}

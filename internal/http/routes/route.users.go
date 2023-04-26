@@ -36,6 +36,14 @@ func (r *usersRoutes) Routes() {
 		V1AuhtRoute.POST("/login", r.V1Handler.Login)
 		V1AuhtRoute.POST("/send-otp", r.V1Handler.SendOTP)
 		V1AuhtRoute.POST("/verif-otp", r.V1Handler.VerifOTP)
+
+		// users
+		userRoute := V1Route.Group("/users")
+		userRoute.Use(r.authMiddleware)
+		{
+			userRoute.GET("/me", r.V1Handler.GetUserData)
+			// ...
+		}
 	}
 
 }

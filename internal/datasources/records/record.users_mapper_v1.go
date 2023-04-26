@@ -17,7 +17,7 @@ func (u *Users) ToV1Domain() V1Domains.UserDomain {
 	}
 }
 
-func FromUsersDomain(u *V1Domains.UserDomain) Users {
+func FromUsersV1Domain(u *V1Domains.UserDomain) Users {
 	return Users{
 		Id:        u.ID,
 		Username:  u.Username,
@@ -30,7 +30,7 @@ func FromUsersDomain(u *V1Domains.UserDomain) Users {
 	}
 }
 
-func ToArrayOfUsersDomain(u *[]Users) []V1Domains.UserDomain {
+func ToArrayOfUsersV1Domain(u *[]Users) []V1Domains.UserDomain {
 	var result []V1Domains.UserDomain
 
 	for _, val := range *u {

@@ -3,6 +3,7 @@ package v1_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -310,7 +311,7 @@ func TestLogin(t *testing.T) {
 	setup(t)
 	// Define route
 	s.POST(constants.EndpointV1+"/auth/login", userHandler.Login)
-	t.Run("When Success Login", func(t *testing.T) {
+	t.Run("Test 1 | Success Login", func(t *testing.T) {
 		// hash password field
 		var err error
 		userDataFromDB.Password, err = helpers.GenerateHash(userDataFromDB.Password)
@@ -345,7 +346,7 @@ func TestLogin(t *testing.T) {
 		assert.Contains(t, body, "login success")
 		assert.Contains(t, body, "ey")
 	})
-	t.Run("When Failure User is Not Exists", func(t *testing.T) {
+	t.Run("Test 2 | User is Not Exists", func(t *testing.T) {
 		req := requests.UserLoginRequest{
 			Email:    "patrick312@gmail.com",
 			Password: "23123sdf!",
@@ -369,5 +370,53 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Result().StatusCode)
 		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "invalid email or password")
+	})
+}
+
+func TestGetUserData(t *testing.T) {
+	setup(t)
+	// Define route
+	s.GET("/users/me", userHandler.GetUserData)
+
+	authenticatedUserEmail := userDataFromDB.Email
+	t.Run("Test 1 | Success Fetched User Data", func(t *testing.T) {
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		ristrettoMock.Mock.On("Get", fmt.Sprintf("user/%s", authenticatedUserEmail)).Return(nil).Once()
+		ristrettoMock.Mock.On("Set", fmt.Sprintf("user/%s", authenticatedUserEmail), mock.Anything).Once()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+
+		r.Header.Set("Content-Type", "application/json")
+
+		// Perform request
+		s.ServeHTTP(w, r)
+
+		// parsing json to raw text
+		body := w.Body.String()
+
+		// Assertions
+		// Assert status code
+		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
+		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
+		assert.Contains(t, body, "user data fetched successfully")
+	})
+
+	t.Run("Test 2 | Failed to fetch User Data", func(t *testing.T) {
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUnexpected).Once()
+		ristrettoMock.Mock.On("Get", fmt.Sprintf("user/%s", authenticatedUserEmail)).Return(nil).Once()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/users/me", nil)
+
+		r.Header.Set("Content-Type", "application/json")
+
+		// Perform request
+		s.ServeHTTP(w, r)
+
+		// Assertions
+		// Assert status code
+		assert.NotEqual(t, http.StatusOK, w.Result().StatusCode)
+		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 	})
 }

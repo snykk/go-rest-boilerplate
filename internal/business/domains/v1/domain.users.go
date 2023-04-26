@@ -24,6 +24,7 @@ type UserUsecase interface {
 	SendOTP(ctx context.Context, email string) (otpCode string, statusCode int, err error)
 	VerifOTP(ctx context.Context, email string, userOTP string, otpRedis string) (statusCode int, err error)
 	ActivateUser(ctx context.Context, email string) (statusCode int, err error)
+	GetByEmail(ctx context.Context, email string) (outDom UserDomain, statusCode int, err error)
 }
 
 type UserRepository interface {

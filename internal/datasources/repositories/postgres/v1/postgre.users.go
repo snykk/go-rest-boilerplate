@@ -19,7 +19,7 @@ func NewUserRepository(conn *sqlx.DB) V1Domains.UserRepository {
 }
 
 func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.UserDomain) (err error) {
-	userRecord := records.FromUsersDomain(inDom)
+	userRecord := records.FromUsersV1Domain(inDom)
 
 	_, err = r.conn.NamedQueryContext(ctx, `INSERT INTO users(id, username, email, password, active, role_id, created_at) VALUES (uuid_generate_v4(), :username, :email, :password, false, :role_id, :created_at)`, userRecord)
 	if err != nil {
@@ -30,7 +30,7 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.User
 }
 
 func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains.UserDomain) (outDomain V1Domains.UserDomain, err error) {
-	userRecord := records.FromUsersDomain(inDom)
+	userRecord := records.FromUsersV1Domain(inDom)
 
 	err = r.conn.GetContext(ctx, &userRecord, `SELECT * FROM users WHERE "email" = $1`, userRecord.Email)
 	if err != nil {
@@ -41,7 +41,7 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains
 }
 
 func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *V1Domains.UserDomain) (err error) {
-	userRecord := records.FromUsersDomain(inDom)
+	userRecord := records.FromUsersV1Domain(inDom)
 
 	_, err = r.conn.NamedQueryContext(ctx, `UPDATE users SET active = :active WHERE id = :id`, userRecord)
 

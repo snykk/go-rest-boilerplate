@@ -30,6 +30,7 @@ func NewJWTService(secretKey, issuer string, expired int) JWTService {
 	return &jwtService{
 		issuer:    issuer,
 		secretKey: secretKey,
+		expired:   expired,
 	}
 }
 

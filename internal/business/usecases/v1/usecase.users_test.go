@@ -244,3 +244,26 @@ func TestVerifOTP(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, statusCode)
 	})
 }
+
+func TestGetByEmail(t *testing.T) {
+	setup(t)
+	t.Run("Test 1 | Success Get User Data By Email", func(t *testing.T) {
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+
+		result, statusCode, err := userUsecase.GetByEmail(context.Background(), "najibfikri13@gmail.com")
+
+		assert.Nil(t, err)
+		assert.Equal(t, userDataFromDB, result)
+		assert.Equal(t, http.StatusOK, statusCode)
+	})
+
+	t.Run("Test 2 | User doesn't exist", func(t *testing.T) {
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, errors.New("email not found")).Once()
+
+		result, statusCode, err := userUsecase.GetByEmail(context.Background(), "johndoe@gmail.com")
+
+		assert.Equal(t, V1Domains.UserDomain{}, result)
+		assert.Equal(t, errors.New("email not found"), err)
+		assert.Equal(t, http.StatusNotFound, statusCode)
+	})
+}

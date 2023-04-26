@@ -6,9 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
+	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
@@ -133,4 +135,31 @@ func (userH UserHandler) VerifOTP(ctx *gin.Context) {
 	go userH.ristrettoCache.Del("users")
 
 	NewSuccessResponse(ctx, statusCode, "otp verification success", nil)
+}
+
+func (c UserHandler) GetUserData(ctx *gin.Context) {
+	// get authenticated user from context
+	userClaims := ctx.MustGet(constants.CtxAuthenticatedUserKey).(jwt.JwtCustomClaim)
+	if val := c.ristrettoCache.Get(fmt.Sprintf("user/%s", userClaims.Email)); val != nil {
+		NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
+			"user": val,
+		})
+		return
+	}
+
+	ctxx := ctx.Request.Context()
+	userDom, statusCode, err := c.usecase.GetByEmail(ctxx, userClaims.Email)
+	if err != nil {
+		NewErrorResponse(ctx, statusCode, err.Error())
+		return
+	}
+
+	userResponse := responses.FromV1Domain(userDom)
+
+	go c.ristrettoCache.Set(fmt.Sprintf("user/%s", userClaims.Email), userResponse)
+
+	NewSuccessResponse(ctx, statusCode, "user data fetched successfully", map[string]interface{}{
+		"user": userResponse,
+	})
+
 }
