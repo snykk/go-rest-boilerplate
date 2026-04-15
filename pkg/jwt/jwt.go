@@ -8,15 +8,14 @@ import (
 )
 
 type JWTService interface {
-	GenerateToken(userId string, isAdmin bool, email string, password string) (t string, err error)
+	GenerateToken(userId string, isAdmin bool, email string) (t string, err error)
 	ParseToken(tokenString string) (claims JwtCustomClaim, err error)
 }
 
 type JwtCustomClaim struct {
-	UserID   string
-	IsAdmin  bool
-	Email    string
-	Password string
+	UserID  string
+	IsAdmin bool
+	Email   string
 	driJWT.StandardClaims
 }
 
@@ -34,12 +33,11 @@ func NewJWTService(secretKey, issuer string, expired int) JWTService {
 	}
 }
 
-func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string, password string) (t string, err error) {
+func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string) (t string, err error) {
 	claims := &JwtCustomClaim{
 		userID,
 		isAdmin,
 		email,
-		password,
 		driJWT.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * time.Duration(j.expired)).Unix(),
 			Issuer:    j.issuer,

@@ -43,7 +43,7 @@ func setup(t *testing.T) {
 }
 
 func generateToken(isAdmin bool) (token string, err error) {
-	token, err = jwtService.GenerateToken("ddfcea5c-d919-4a8f-a631-4ace39337s3a", isAdmin, "najibfikri13@gmail.com", "12345678")
+	token, err = jwtService.GenerateToken("ddfcea5c-d919-4a8f-a631-4ace39337s3a", isAdmin, "najibfikri13@gmail.com")
 	return
 }
 

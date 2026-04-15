@@ -12,20 +12,20 @@ type JWTService struct {
 	mock.Mock
 }
 
-// GenerateToken provides a mock function with given fields: userId, isAdmin, email, password
-func (_m *JWTService) GenerateToken(userId string, isAdmin bool, email string, password string) (string, error) {
-	ret := _m.Called(userId, isAdmin, email, password)
+// GenerateToken provides a mock function with given fields: userId, isAdmin, email
+func (_m *JWTService) GenerateToken(userId string, isAdmin bool, email string) (string, error) {
+	ret := _m.Called(userId, isAdmin, email)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string, bool, string, string) string); ok {
-		r0 = rf(userId, isAdmin, email, password)
+	if rf, ok := ret.Get(0).(func(string, bool, string) string); ok {
+		r0 = rf(userId, isAdmin, email)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, bool, string, string) error); ok {
-		r1 = rf(userId, isAdmin, email, password)
+	if rf, ok := ret.Get(1).(func(string, bool, string) error); ok {
+		r1 = rf(userId, isAdmin, email)
 	} else {
 		r1 = ret.Error(1)
 	}

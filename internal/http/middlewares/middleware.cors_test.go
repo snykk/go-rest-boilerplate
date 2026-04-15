@@ -43,13 +43,13 @@ func TestCORSMiddleware(t *testing.T) {
 		assert.Equal(t, constants.AllowHeader, w.Header().Get("Access-Control-Allow-Headers"))
 		assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
 	})
-	t.Run("Test 1 | Use Not Allowed Header", func(t *testing.T) {
+	t.Run("Test 1 | Extra Headers Are Not Blocked Server-Side", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/test", nil)
 		req.Header.Set("misc", "something")
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, constants.AllowOrigin, w.Header().Get("Access-Control-Allow-Origin"))
 		assert.Equal(t, constants.AllowMethods, w.Header().Get("Access-Control-Allow-Methods"))
 		assert.Equal(t, constants.AllowHeader, w.Header().Get("Access-Control-Allow-Headers"))

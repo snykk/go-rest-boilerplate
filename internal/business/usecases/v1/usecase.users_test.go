@@ -107,7 +107,7 @@ func TestLogin(t *testing.T) {
 		userDataFromDB.Password, _ = helpers.GenerateHash(userDataFromDB.Password)
 
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		jwtServiceMock.Mock.On("GenerateToken", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return("eyBlablablabla", nil).Once()
+		jwtServiceMock.Mock.On("GenerateToken", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string")).Return("eyBlablablabla", nil).Once()
 
 		result, statusCode, err := userUsecase.Login(context.Background(), req.ToV1Domain())
 

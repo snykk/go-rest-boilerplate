@@ -64,9 +64,9 @@ func (userUC *userUsecase) Login(ctx context.Context, inDom *V1Domains.UserDomai
 	}
 
 	if userDomain.RoleID == constants.AdminID {
-		userDomain.Token, err = userUC.jwtService.GenerateToken(userDomain.ID, true, userDomain.Email, userDomain.Password)
+		userDomain.Token, err = userUC.jwtService.GenerateToken(userDomain.ID, true, userDomain.Email)
 	} else {
-		userDomain.Token, err = userUC.jwtService.GenerateToken(userDomain.ID, false, userDomain.Email, userDomain.Password)
+		userDomain.Token, err = userUC.jwtService.GenerateToken(userDomain.ID, false, userDomain.Email)
 	}
 
 	if err != nil {

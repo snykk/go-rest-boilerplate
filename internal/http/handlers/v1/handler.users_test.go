@@ -83,14 +83,11 @@ func setup(t *testing.T) {
 }
 
 func lazyAuth(ctx *gin.Context) {
-	// hash
-	pass, _ := helpers.GenerateHash(userDataFromDB.Password)
 	// prepare claims
 	jwtClaims := jwt.JwtCustomClaim{
-		UserID:   userDataFromDB.ID,
-		IsAdmin:  false,
-		Email:    userDataFromDB.Email,
-		Password: pass,
+		UserID:  userDataFromDB.ID,
+		IsAdmin: false,
+		Email:   userDataFromDB.Email,
 		StandardClaims: dgriJWT.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * time.Duration(config.AppConfig.JWTExpired)).Unix(),
 			Issuer:    userDataFromDB.Username,
@@ -327,7 +324,7 @@ func TestLogin(t *testing.T) {
 		reqBody, _ := json.Marshal(req)
 
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		jwtServiceMock.Mock.On("GenerateToken", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return("eyBlablablabla", nil).Once()
+		jwtServiceMock.Mock.On("GenerateToken", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string")).Return("eyBlablablabla", nil).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/login", bytes.NewReader(reqBody))
