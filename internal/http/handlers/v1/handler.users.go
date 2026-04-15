@@ -28,7 +28,7 @@ func NewUserHandler(usecase V1Domains.UserUsecase, redisCache caches.RedisCache,
 	}
 }
 
-func (userH UserHandler) Regis(ctx *gin.Context) {
+func (userH UserHandler) Register(ctx *gin.Context) {
 	var UserRegisRequest requests.UserRequest
 	if err := ctx.ShouldBindJSON(&UserRegisRequest); err != nil {
 		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
@@ -41,14 +41,13 @@ func (userH UserHandler) Regis(ctx *gin.Context) {
 	}
 
 	userDomain := UserRegisRequest.ToV1Domain()
-	userDomainn, statusCode, err := userH.usecase.Store(ctx.Request.Context(), userDomain)
-	fmt.Println(userDomain, statusCode, err)
+	userDomainn, err := userH.usecase.Store(ctx.Request.Context(), userDomain)
 	if err != nil {
-		NewErrorResponse(ctx, statusCode, err.Error())
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
-	NewSuccessResponse(ctx, statusCode, "registration user success", map[string]interface{}{
+	NewSuccessResponse(ctx, http.StatusCreated, "registration user success", map[string]interface{}{
 		"user": responses.FromV1Domain(userDomainn),
 	})
 }
@@ -65,13 +64,13 @@ func (userH UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	userDomain, statusCode, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
+	userDomain, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
 	if err != nil {
-		NewErrorResponse(ctx, statusCode, err.Error())
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
-	NewSuccessResponse(ctx, statusCode, "login success", responses.FromV1Domain(userDomain))
+	NewSuccessResponse(ctx, http.StatusOK, "login success", responses.FromV1Domain(userDomain))
 }
 
 func (userH UserHandler) SendOTP(ctx *gin.Context) {
@@ -87,19 +86,19 @@ func (userH UserHandler) SendOTP(ctx *gin.Context) {
 		return
 	}
 
-	otpCode, statusCode, err := userH.usecase.SendOTP(ctx.Request.Context(), userOTP.Email)
+	otpCode, err := userH.usecase.SendOTP(ctx.Request.Context(), userOTP.Email)
 	if err != nil {
-		NewErrorResponse(ctx, statusCode, err.Error())
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
 	otpKey := fmt.Sprintf("user_otp:%s", userOTP.Email)
 	go userH.redisCache.Set(otpKey, otpCode)
 
-	NewSuccessResponse(ctx, statusCode, fmt.Sprintf("otp code has been send to %s", userOTP.Email), nil)
+	NewSuccessResponse(ctx, http.StatusOK, fmt.Sprintf("otp code has been send to %s", userOTP.Email), nil)
 }
 
-func (userH UserHandler) VerifOTP(ctx *gin.Context) {
+func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 	var userOTP requests.UserVerifOTPRequest
 
 	if err := ctx.ShouldBindJSON(&userOTP); err != nil {
@@ -119,28 +118,37 @@ func (userH UserHandler) VerifOTP(ctx *gin.Context) {
 		return
 	}
 
-	statusCode, err := userH.usecase.VerifOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code, otpRedis)
+	err = userH.usecase.VerifOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code, otpRedis)
 	if err != nil {
-		NewErrorResponse(ctx, statusCode, err.Error())
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
-	statusCode, err = userH.usecase.ActivateUser(ctx.Request.Context(), userOTP.Email)
+	err = userH.usecase.ActivateUser(ctx.Request.Context(), userOTP.Email)
 	if err != nil {
-		NewErrorResponse(ctx, statusCode, err.Error())
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
 	go userH.redisCache.Del(otpKey)
 	go userH.ristrettoCache.Del("users")
 
-	NewSuccessResponse(ctx, statusCode, "otp verification success", nil)
+	NewSuccessResponse(ctx, http.StatusOK, "otp verification success", nil)
 }
 
-func (c UserHandler) GetUserData(ctx *gin.Context) {
-	// get authenticated user from context
-	userClaims := ctx.MustGet(constants.CtxAuthenticatedUserKey).(jwt.JwtCustomClaim)
-	if val := c.ristrettoCache.Get(fmt.Sprintf("user/%s", userClaims.Email)); val != nil {
+func (userH UserHandler) GetUserData(ctx *gin.Context) {
+	claimsVal, exists := ctx.Get(constants.CtxAuthenticatedUserKey)
+	if !exists {
+		NewErrorResponse(ctx, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+	userClaims, ok := claimsVal.(jwt.JwtCustomClaim)
+	if !ok {
+		NewErrorResponse(ctx, http.StatusInternalServerError, "invalid user claims")
+		return
+	}
+
+	if val := userH.ristrettoCache.Get(fmt.Sprintf("user/%s", userClaims.Email)); val != nil {
 		NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
 			"user": val,
 		})
@@ -148,18 +156,17 @@ func (c UserHandler) GetUserData(ctx *gin.Context) {
 	}
 
 	ctxx := ctx.Request.Context()
-	userDom, statusCode, err := c.usecase.GetByEmail(ctxx, userClaims.Email)
+	userDom, err := userH.usecase.GetByEmail(ctxx, userClaims.Email)
 	if err != nil {
-		NewErrorResponse(ctx, statusCode, err.Error())
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
 	userResponse := responses.FromV1Domain(userDom)
 
-	go c.ristrettoCache.Set(fmt.Sprintf("user/%s", userClaims.Email), userResponse)
+	go userH.ristrettoCache.Set(fmt.Sprintf("user/%s", userClaims.Email), userResponse)
 
-	NewSuccessResponse(ctx, statusCode, "user data fetched successfully", map[string]interface{}{
+	NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
 		"user": userResponse,
 	})
-
 }

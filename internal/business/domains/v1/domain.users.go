@@ -19,12 +19,12 @@ type UserDomain struct {
 }
 
 type UserUsecase interface {
-	Store(ctx context.Context, inDom *UserDomain) (outDom UserDomain, statusCode int, err error)
-	Login(ctx context.Context, inDom *UserDomain) (outDom UserDomain, statusCode int, err error)
-	SendOTP(ctx context.Context, email string) (otpCode string, statusCode int, err error)
-	VerifOTP(ctx context.Context, email string, userOTP string, otpRedis string) (statusCode int, err error)
-	ActivateUser(ctx context.Context, email string) (statusCode int, err error)
-	GetByEmail(ctx context.Context, email string) (outDom UserDomain, statusCode int, err error)
+	Store(ctx context.Context, inDom *UserDomain) (outDom UserDomain, err error)
+	Login(ctx context.Context, inDom *UserDomain) (outDom UserDomain, err error)
+	SendOTP(ctx context.Context, email string) (otpCode string, err error)
+	VerifOTP(ctx context.Context, email string, userOTP string, otpRedis string) error
+	ActivateUser(ctx context.Context, email string) error
+	GetByEmail(ctx context.Context, email string) (outDom UserDomain, err error)
 }
 
 type UserRepository interface {

@@ -50,13 +50,8 @@ func NewApp() (*App, error) {
 	// mailer
 	mailerService := mailer.NewOTPMailer(config.AppConfig.OTPEmail, config.AppConfig.OTPPassword)
 
-	// user middleware
-	// user with valid basic token can access endpoint
+	// auth middleware — user with valid token can access endpoint
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
-
-	// admin middleware
-	// only user with valid admin token can access endpoint
-	_ = middlewares.NewAuthMiddleware(jwtService, true)
 
 	// API Routes
 	api := router.Group("api")

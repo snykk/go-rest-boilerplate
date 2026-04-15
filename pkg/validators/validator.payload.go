@@ -25,7 +25,6 @@ func ValidatePayloads(payload interface{}) (err error) {
 
 	err = validate.Struct(payload)
 	if err != nil {
-		fmt.Println(err.(validator.ValidationErrors))
 		for _, e := range err.(validator.ValidationErrors) {
 			field = e.Field()
 			tag = e.Tag()

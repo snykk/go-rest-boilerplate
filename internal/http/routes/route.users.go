@@ -39,10 +39,10 @@ func (r *usersRoutes) Routes() {
 		// auth (rate limited)
 		V1AuhtRoute := V1Route.Group("/auth")
 		V1AuhtRoute.Use(r.rateLimiter)
-		V1AuhtRoute.POST("/regis", r.V1Handler.Regis)
+		V1AuhtRoute.POST("/register", r.V1Handler.Register)
 		V1AuhtRoute.POST("/login", r.V1Handler.Login)
 		V1AuhtRoute.POST("/send-otp", r.V1Handler.SendOTP)
-		V1AuhtRoute.POST("/verif-otp", r.V1Handler.VerifOTP)
+		V1AuhtRoute.POST("/verify-otp", r.V1Handler.VerifyOTP)
 
 		// users
 		userRoute := V1Route.Group("/users")

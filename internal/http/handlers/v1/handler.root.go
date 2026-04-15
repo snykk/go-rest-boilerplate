@@ -8,7 +8,7 @@ import (
 
 func Root(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"staus":   true,
+		"status":  true,
 		"message": "v1 online...",
 	})
 }
