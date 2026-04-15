@@ -124,6 +124,7 @@ func setupRouter() *gin.Engine {
 
 	// set up middlewares
 	router.Use(middlewares.CORSMiddleware())
+	router.Use(middlewares.BodySizeLimitMiddleware(1 << 20)) // 1MB max body size
 	router.Use(gin.LoggerWithFormatter(logger.HTTPLogger))
 	router.Use(gin.Recovery())
 

@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 	"time"
 
-	dgriJWT "github.com/dgrijalva/jwt-go"
+	golangJWT "github.com/golang-jwt/jwt/v5"
 	"github.com/gin-gonic/gin"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
@@ -88,10 +89,10 @@ func lazyAuth(ctx *gin.Context) {
 		UserID:  userDataFromDB.ID,
 		IsAdmin: false,
 		Email:   userDataFromDB.Email,
-		StandardClaims: dgriJWT.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * time.Duration(config.AppConfig.JWTExpired)).Unix(),
+		RegisteredClaims: golangJWT.RegisteredClaims{
+			ExpiresAt: golangJWT.NewNumericDate(time.Now().Add(time.Hour * time.Duration(config.AppConfig.JWTExpired))),
 			Issuer:    userDataFromDB.Username,
-			IssuedAt:  time.Now().Unix(),
+			IssuedAt:  golangJWT.NewNumericDate(time.Now()),
 		},
 	}
 	ctx.Set(constants.CtxAuthenticatedUserKey, jwtClaims)
@@ -173,6 +174,7 @@ func TestSendOTP(t *testing.T) {
 
 		// Perform request
 		s.ServeHTTP(w, r)
+		runtime.Gosched() // allow fire-and-forget goroutines to complete
 
 		body := w.Body.String()
 
@@ -249,6 +251,7 @@ func TestVerifOTP(t *testing.T) {
 
 		// Perform request
 		s.ServeHTTP(w, r)
+		runtime.Gosched() // allow fire-and-forget goroutines to complete
 
 		body := w.Body.String()
 
@@ -388,6 +391,7 @@ func TestGetUserData(t *testing.T) {
 
 		// Perform request
 		s.ServeHTTP(w, r)
+		runtime.Gosched() // allow fire-and-forget goroutines to complete
 
 		// parsing json to raw text
 		body := w.Body.String()

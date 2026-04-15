@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	driJWT "github.com/dgrijalva/jwt-go"
+	golangJWT "github.com/golang-jwt/jwt/v5"
 )
 
 type JWTService interface {
@@ -16,7 +16,7 @@ type JwtCustomClaim struct {
 	UserID  string
 	IsAdmin bool
 	Email   string
-	driJWT.StandardClaims
+	golangJWT.RegisteredClaims
 }
 
 type jwtService struct {
@@ -38,19 +38,19 @@ func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string) (t
 		userID,
 		isAdmin,
 		email,
-		driJWT.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * time.Duration(j.expired)).Unix(),
+		golangJWT.RegisteredClaims{
+			ExpiresAt: golangJWT.NewNumericDate(time.Now().Add(time.Hour * time.Duration(j.expired))),
 			Issuer:    j.issuer,
-			IssuedAt:  time.Now().Unix(),
+			IssuedAt:  golangJWT.NewNumericDate(time.Now()),
 		},
 	}
-	token := driJWT.NewWithClaims(driJWT.SigningMethodHS256, claims)
+	token := golangJWT.NewWithClaims(golangJWT.SigningMethodHS256, claims)
 	t, err = token.SignedString([]byte(j.secretKey))
 	return
 }
 
 func (j *jwtService) ParseToken(tokenString string) (claims JwtCustomClaim, err error) {
-	if token, err := driJWT.ParseWithClaims(tokenString, &claims, func(token *driJWT.Token) (interface{}, error) {
+	if token, err := golangJWT.ParseWithClaims(tokenString, &claims, func(token *golangJWT.Token) (interface{}, error) {
 		return []byte(j.secretKey), nil
 	}); err != nil || !token.Valid {
 		return JwtCustomClaim{}, errors.New("token is not valid")

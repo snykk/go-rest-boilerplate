@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +32,7 @@ func authenticatedHandler(ctx *gin.Context) {
 }
 
 func setup(t *testing.T) {
-	jwtService = jwt.NewJWTService(config.AppConfig.JWTSecret, config.AppConfig.JWTIssuer, config.AppConfig.JWTExpired)
+	jwtService = jwt.NewJWTService("test-secret-key", "test-issuer", 5)
 	authBasicMiddleware = middlewares.NewAuthMiddleware(jwtService, false)
 	authAdminMiddleware = middlewares.NewAuthMiddleware(jwtService, true)
 
