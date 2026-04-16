@@ -1,16 +1,18 @@
 package caches
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisCache interface {
 	Set(key string, value interface{}) error
 	Get(key string) (string, error)
 	Del(key string) error
+	Close() error
 }
 
 type redisCache struct {
@@ -41,11 +43,11 @@ func (cache *redisCache) Set(key string, value interface{}) error {
 		return err
 	}
 
-	return cache.client.Set(cache.client.Context(), key, json, cache.expires*time.Minute).Err()
+	return cache.client.Set(context.Background(), key, json, cache.expires*time.Minute).Err()
 }
 
 func (cache *redisCache) Get(key string) (email string, err error) {
-	val, err := cache.client.Get(cache.client.Context(), key).Result()
+	val, err := cache.client.Get(context.Background(), key).Result()
 	if err != nil {
 		return "", err
 	}
@@ -55,5 +57,9 @@ func (cache *redisCache) Get(key string) (email string, err error) {
 }
 
 func (cache *redisCache) Del(key string) error {
-	return cache.client.Del(cache.client.Context(), key).Err()
+	return cache.client.Del(context.Background(), key).Err()
+}
+
+func (cache *redisCache) Close() error {
+	return cache.client.Close()
 }

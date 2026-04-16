@@ -58,6 +58,20 @@ func (_m *RedisCache) Set(key string, value interface{}) error {
 	return r0
 }
 
+// Close provides a mock function with no fields
+func (_m *RedisCache) Close() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewRedisCache interface {
 	mock.TestingT
 	Cleanup(func())
