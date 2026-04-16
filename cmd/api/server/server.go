@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
@@ -57,10 +58,11 @@ func NewApp() (*App, error) {
 	// auth middleware — user with valid token can access endpoint
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
 
-	// Health & readiness endpoints (outside /api group)
+	// Infrastructure endpoints (outside /api group)
 	healthHandler := V1Handler.NewHealthHandler(conn, redisCache.Client())
 	router.GET("/health", healthHandler.Health)
 	router.GET("/ready", healthHandler.Ready)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API Routes
 	api := router.Group("api")
@@ -131,6 +133,7 @@ func setupRouter() *gin.Engine {
 
 	// set up middlewares
 	router.Use(middlewares.RequestIDMiddleware())
+	router.Use(middlewares.MetricsMiddleware())
 	router.Use(middlewares.CORSMiddleware())
 	router.Use(middlewares.BodySizeLimitMiddleware(1 << 20)) // 1MB max body size
 	router.Use(gin.LoggerWithFormatter(logger.HTTPLogger))
