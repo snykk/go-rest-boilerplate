@@ -1,12 +1,15 @@
 MOCKERY_BIN := $(GOPATH)/bin/mockery
 
-.PHONY: serve build tidy test test-cover mock mig-up mig-down seed lint fmt docker-up docker-down help
+.PHONY: serve dev build tidy test test-cover mock mig-up mig-down seed lint fmt docker-up docker-down help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 serve: ## Run the API server
 	go run cmd/api/main.go
+
+dev: ## Run with hot-reload (requires: go install github.com/air-verse/air@latest)
+	air
 
 build: ## Build the API binary
 	go build -o bin/api cmd/api/main.go

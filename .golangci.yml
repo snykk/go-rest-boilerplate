@@ -1,0 +1,40 @@
+run:
+  timeout: 5m
+  skip-dirs:
+    - vendor
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - gosec
+    - gocritic
+    - gofmt
+    - goimports
+    - ineffassign
+    - typecheck
+    - misspell
+
+linters-settings:
+  gosec:
+    excludes:
+      - G101 # false positives on hardcoded credentials in test files
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+    disabled-checks:
+      - hugeParam
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+    - path: internal/mocks/
+      linters:
+        - unused
+        - errcheck
