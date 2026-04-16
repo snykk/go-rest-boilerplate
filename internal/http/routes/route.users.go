@@ -14,17 +14,17 @@ import (
 )
 
 type usersRoutes struct {
-	V1Handler       V1Handler.UserHandler
-	router          *gin.RouterGroup
-	db              *sqlx.DB
-	authMiddleware  gin.HandlerFunc
-	rateLimiter     gin.HandlerFunc
+	V1Handler      V1Handler.UserHandler
+	router         *gin.RouterGroup
+	db             *sqlx.DB
+	authMiddleware gin.HandlerFunc
+	rateLimiter    gin.HandlerFunc
 }
 
 func NewUsersRoute(router *gin.RouterGroup, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer) *usersRoutes {
 	V1UserRepository := V1PostgresRepository.NewUserRepository(db)
-	V1UserUsecase := V1Usecase.NewUserUsecase(V1UserRepository, jwtService, mailer)
-	V1UserHandler := V1Handler.NewUserHandler(V1UserUsecase, redisCache, ristrettoCache)
+	V1UserUsecase := V1Usecase.NewUserUsecase(V1UserRepository, jwtService, mailer, redisCache, ristrettoCache)
+	V1UserHandler := V1Handler.NewUserHandler(V1UserUsecase)
 
 	// 5 requests per minute per IP for auth endpoints
 	authRateLimiter := middlewares.NewRateLimiter(rate.Limit(5.0/60.0), 5)
@@ -52,5 +52,4 @@ func (r *usersRoutes) Routes() {
 			// ...
 		}
 	}
-
 }

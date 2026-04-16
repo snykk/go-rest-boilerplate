@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
-	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
@@ -15,16 +14,12 @@ import (
 )
 
 type UserHandler struct {
-	usecase        V1Domains.UserUsecase
-	redisCache     caches.RedisCache
-	ristrettoCache caches.RistrettoCache
+	usecase V1Domains.UserUsecase
 }
 
-func NewUserHandler(usecase V1Domains.UserUsecase, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache) UserHandler {
+func NewUserHandler(usecase V1Domains.UserUsecase) UserHandler {
 	return UserHandler{
-		usecase:        usecase,
-		redisCache:     redisCache,
-		ristrettoCache: ristrettoCache,
+		usecase: usecase,
 	}
 }
 
@@ -86,14 +81,11 @@ func (userH UserHandler) SendOTP(ctx *gin.Context) {
 		return
 	}
 
-	otpCode, err := userH.usecase.SendOTP(ctx.Request.Context(), userOTP.Email)
+	err := userH.usecase.SendOTP(ctx.Request.Context(), userOTP.Email)
 	if err != nil {
 		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
-
-	otpKey := fmt.Sprintf("user_otp:%s", userOTP.Email)
-	go userH.redisCache.Set(otpKey, otpCode)
 
 	NewSuccessResponse(ctx, http.StatusOK, fmt.Sprintf("otp code has been send to %s", userOTP.Email), nil)
 }
@@ -111,27 +103,11 @@ func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 		return
 	}
 
-	otpKey := fmt.Sprintf("user_otp:%s", userOTP.Email)
-	otpRedis, err := userH.redisCache.Get(otpKey)
-	if err != nil {
-		NewErrorResponse(ctx, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	err = userH.usecase.VerifOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code, otpRedis)
+	err := userH.usecase.VerifyOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code)
 	if err != nil {
 		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
-
-	err = userH.usecase.ActivateUser(ctx.Request.Context(), userOTP.Email)
-	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
-		return
-	}
-
-	go userH.redisCache.Del(otpKey)
-	go userH.ristrettoCache.Del("users")
 
 	NewSuccessResponse(ctx, http.StatusOK, "otp verification success", nil)
 }
@@ -148,25 +124,13 @@ func (userH UserHandler) GetUserData(ctx *gin.Context) {
 		return
 	}
 
-	if val := userH.ristrettoCache.Get(fmt.Sprintf("user/%s", userClaims.Email)); val != nil {
-		NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
-			"user": val,
-		})
-		return
-	}
-
-	ctxx := ctx.Request.Context()
-	userDom, err := userH.usecase.GetByEmail(ctxx, userClaims.Email)
+	userDom, err := userH.usecase.GetByEmail(ctx.Request.Context(), userClaims.Email)
 	if err != nil {
 		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
 	}
 
-	userResponse := responses.FromV1Domain(userDom)
-
-	go userH.ristrettoCache.Set(fmt.Sprintf("user/%s", userClaims.Email), userResponse)
-
 	NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
-		"user": userResponse,
+		"user": responses.FromV1Domain(userDom),
 	})
 }

@@ -2,26 +2,34 @@ package v1
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
+	"github.com/sirupsen/logrus"
 )
 
 type userUsecase struct {
-	jwtService jwt.JWTService
-	repo       V1Domains.UserRepository
-	mailer     mailer.OTPMailer
+	jwtService     jwt.JWTService
+	repo           V1Domains.UserRepository
+	mailer         mailer.OTPMailer
+	redisCache     caches.RedisCache
+	ristrettoCache caches.RistrettoCache
 }
 
-func NewUserUsecase(repo V1Domains.UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer) V1Domains.UserUsecase {
+func NewUserUsecase(repo V1Domains.UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache) V1Domains.UserUsecase {
 	return &userUsecase{
-		repo:       repo,
-		jwtService: jwtService,
-		mailer:     mailer,
+		repo:           repo,
+		jwtService:     jwtService,
+		mailer:         mailer,
+		redisCache:     redisCache,
+		ristrettoCache: ristrettoCache,
 	}
 }
 
@@ -72,29 +80,7 @@ func (userUC *userUsecase) Login(ctx context.Context, inDom *V1Domains.UserDomai
 	return userDomain, nil
 }
 
-func (userUC *userUsecase) SendOTP(ctx context.Context, email string) (otpCode string, err error) {
-	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
-	if err != nil {
-		return "", constants.ErrNotFound("email not found")
-	}
-
-	if domain.Active {
-		return "", constants.ErrBadRequest("account already activated")
-	}
-
-	code, err := helpers.GenerateOTPCode(6)
-	if err != nil {
-		return "", constants.ErrInternal(err.Error())
-	}
-
-	if err = userUC.mailer.SendOTP(code, email); err != nil {
-		return "", constants.ErrInternal(err.Error())
-	}
-
-	return code, nil
-}
-
-func (userUC *userUsecase) VerifOTP(ctx context.Context, email string, userOTP string, otpRedis string) error {
+func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
 		return constants.ErrNotFound("email not found")
@@ -104,31 +90,75 @@ func (userUC *userUsecase) VerifOTP(ctx context.Context, email string, userOTP s
 		return constants.ErrBadRequest("account already activated")
 	}
 
-	if otpRedis != userOTP {
-		return constants.ErrBadRequest("invalid otp code")
+	code, err := helpers.GenerateOTPCode(6)
+	if err != nil {
+		return constants.ErrInternal(err.Error())
+	}
+
+	if err = userUC.mailer.SendOTP(code, email); err != nil {
+		return constants.ErrInternal(err.Error())
+	}
+
+	// store OTP code in Redis
+	otpKey := fmt.Sprintf("user_otp:%s", email)
+	if err = userUC.redisCache.Set(otpKey, code); err != nil {
+		logger.InfoF("failed to cache OTP: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache}, err)
 	}
 
 	return nil
 }
 
-func (userUC *userUsecase) ActivateUser(ctx context.Context, email string) error {
-	user, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
+func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP string) error {
+	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
 		return constants.ErrNotFound("email not found")
 	}
 
-	if err = userUC.repo.ChangeActiveUser(ctx, &V1Domains.UserDomain{ID: user.ID, Active: true}); err != nil {
+	if domain.Active {
+		return constants.ErrBadRequest("account already activated")
+	}
+
+	// retrieve OTP from Redis and validate
+	otpKey := fmt.Sprintf("user_otp:%s", email)
+	otpRedis, err := userUC.redisCache.Get(otpKey)
+	if err != nil {
+		return constants.ErrInternal("otp code expired or not found")
+	}
+
+	if otpRedis != userOTP {
+		return constants.ErrBadRequest("invalid otp code")
+	}
+
+	// activate user
+	if err = userUC.repo.ChangeActiveUser(ctx, &V1Domains.UserDomain{ID: domain.ID, Active: true}); err != nil {
 		return constants.ErrInternal(err.Error())
 	}
+
+	// cleanup caches
+	if err = userUC.redisCache.Del(otpKey); err != nil {
+		logger.InfoF("failed to delete OTP cache: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache}, err)
+	}
+	userUC.ristrettoCache.Del("users")
 
 	return nil
 }
 
 func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (outDom V1Domains.UserDomain, err error) {
+	// check in-memory cache first
+	cacheKey := fmt.Sprintf("user/%s", email)
+	if val := userUC.ristrettoCache.Get(cacheKey); val != nil {
+		if cached, ok := val.(V1Domains.UserDomain); ok {
+			return cached, nil
+		}
+	}
+
 	user, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
 		return V1Domains.UserDomain{}, constants.ErrNotFound("email not found")
 	}
+
+	// populate cache
+	userUC.ristrettoCache.Set(cacheKey, user)
 
 	return user, nil
 }

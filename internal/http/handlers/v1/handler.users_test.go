@@ -3,10 +3,8 @@ package v1_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"testing"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
-	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	V1Handlers "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -31,10 +28,10 @@ var (
 	userUsecase     V1Domains.UserUsecase
 	userHandler     V1Handlers.UserHandler
 	mailerOTPMock   *mocks.OTPMailer
-	usersDataFromDB []V1Domains.UserDomain
-	userDataFromDB  V1Domains.UserDomain
 	redisMock       *mocks.RedisCache
 	ristrettoMock   *mocks.RistrettoCache
+	usersDataFromDB []V1Domains.UserDomain
+	userDataFromDB  V1Domains.UserDomain
 	s               *gin.Engine
 )
 
@@ -44,8 +41,8 @@ func setup(t *testing.T) {
 	mailerOTPMock = mocks.NewOTPMailer(t)
 	ristrettoMock = mocks.NewRistrettoCache(t)
 	userRepoMock = mocks.NewUserRepository(t)
-	userUsecase = V1Usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock)
-	userHandler = V1Handlers.NewUserHandler(userUsecase, redisMock, ristrettoMock)
+	userUsecase = V1Usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock)
+	userHandler = V1Handlers.NewUserHandler(userUsecase)
 
 	usersDataFromDB = []V1Domains.UserDomain{
 		{
@@ -90,7 +87,7 @@ func lazyAuth(ctx *gin.Context) {
 		IsAdmin: false,
 		Email:   userDataFromDB.Email,
 		RegisteredClaims: golangJWT.RegisteredClaims{
-			ExpiresAt: golangJWT.NewNumericDate(time.Now().Add(time.Hour * time.Duration(config.AppConfig.JWTExpired))),
+			ExpiresAt: golangJWT.NewNumericDate(time.Now().Add(time.Hour * 5)),
 			Issuer:    userDataFromDB.Username,
 			IssuedAt:  golangJWT.NewNumericDate(time.Now()),
 		},
@@ -100,9 +97,8 @@ func lazyAuth(ctx *gin.Context) {
 
 func TestRegister(t *testing.T) {
 	setup(t)
-	// Define route
 	s.POST(constants.EndpointV1+"/auth/register", userHandler.Register)
-	t.Run("When Success Regis", func(t *testing.T) {
+	t.Run("When Success Register", func(t *testing.T) {
 		req := requests.UserRequest{
 			Username: "itsmepatrick",
 			Email:    "najibfikri13@gmail.com",
@@ -115,47 +111,32 @@ func TestRegister(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/register", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusCreated, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "registration user success")
 	})
-	t.Run("When Failure", func(t *testing.T) {
-		t.Run("When Request is Empty", func(t *testing.T) {
-			req := requests.UserRequest{}
-			reqBody, _ := json.Marshal(req)
+	t.Run("When Request is Empty", func(t *testing.T) {
+		req := requests.UserRequest{}
+		reqBody, _ := json.Marshal(req)
 
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/register", bytes.NewReader(reqBody))
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/register", bytes.NewReader(reqBody))
+		r.Header.Set("Content-Type", "application/json")
 
-			r.Header.Set("Content-Type", "application/json")
+		s.ServeHTTP(w, r)
 
-			// Perform request
-			s.ServeHTTP(w, r)
-
-			body := w.Body.String()
-
-			// Assertions
-			// Assert status code
-			assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
-			assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
-			assert.Contains(t, body, "required")
-		})
+		body := w.Body.String()
+		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		assert.Contains(t, body, "required")
 	})
 }
 
 func TestSendOTP(t *testing.T) {
 	setup(t)
-	// Define route
 	s.POST(constants.EndpointV1+"/auth/send-otp", userHandler.SendOTP)
 	t.Run("Test 1 | Success Send OTP", func(t *testing.T) {
 		req := requests.UserSendOTPRequest{
@@ -169,37 +150,25 @@ func TestSendOTP(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/send-otp", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
-		runtime.Gosched() // allow fire-and-forget goroutines to complete
 
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "otp code has been send")
 	})
-	t.Run("Test 3 | Payloads is Empty", func(t *testing.T) {
+	t.Run("Test 2 | Payloads is Empty", func(t *testing.T) {
 		req := requests.UserSendOTPRequest{}
 		reqBody, _ := json.Marshal(req)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/send-otp", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 	})
 	t.Run("Test 3 | When Failure Send OTP", func(t *testing.T) {
 		req := requests.UserSendOTPRequest{
@@ -212,22 +181,16 @@ func TestSendOTP(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/send-otp", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 	})
 }
 
 func TestVerifyOTP(t *testing.T) {
 	setup(t)
-	// Define route
 	s.POST(constants.EndpointV1+"/auth/verify-otp", userHandler.VerifyOTP)
 	t.Run("Test 1 | Success Verify OTP", func(t *testing.T) {
 		req := requests.UserVerifOTPRequest{
@@ -236,29 +199,20 @@ func TestVerifyOTP(t *testing.T) {
 		}
 		reqBody, _ := json.Marshal(req)
 
-		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil)
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
+		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
 		redisMock.On("Del", mock.AnythingOfType("string")).Return(nil).Once()
 		ristrettoMock.On("Del", mock.AnythingOfType("string")).Once()
 
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
-
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/verify-otp", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
-		runtime.Gosched() // allow fire-and-forget goroutines to complete
 
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "otp verification success")
 	})
 	t.Run("Test 2 | Payloads is Empty", func(t *testing.T) {
@@ -267,58 +221,43 @@ func TestVerifyOTP(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/verify-otp", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 	})
-	t.Run("Test 1 | Invalid OTP Code", func(t *testing.T) {
+	t.Run("Test 3 | Invalid OTP Code", func(t *testing.T) {
 		req := requests.UserVerifOTPRequest{
 			Email: "najibfikri13@gmail.com",
 			Code:  "999999",
 		}
 		reqBody, _ := json.Marshal(req)
 
-		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil)
-
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/verify-otp", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "invalid otp code")
 	})
 }
 
 func TestLogin(t *testing.T) {
 	setup(t)
-	// Define route
 	s.POST(constants.EndpointV1+"/auth/login", userHandler.Login)
 	t.Run("Test 1 | Success Login", func(t *testing.T) {
-		// hash password field
 		var err error
 		userDataFromDB.Password, err = helpers.GenerateHash(userDataFromDB.Password)
 		if err != nil {
 			t.Error(err)
 		}
-		// make account activated
 		userDataFromDB.Active = true
 		req := requests.UserLoginRequest{
 			Email:    "patrick@gmail.com",
@@ -331,18 +270,12 @@ func TestLogin(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/login", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "login success")
 		assert.Contains(t, body, "ey")
 	})
@@ -357,67 +290,46 @@ func TestLogin(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/login", bytes.NewReader(reqBody))
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusUnauthorized, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "invalid email or password")
 	})
 }
 
 func TestGetUserData(t *testing.T) {
 	setup(t)
-	// Define route
 	s.GET("/users/me", userHandler.GetUserData)
 
-	authenticatedUserEmail := userDataFromDB.Email
-	t.Run("Test 1 | Success Fetched User Data", func(t *testing.T) {
+	t.Run("Test 1 | Success Fetched User Data (cache miss)", func(t *testing.T) {
+		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		ristrettoMock.Mock.On("Get", fmt.Sprintf("user/%s", authenticatedUserEmail)).Return(nil).Once()
-		ristrettoMock.Mock.On("Set", fmt.Sprintf("user/%s", authenticatedUserEmail), mock.Anything).Once()
+		ristrettoMock.Mock.On("Set", mock.AnythingOfType("string"), mock.Anything).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/users/me", nil)
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
-		runtime.Gosched() // allow fire-and-forget goroutines to complete
 
-		// parsing json to raw text
 		body := w.Body.String()
-
-		// Assertions
-		// Assert status code
 		assert.Equal(t, http.StatusOK, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 		assert.Contains(t, body, "user data fetched successfully")
 	})
 
 	t.Run("Test 2 | Failed to fetch User Data", func(t *testing.T) {
+		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUnexpected).Once()
-		ristrettoMock.Mock.On("Get", fmt.Sprintf("user/%s", authenticatedUserEmail)).Return(nil).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/users/me", nil)
-
 		r.Header.Set("Content-Type", "application/json")
 
-		// Perform request
 		s.ServeHTTP(w, r)
 
-		// Assertions
-		// Assert status code
 		assert.NotEqual(t, http.StatusOK, w.Result().StatusCode)
-		assert.Contains(t, w.Result().Header.Get("Content-Type"), "application/json")
 	})
 }

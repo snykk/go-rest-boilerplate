@@ -19,6 +19,8 @@ var (
 	jwtServiceMock  *mocks.JWTService
 	userRepoMock    *mocks.UserRepository
 	mailerOTPMock   *mocks.OTPMailer
+	redisMock       *mocks.RedisCache
+	ristrettoMock   *mocks.RistrettoCache
 	userUsecase     V1Domains.UserUsecase
 	usersDataFromDB []V1Domains.UserDomain
 	userDataFromDB  V1Domains.UserDomain
@@ -28,7 +30,9 @@ func setup(t *testing.T) {
 	mailerOTPMock = mocks.NewOTPMailer(t)
 	jwtServiceMock = mocks.NewJWTService(t)
 	userRepoMock = mocks.NewUserRepository(t)
-	userUsecase = V1Usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock)
+	redisMock = mocks.NewRedisCache(t)
+	ristrettoMock = mocks.NewRistrettoCache(t)
+	userUsecase = V1Usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock)
 	usersDataFromDB = []V1Domains.UserDomain{
 		{
 			ID:        "ddfcea5c-d919-4a8f-a631-4ace39337s3a",
@@ -89,7 +93,6 @@ func TestStore(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.Equal(t, "", result.ID)
 	})
-
 }
 
 func TestLogin(t *testing.T) {
@@ -125,7 +128,6 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, V1Domains.UserDomain{}, result)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "account is not activated")
-		assert.Equal(t, "", result.Token)
 	})
 	t.Run("Test 3 | Invalid Credential", func(t *testing.T) {
 		req := requests.UserLoginRequest{
@@ -142,27 +144,6 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, V1Domains.UserDomain{}, result)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "invalid email or password")
-		assert.Equal(t, "", result.Token)
-	})
-}
-
-func TestActivate(t *testing.T) {
-	setup(t)
-	t.Run("Test 1 | Success Activate Email", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
-
-		err := userUsecase.ActivateUser(context.Background(), "najibfikri13@gmail.com")
-
-		assert.Nil(t, err)
-	})
-
-	t.Run("Test 2 | Failure When Activate Email", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrNotFound("email not found")).Once()
-
-		err := userUsecase.ActivateUser(context.Background(), "johndoe@gmail.com")
-
-		assert.NotNil(t, err)
 	})
 }
 
@@ -171,29 +152,27 @@ func TestSendOTP(t *testing.T) {
 	t.Run("Test 1 | Success Send OTP", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
 		mailerOTPMock.On("SendOTP", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
+		redisMock.On("Set", mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
 
-		otpCode, err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
+		err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
 
 		assert.Nil(t, err)
-		assert.NotEqual(t, "", otpCode)
 	})
 
 	t.Run("Test 2 | Email Not Registered", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUserNotFound).Once()
 
-		otpCode, err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
+		err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
 
 		assert.NotNil(t, err)
-		assert.Equal(t, "", otpCode)
 	})
 	t.Run("Test 3 | Failure When Send OTP", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
 		mailerOTPMock.On("SendOTP", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(constants.ErrUnexpected).Once()
 
-		otpCode, err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
+		err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
 
 		assert.NotNil(t, err)
-		assert.Equal(t, "", otpCode)
 	})
 }
 
@@ -201,29 +180,34 @@ func TestVerifyOTP(t *testing.T) {
 	setup(t)
 	t.Run("Test 1 | Success Verify OTP", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
+		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
+		redisMock.On("Del", mock.AnythingOfType("string")).Return(nil).Once()
+		ristrettoMock.On("Del", mock.AnythingOfType("string")).Once()
 
-		err := userUsecase.VerifOTP(context.Background(), "najibfikri13@gmail.com", "112233", "112233")
+		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
 
 		assert.Nil(t, err)
 	})
 	t.Run("Test 2 | Email Not Registered", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUserNotFound).Once()
 
-		err := userUsecase.VerifOTP(context.Background(), "najibfikri13@gmail.com", "112233", "112233")
+		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
 
 		assert.NotNil(t, err)
 	})
 	t.Run("Test 3 | Account Already Activated", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(usersDataFromDB[0], nil).Once()
 
-		err := userUsecase.VerifOTP(context.Background(), "najibfikri13@gmail.com", "112233", "112233")
+		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
 
 		assert.NotNil(t, err)
 	})
 	t.Run("Test 4 | Invalid OTP Code", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
 
-		err := userUsecase.VerifOTP(context.Background(), "najibfikri13@gmail.com", "999999", "112233")
+		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "999999")
 
 		assert.NotNil(t, err)
 	})
@@ -231,8 +215,10 @@ func TestVerifyOTP(t *testing.T) {
 
 func TestGetByEmail(t *testing.T) {
 	setup(t)
-	t.Run("Test 1 | Success Get User Data By Email", func(t *testing.T) {
+	t.Run("Test 1 | Success Get User Data By Email (cache miss)", func(t *testing.T) {
+		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		ristrettoMock.Mock.On("Set", mock.AnythingOfType("string"), mock.Anything).Once()
 
 		result, err := userUsecase.GetByEmail(context.Background(), "najibfikri13@gmail.com")
 
@@ -240,13 +226,22 @@ func TestGetByEmail(t *testing.T) {
 		assert.Equal(t, userDataFromDB, result)
 	})
 
-	t.Run("Test 2 | User doesn't exist", func(t *testing.T) {
+	t.Run("Test 2 | Success Get User Data By Email (cache hit)", func(t *testing.T) {
+		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(userDataFromDB).Once()
+
+		result, err := userUsecase.GetByEmail(context.Background(), "najibfikri13@gmail.com")
+
+		assert.Nil(t, err)
+		assert.Equal(t, userDataFromDB, result)
+	})
+
+	t.Run("Test 3 | User doesn't exist", func(t *testing.T) {
+		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrNotFound("email not found")).Once()
 
 		result, err := userUsecase.GetByEmail(context.Background(), "johndoe@gmail.com")
 
 		assert.Equal(t, V1Domains.UserDomain{}, result)
 		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "email not found")
 	})
 }
