@@ -49,6 +49,7 @@ func (mailer *otpMailer) SendOTP(otpCode string, receiver string) (err error) {
 		`)
 
 	dialer := gomail.NewDialer("smtp.gmail.com", 587, mailer.email, mailer.password)
+	dialer.Timeout = 10 * time.Second
 
 	err = dialer.DialAndSend(configMessage)
 	return

@@ -19,6 +19,7 @@ type RateLimiter struct {
 	visitors map[string]*ipLimiter
 	rate     rate.Limit
 	burst    int
+	stop     chan struct{}
 }
 
 func NewRateLimiter(r rate.Limit, burst int) *RateLimiter {
@@ -26,6 +27,7 @@ func NewRateLimiter(r rate.Limit, burst int) *RateLimiter {
 		visitors: make(map[string]*ipLimiter),
 		rate:     r,
 		burst:    burst,
+		stop:     make(chan struct{}),
 	}
 	go rl.cleanup()
 	return rl
@@ -46,18 +48,30 @@ func (rl *RateLimiter) getLimiter(ip string) *rate.Limiter {
 	return v.limiter
 }
 
-// cleanup removes stale entries every 3 minutes
+// cleanup removes stale entries every 3 minutes until Stop is called.
 func (rl *RateLimiter) cleanup() {
+	ticker := time.NewTicker(3 * time.Minute)
+	defer ticker.Stop()
+
 	for {
-		time.Sleep(3 * time.Minute)
-		rl.mu.Lock()
-		for ip, v := range rl.visitors {
-			if time.Since(v.lastSeen) > 5*time.Minute {
-				delete(rl.visitors, ip)
+		select {
+		case <-ticker.C:
+			rl.mu.Lock()
+			for ip, v := range rl.visitors {
+				if time.Since(v.lastSeen) > 5*time.Minute {
+					delete(rl.visitors, ip)
+				}
 			}
+			rl.mu.Unlock()
+		case <-rl.stop:
+			return
 		}
-		rl.mu.Unlock()
 	}
+}
+
+// Stop terminates the cleanup goroutine.
+func (rl *RateLimiter) Stop() {
+	close(rl.stop)
 }
 
 func (rl *RateLimiter) Middleware() gin.HandlerFunc {

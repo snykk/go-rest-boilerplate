@@ -42,6 +42,10 @@ func ErrForbidden(msg string) *DomainError {
 	return NewDomainError(ErrTypeForbidden, msg)
 }
 
+func ErrConflict(msg string) *DomainError {
+	return NewDomainError(ErrTypeConflict, msg)
+}
+
 func ErrBadRequest(msg string) *DomainError {
 	return NewDomainError(ErrTypeBadRequest, msg)
 }

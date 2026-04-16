@@ -39,6 +39,9 @@ func (config *SQLXConfig) InitializeSQLXDatabase() (*sqlx.DB, error) {
 	logger.Info(fmt.Sprintf("Setting maximum lifetime for a connection to %s", config.MaxLifetime), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryDatabase})
 	db.SetConnMaxLifetime(config.MaxLifetime)
 
+	// set maximum idle time for connections
+	db.SetConnMaxIdleTime(5 * time.Minute)
+
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("error pinging database: %v", err)
 	}

@@ -138,7 +138,7 @@ func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP 
 	if err = userUC.redisCache.Del(otpKey); err != nil {
 		logger.InfoF("failed to delete OTP cache: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache}, err)
 	}
-	userUC.ristrettoCache.Del("users")
+	userUC.ristrettoCache.Del("users", fmt.Sprintf("user/%s", email))
 
 	return nil
 }
@@ -150,6 +150,7 @@ func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (outDom
 		if cached, ok := val.(V1Domains.UserDomain); ok {
 			return cached, nil
 		}
+		logger.Info("cache type assertion failed, fetching from DB", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
 	}
 
 	user, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})

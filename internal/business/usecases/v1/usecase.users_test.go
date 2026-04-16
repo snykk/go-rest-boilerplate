@@ -183,7 +183,7 @@ func TestVerifyOTP(t *testing.T) {
 		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
 		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
 		redisMock.On("Del", mock.AnythingOfType("string")).Return(nil).Once()
-		ristrettoMock.On("Del", mock.AnythingOfType("string")).Once()
+		ristrettoMock.On("Del", "users", mock.AnythingOfType("string")).Once()
 
 		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
 

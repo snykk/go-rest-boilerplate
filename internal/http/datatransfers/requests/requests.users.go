@@ -6,8 +6,8 @@ import (
 
 // General Request
 type UserRequest struct {
-	Username string `json:"username" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
+	Username string `json:"username" validate:"required,max=25"`
+	Email    string `json:"email" validate:"required,email,max=50"`
 	Password string `json:"password" validate:"required,min=8,containsany=!@#$%^&*()?"`
 }
 
@@ -23,18 +23,18 @@ func (user UserRequest) ToV1Domain() *V1Domains.UserDomain {
 
 // Send OTP Request
 type UserSendOTPRequest struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email" validate:"required,email,max=50"`
 }
 
 // Verify OTP Code
 type UserVerifOTPRequest struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email" validate:"required,email,max=50"`
 	Code  string `json:"code" validate:"required,numeric"`
 }
 
 // Login Request
 type UserLoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
+	Email    string `json:"email" validate:"required,email,max=50"`
 	Password string `json:"password" validate:"required,min=8,containsany=!@#$%^&*()?"`
 }
 

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/spf13/viper"
 )
@@ -49,6 +51,19 @@ func InitializeAppConfig() error {
 	// check
 	if AppConfig.Port == 0 || AppConfig.Environment == "" || AppConfig.JWTSecret == "" || AppConfig.JWTExpired == 0 || AppConfig.JWTIssuer == "" || AppConfig.OTPEmail == "" || AppConfig.OTPPassword == "" || AppConfig.REDISHost == "" || AppConfig.REDISPassword == "" || AppConfig.REDISExpired == 0 || AppConfig.DBPostgreDriver == "" {
 		return constants.ErrEmptyVar
+	}
+
+	if AppConfig.Port < 1 || AppConfig.Port > 65535 {
+		return fmt.Errorf("PORT must be between 1 and 65535, got %d", AppConfig.Port)
+	}
+	if AppConfig.JWTExpired < 1 || AppConfig.JWTExpired > 720 {
+		return fmt.Errorf("JWT_EXPIRED must be between 1 and 720 hours, got %d", AppConfig.JWTExpired)
+	}
+	if len(AppConfig.JWTSecret) < 16 {
+		return fmt.Errorf("JWT_SECRET must be at least 16 characters")
+	}
+	if AppConfig.REDISExpired < 1 {
+		return fmt.Errorf("REDIS_EXPIRED must be at least 1 minute, got %d", AppConfig.REDISExpired)
 	}
 
 	switch AppConfig.Environment {
