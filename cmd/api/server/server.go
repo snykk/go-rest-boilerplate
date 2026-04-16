@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
+	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/internal/http/routes"
 	"github.com/snykk/go-rest-boilerplate/internal/utils"
@@ -25,6 +27,8 @@ import (
 
 type App struct {
 	HttpServer *http.Server
+	db         *sqlx.DB
+	redisCache caches.RedisCache
 }
 
 func NewApp() (*App, error) {
@@ -44,7 +48,7 @@ func NewApp() (*App, error) {
 	redisCache := caches.NewRedisCache(config.AppConfig.REDISHost, 0, config.AppConfig.REDISPassword, time.Duration(config.AppConfig.REDISExpired))
 	ristrettoCache, err := caches.NewRistrettoCache()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create ristretto cache: %w", err)
 	}
 
 	// mailer
@@ -53,14 +57,15 @@ func NewApp() (*App, error) {
 	// auth middleware — user with valid token can access endpoint
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
 
+	// Health & readiness endpoints (outside /api group)
+	healthHandler := V1Handler.NewHealthHandler(conn, redisCache.Client())
+	router.GET("/health", healthHandler.Health)
+	router.GET("/ready", healthHandler.Ready)
+
 	// API Routes
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
 	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, mailerService).Routes()
-
-	// we can add web pages if needed
-	// web := router.Group("web")
-	// ...
 
 	// setup http server
 	server := &http.Server{
@@ -73,11 +78,12 @@ func NewApp() (*App, error) {
 
 	return &App{
 		HttpServer: server,
+		db:         conn,
+		redisCache: redisCache,
 	}, nil
 }
 
 func (a *App) Run() (err error) {
-	// Gracefull Shutdown
 	go func() {
 		logger.InfoF("success to listen and serve on :%d", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, config.AppConfig.Port)
 		if err := a.HttpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -88,7 +94,6 @@ func (a *App) Run() (err error) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// make blocking channel and waiting for a signal
 	<-quit
 	logger.Info("shutdown server ...", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 
@@ -99,9 +104,16 @@ func (a *App) Run() (err error) {
 		return fmt.Errorf("error when shutdown server: %v", err)
 	}
 
-	// catching ctx.Done(). timeout of 5 seconds.
-	<-ctx.Done()
-	logger.Info("timeout of 5 seconds.", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
+	// close database connection
+	if err := a.db.Close(); err != nil {
+		logger.InfoF("error closing database: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+	}
+
+	// close redis connection
+	if err := a.redisCache.Close(); err != nil {
+		logger.InfoF("error closing redis: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+	}
+
 	logger.Info("server exiting", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 	return
 }
@@ -118,6 +130,7 @@ func setupRouter() *gin.Engine {
 	router := gin.New()
 
 	// set up middlewares
+	router.Use(middlewares.RequestIDMiddleware())
 	router.Use(middlewares.CORSMiddleware())
 	router.Use(middlewares.BodySizeLimitMiddleware(1 << 20)) // 1MB max body size
 	router.Use(gin.LoggerWithFormatter(logger.HTTPLogger))

@@ -13,6 +13,7 @@ type RedisCache interface {
 	Get(key string) (string, error)
 	Del(key string) error
 	Close() error
+	Client() *redis.Client
 }
 
 type redisCache struct {
@@ -62,4 +63,8 @@ func (cache *redisCache) Del(key string) error {
 
 func (cache *redisCache) Close() error {
 	return cache.client.Close()
+}
+
+func (cache *redisCache) Client() *redis.Client {
+	return cache.client
 }
