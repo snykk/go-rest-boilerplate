@@ -22,9 +22,9 @@ func SetupPostgresConnection() (*sqlx.DB, error) {
 	config := drivers.SQLXConfig{
 		DriverName:     config.AppConfig.DBPostgreDriver,
 		DataSourceName: dsn,
-		MaxOpenConns:   100,
-		MaxIdleConns:   10,
-		MaxLifetime:    15 * time.Minute,
+		MaxOpenConns:   config.AppConfig.DBMaxOpenConns,
+		MaxIdleConns:   config.AppConfig.DBMaxIdleConns,
+		MaxLifetime:    time.Duration(config.AppConfig.DBConnMaxLifeMins) * time.Minute,
 	}
 
 	// Initialize postgreSQL connection with sqlx
