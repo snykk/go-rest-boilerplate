@@ -83,6 +83,7 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"status":  false,
 				"message": "too many requests, please try again later",
+				"data":    nil,
 			})
 			return
 		}

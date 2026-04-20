@@ -43,11 +43,12 @@ func TestHTTPLogger(t *testing.T) {
 
 	// Call the CustomLogFormatter function
 	log := logger.HTTPLogger(sampleParams)
-	// Assert that the returned string has the expected format
-	expectedFormat := "[LOGGING HTTP] [%s] \033[%sm %d \033[0m %s %s %d %s %s %s\n"
+	// Request ID is "-" when no Keys map is populated.
+	expectedFormat := "[LOGGING HTTP] [%s] req=%s \033[%sm %d \033[0m %s %s %s %s %s %s\n"
 
 	assert.Equal(t, fmt.Sprintf(expectedFormat,
 		sampleParams.TimeStamp.Format("2006-01-02 15:04:05"),
+		"-",
 		color,
 		sampleParams.StatusCode,
 		sampleParams.Method,
@@ -57,4 +58,21 @@ func TestHTTPLogger(t *testing.T) {
 		sampleParams.ErrorMessage,
 		sampleParams.Request.UserAgent(),
 	), log)
+}
+
+func TestHTTPLoggerWithRequestID(t *testing.T) {
+	sampleParams := gin.LogFormatterParams{
+		Request: &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/test"},
+			Header: http.Header{"User-Agent": []string{"test_agent"}},
+		},
+		TimeStamp:  time.Now(),
+		Latency:    100 * time.Millisecond,
+		ClientIP:   "127.0.0.1",
+		StatusCode: 200,
+		Keys:       map[any]any{"X-Request-ID": "abc-123"},
+	}
+	got := logger.HTTPLogger(sampleParams)
+	assert.Contains(t, got, "req=abc-123")
 }

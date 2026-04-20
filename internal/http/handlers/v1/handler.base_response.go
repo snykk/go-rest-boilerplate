@@ -27,11 +27,16 @@ func NewErrorResponse(c *gin.Context, statusCode int, err string) {
 		Status:  false,
 		Message: err,
 	})
-
 }
 
+// NewAbortResponse renders a 401 with the unified BaseResponse envelope
+// and aborts the middleware chain. Kept as a thin wrapper so middlewares
+// and handlers emit identical JSON shapes.
 func NewAbortResponse(c *gin.Context, message string) {
-	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": message})
+	c.AbortWithStatusJSON(http.StatusUnauthorized, BaseResponse{
+		Status:  false,
+		Message: message,
+	})
 }
 
 // mapDomainErrorToHTTP converts a domain error to an HTTP status code.
