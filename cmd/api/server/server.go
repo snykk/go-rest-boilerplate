@@ -71,11 +71,13 @@ func NewApp() (*App, error) {
 
 	// setup http server
 	server := &http.Server{
-		Addr:           fmt.Sprintf(":%d", config.AppConfig.Port),
-		Handler:        router,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
+		Addr:              fmt.Sprintf(":%d", config.AppConfig.Port),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 
 	return &App{

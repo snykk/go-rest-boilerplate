@@ -1,6 +1,7 @@
 package jwt_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -41,6 +42,6 @@ func TestParseToken(t *testing.T) {
 
 		_, err := jwtService.ParseToken("invalid_token")
 		assert.Error(t, err)
-		assert.Equal(t, "token is not valid", err.Error())
+		assert.True(t, errors.Is(err, jwt.ErrInvalidToken), "expected error to wrap ErrInvalidToken, got %v", err)
 	})
 }

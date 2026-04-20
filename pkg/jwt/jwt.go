@@ -2,10 +2,14 @@ package jwt
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	golangJWT "github.com/golang-jwt/jwt/v5"
 )
+
+// ErrInvalidToken is returned when a token fails parsing or validation.
+var ErrInvalidToken = errors.New("token is not valid")
 
 type JWTService interface {
 	GenerateToken(userId string, isAdmin bool, email string) (t string, err error)
@@ -33,28 +37,38 @@ func NewJWTService(secretKey, issuer string, expired int) JWTService {
 	}
 }
 
-func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string) (t string, err error) {
+func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string) (string, error) {
 	claims := &JwtCustomClaim{
-		userID,
-		isAdmin,
-		email,
-		golangJWT.RegisteredClaims{
+		UserID:  userID,
+		IsAdmin: isAdmin,
+		Email:   email,
+		RegisteredClaims: golangJWT.RegisteredClaims{
 			ExpiresAt: golangJWT.NewNumericDate(time.Now().Add(time.Hour * time.Duration(j.expired))),
 			Issuer:    j.issuer,
 			IssuedAt:  golangJWT.NewNumericDate(time.Now()),
 		},
 	}
 	token := golangJWT.NewWithClaims(golangJWT.SigningMethodHS256, claims)
-	t, err = token.SignedString([]byte(j.secretKey))
-	return
+	signed, err := token.SignedString([]byte(j.secretKey))
+	if err != nil {
+		return "", fmt.Errorf("sign jwt: %w", err)
+	}
+	return signed, nil
 }
 
-func (j *jwtService) ParseToken(tokenString string) (claims JwtCustomClaim, err error) {
-	if token, err := golangJWT.ParseWithClaims(tokenString, &claims, func(token *golangJWT.Token) (interface{}, error) {
+func (j *jwtService) ParseToken(tokenString string) (JwtCustomClaim, error) {
+	var claims JwtCustomClaim
+	token, err := golangJWT.ParseWithClaims(tokenString, &claims, func(token *golangJWT.Token) (interface{}, error) {
+		if _, ok := token.Method.(*golangJWT.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return []byte(j.secretKey), nil
-	}); err != nil || !token.Valid {
-		return JwtCustomClaim{}, errors.New("token is not valid")
+	})
+	if err != nil {
+		return JwtCustomClaim{}, fmt.Errorf("%w: %v", ErrInvalidToken, err)
 	}
-
-	return
+	if !token.Valid {
+		return JwtCustomClaim{}, ErrInvalidToken
+	}
+	return claims, nil
 }

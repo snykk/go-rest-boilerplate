@@ -7,6 +7,7 @@ import (
 
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/mocks"
@@ -27,6 +28,11 @@ var (
 )
 
 func setup(t *testing.T) {
+	// VerifyOTP reads OTP_MAX_ATTEMPTS and REDIS_EXPIRED from config.
+	// Seed non-zero defaults so tests don't trip the brute-force guard.
+	config.AppConfig.OTPMaxAttempts = 5
+	config.AppConfig.REDISExpired = 5
+
 	mailerOTPMock = mocks.NewOTPMailer(t)
 	jwtServiceMock = mocks.NewJWTService(t)
 	userRepoMock = mocks.NewUserRepository(t)
@@ -152,7 +158,8 @@ func TestSendOTP(t *testing.T) {
 	t.Run("Test 1 | Success Send OTP", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
 		mailerOTPMock.On("SendOTP", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
-		redisMock.On("Set", mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
+		redisMock.On("Set", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
+		redisMock.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Once()
 
 		err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
 
@@ -180,9 +187,11 @@ func TestVerifyOTP(t *testing.T) {
 	setup(t)
 	t.Run("Test 1 | Success Verify OTP", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
+		redisMock.Mock.On("Incr", mock.Anything, mock.AnythingOfType("string")).Return(int64(1), nil).Once()
+		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
+		redisMock.Mock.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("112233", nil).Once()
 		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
-		redisMock.On("Del", mock.AnythingOfType("string")).Return(nil).Once()
+		redisMock.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Twice()
 		ristrettoMock.On("Del", "users", mock.AnythingOfType("string")).Once()
 
 		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
@@ -205,7 +214,9 @@ func TestVerifyOTP(t *testing.T) {
 	})
 	t.Run("Test 4 | Invalid OTP Code", func(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
+		redisMock.Mock.On("Incr", mock.Anything, mock.AnythingOfType("string")).Return(int64(1), nil).Once()
+		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
+		redisMock.Mock.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("112233", nil).Once()
 
 		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "999999")
 

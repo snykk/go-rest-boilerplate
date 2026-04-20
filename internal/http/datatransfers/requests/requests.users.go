@@ -6,9 +6,9 @@ import (
 
 // General Request
 type UserRequest struct {
-	Username string `json:"username" validate:"required,max=25"`
+	Username string `json:"username" validate:"required,min=3,max=25"`
 	Email    string `json:"email" validate:"required,email,max=50"`
-	Password string `json:"password" validate:"required,min=8,containsany=!@#$%^&*()?"`
+	Password string `json:"password" validate:"required,min=8,max=72,strongpassword"`
 }
 
 // Mapping General Request to Domain User
@@ -35,7 +35,7 @@ type UserVerifOTPRequest struct {
 // Login Request
 type UserLoginRequest struct {
 	Email    string `json:"email" validate:"required,email,max=50"`
-	Password string `json:"password" validate:"required,min=8,containsany=!@#$%^&*()?"`
+	Password string `json:"password" validate:"required,min=1,max=72"`
 }
 
 // Mapping Login Request to Domain User

@@ -3,6 +3,9 @@
 package mocks
 
 import (
+	"context"
+	"time"
+
 	"github.com/redis/go-redis/v9"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -12,13 +15,13 @@ type RedisCache struct {
 	mock.Mock
 }
 
-// Del provides a mock function with given fields: key
-func (_m *RedisCache) Del(key string) error {
-	ret := _m.Called(key)
+// Del provides a mock function with given fields: ctx, key
+func (_m *RedisCache) Del(ctx context.Context, key string) error {
+	ret := _m.Called(ctx, key)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(key)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, key)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -26,20 +29,20 @@ func (_m *RedisCache) Del(key string) error {
 	return r0
 }
 
-// Get provides a mock function with given fields: key
-func (_m *RedisCache) Get(key string) (string, error) {
-	ret := _m.Called(key)
+// Get provides a mock function with given fields: ctx, key
+func (_m *RedisCache) Get(ctx context.Context, key string) (string, error) {
+	ret := _m.Called(ctx, key)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(key)
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, key)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(key)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -47,13 +50,48 @@ func (_m *RedisCache) Get(key string) (string, error) {
 	return r0, r1
 }
 
-// Set provides a mock function with given fields: key, value
-func (_m *RedisCache) Set(key string, value interface{}) error {
-	ret := _m.Called(key, value)
+// Set provides a mock function with given fields: ctx, key, value
+func (_m *RedisCache) Set(ctx context.Context, key string, value interface{}) error {
+	ret := _m.Called(ctx, key, value)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, interface{}) error); ok {
-		r0 = rf(key, value)
+	if rf, ok := ret.Get(0).(func(context.Context, string, interface{}) error); ok {
+		r0 = rf(ctx, key, value)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Incr provides a mock function with given fields: ctx, key
+func (_m *RedisCache) Incr(ctx context.Context, key string) (int64, error) {
+	ret := _m.Called(ctx, key)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = rf(ctx, key)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Expire provides a mock function with given fields: ctx, key, ttl
+func (_m *RedisCache) Expire(ctx context.Context, key string, ttl time.Duration) error {
+	ret := _m.Called(ctx, key, ttl)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) error); ok {
+		r0 = rf(ctx, key, ttl)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	V1Handlers "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -36,6 +37,10 @@ var (
 )
 
 func setup(t *testing.T) {
+	// VerifyOTP reads OTP_MAX_ATTEMPTS and REDIS_EXPIRED from config.
+	config.AppConfig.OTPMaxAttempts = 5
+	config.AppConfig.REDISExpired = 5
+
 	jwtServiceMock = mocks.NewJWTService(t)
 	redisMock = mocks.NewRedisCache(t)
 	mailerOTPMock = mocks.NewOTPMailer(t)
@@ -50,7 +55,7 @@ func setup(t *testing.T) {
 			Username:  "itsmepatrick",
 			Email:     "najibfikri13@gmail.com",
 			RoleID:    1,
-			Password:  "23123sdf!",
+			Password:  "Test123!@",
 			Active:    true,
 			CreatedAt: time.Now(),
 		},
@@ -59,7 +64,7 @@ func setup(t *testing.T) {
 			Username:  "johny",
 			Email:     "johny123@gmail.com",
 			RoleID:    2,
-			Password:  "23123sdf!",
+			Password:  "Test123!@",
 			Active:    true,
 			CreatedAt: time.Now(),
 		},
@@ -69,7 +74,7 @@ func setup(t *testing.T) {
 		ID:        "fjskeie8-jfk8-qke0-sksj-ksjf89e8ehfu",
 		Username:  "itsmepatrick",
 		Email:     "najibfikri13@gmail.com",
-		Password:  "23123sdf!",
+		Password:  "Test123!@",
 		RoleID:    2,
 		Active:    false,
 		CreatedAt: time.Now(),
@@ -102,7 +107,7 @@ func TestRegister(t *testing.T) {
 		req := requests.UserRequest{
 			Username: "itsmepatrick",
 			Email:    "najibfikri13@gmail.com",
-			Password: "23123sdf!",
+			Password: "Test123!@",
 		}
 		reqBody, _ := json.Marshal(req)
 
@@ -146,7 +151,8 @@ func TestSendOTP(t *testing.T) {
 
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
 		mailerOTPMock.On("SendOTP", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
-		redisMock.On("Set", mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
+		redisMock.On("Set", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
+		redisMock.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/send-otp", bytes.NewReader(reqBody))
@@ -200,9 +206,11 @@ func TestVerifyOTP(t *testing.T) {
 		reqBody, _ := json.Marshal(req)
 
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
+		redisMock.Mock.On("Incr", mock.Anything, mock.AnythingOfType("string")).Return(int64(1), nil).Once()
+		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
+		redisMock.Mock.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("112233", nil).Once()
 		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
-		redisMock.On("Del", mock.AnythingOfType("string")).Return(nil).Once()
+		redisMock.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Twice()
 		ristrettoMock.On("Del", "users", mock.AnythingOfType("string")).Once()
 
 		w := httptest.NewRecorder()
@@ -235,7 +243,9 @@ func TestVerifyOTP(t *testing.T) {
 		reqBody, _ := json.Marshal(req)
 
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		redisMock.Mock.On("Get", mock.AnythingOfType("string")).Return("112233", nil).Once()
+		redisMock.Mock.On("Incr", mock.Anything, mock.AnythingOfType("string")).Return(int64(1), nil).Once()
+		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
+		redisMock.Mock.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("112233", nil).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/verify-otp", bytes.NewReader(reqBody))
@@ -261,7 +271,7 @@ func TestLogin(t *testing.T) {
 		userDataFromDB.Active = true
 		req := requests.UserLoginRequest{
 			Email:    "patrick@gmail.com",
-			Password: "23123sdf!",
+			Password: "Test123!@",
 		}
 		reqBody, _ := json.Marshal(req)
 
@@ -282,7 +292,7 @@ func TestLogin(t *testing.T) {
 	t.Run("Test 2 | User is Not Exists", func(t *testing.T) {
 		req := requests.UserLoginRequest{
 			Email:    "patrick312@gmail.com",
-			Password: "23123sdf!",
+			Password: "Test123!@",
 		}
 		reqBody, _ := json.Marshal(req)
 
