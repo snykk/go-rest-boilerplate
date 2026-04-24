@@ -40,7 +40,10 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.User
 func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains.UserDomain) (outDomain V1Domains.UserDomain, err error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
-	err = r.conn.GetContext(ctx, &userRecord, `SELECT * FROM users WHERE "email" = $1`, userRecord.Email)
+	// Exclude soft-deleted rows — the schema keeps a deleted_at column
+	// so "deleted" users remain queryable for audit/restore, but they
+	// must not satisfy login or OTP flows.
+	err = r.conn.GetContext(ctx, &userRecord, `SELECT * FROM users WHERE "email" = $1 AND deleted_at IS NULL`, userRecord.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return V1Domains.UserDomain{}, constants.ErrNotFound("user not found")
@@ -54,7 +57,7 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains
 func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *V1Domains.UserDomain) (err error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
-	_, err = r.conn.NamedQueryContext(ctx, `UPDATE users SET active = :active WHERE id = :id`, userRecord)
+	_, err = r.conn.NamedQueryContext(ctx, `UPDATE users SET active = :active, updated_at = NOW() WHERE id = :id AND deleted_at IS NULL`, userRecord)
 
 	return
 }
