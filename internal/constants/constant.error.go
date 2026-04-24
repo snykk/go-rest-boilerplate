@@ -15,18 +15,35 @@ const (
 )
 
 // DomainError is a structured error used across the business layer.
+// Cause preserves the original error so errors.Is / errors.As still
+// reach the wrapped cause (e.g. sql.ErrNoRows, context.DeadlineExceeded).
 type DomainError struct {
 	Type    ErrorType
 	Message string
+	Cause   error
 }
 
 func (e *DomainError) Error() string {
 	return e.Message
 }
 
+// Unwrap enables errors.Is / errors.As to traverse the cause chain.
+func (e *DomainError) Unwrap() error {
+	return e.Cause
+}
+
 // NewDomainError creates a new DomainError with the given type and message.
 func NewDomainError(errType ErrorType, message string) *DomainError {
 	return &DomainError{Type: errType, Message: message}
+}
+
+// WrapDomainError attaches an underlying cause to an existing DomainError
+// without changing its message. Returns a new value (does not mutate).
+func WrapDomainError(err *DomainError, cause error) *DomainError {
+	if err == nil {
+		return nil
+	}
+	return &DomainError{Type: err.Type, Message: err.Message, Cause: cause}
 }
 
 // Convenience constructors for common domain errors.

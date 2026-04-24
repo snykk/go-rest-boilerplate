@@ -6,10 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
-	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/internal/http/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
-	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
@@ -112,19 +111,53 @@ func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 	NewSuccessResponse(ctx, http.StatusOK, "otp verification success", nil)
 }
 
-func (userH UserHandler) GetUserData(ctx *gin.Context) {
-	claimsVal, exists := ctx.Get(constants.CtxAuthenticatedUserKey)
-	if !exists {
-		NewErrorResponse(ctx, http.StatusUnauthorized, "user not authenticated")
+func (userH UserHandler) Refresh(ctx *gin.Context) {
+	var req requests.UserRefreshRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	userClaims, ok := claimsVal.(jwt.JwtCustomClaim)
-	if !ok {
-		NewErrorResponse(ctx, http.StatusInternalServerError, "invalid user claims")
+	if err := validators.ValidatePayloads(req); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	userDom, err := userH.usecase.GetByEmail(ctx.Request.Context(), userClaims.Email)
+	userDomain, err := userH.usecase.Refresh(ctx.Request.Context(), req.RefreshToken)
+	if err != nil {
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		return
+	}
+
+	NewSuccessResponse(ctx, http.StatusOK, "token refreshed", responses.FromV1Domain(userDomain))
+}
+
+func (userH UserHandler) Logout(ctx *gin.Context) {
+	var req requests.UserRefreshRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validators.ValidatePayloads(req); err != nil {
+		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := userH.usecase.Logout(ctx.Request.Context(), req.RefreshToken); err != nil {
+		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		return
+	}
+
+	NewSuccessResponse(ctx, http.StatusOK, "logout success", nil)
+}
+
+func (userH UserHandler) GetUserData(ctx *gin.Context) {
+	user, err := auth.CurrentUserFromContext(ctx)
+	if err != nil {
+		NewErrorResponse(ctx, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	userDom, err := userH.usecase.GetByEmail(ctx.Request.Context(), user.Email)
 	if err != nil {
 		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
 		return
