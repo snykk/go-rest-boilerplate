@@ -28,9 +28,13 @@ type Config struct {
 	JWTExpired int    `mapstructure:"JWT_EXPIRED"`
 	JWTIssuer  string `mapstructure:"JWT_ISSUER"`
 
-	OTPEmail    string `mapstructure:"OTP_EMAIL"`
-	OTPPassword string `mapstructure:"OTP_PASSWORD"`
-	OTPMaxAttempts int `mapstructure:"OTP_MAX_ATTEMPTS"`
+	OTPEmail       string `mapstructure:"OTP_EMAIL"`
+	OTPPassword    string `mapstructure:"OTP_PASSWORD"`
+	OTPMaxAttempts int    `mapstructure:"OTP_MAX_ATTEMPTS"`
+
+	MailerWorkers   int `mapstructure:"MAILER_WORKERS"`
+	MailerQueueSize int `mapstructure:"MAILER_QUEUE_SIZE"`
+	MailerRetries   int `mapstructure:"MAILER_RETRIES"`
 
 	REDISHost     string `mapstructure:"REDIS_HOST"`
 	REDISPassword string `mapstructure:"REDIS_PASS"`
@@ -136,5 +140,14 @@ func applyDefaults() {
 	}
 	if AppConfig.OTPMaxAttempts == 0 {
 		AppConfig.OTPMaxAttempts = 5
+	}
+	if AppConfig.MailerWorkers == 0 {
+		AppConfig.MailerWorkers = 2
+	}
+	if AppConfig.MailerQueueSize == 0 {
+		AppConfig.MailerQueueSize = 64
+	}
+	if AppConfig.MailerRetries == 0 {
+		AppConfig.MailerRetries = 3
 	}
 }

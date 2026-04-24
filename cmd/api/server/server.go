@@ -27,9 +27,10 @@ import (
 )
 
 type App struct {
-	HttpServer *http.Server
-	db         *sqlx.DB
-	redisCache caches.RedisCache
+	HttpServer  *http.Server
+	db          *sqlx.DB
+	redisCache  caches.RedisCache
+	asyncMailer *mailer.AsyncOTPMailer
 }
 
 func NewApp() (*App, error) {
@@ -52,8 +53,16 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to create ristretto cache: %w", err)
 	}
 
-	// mailer
-	mailerService := mailer.NewOTPMailer(config.AppConfig.OTPEmail, config.AppConfig.OTPPassword)
+	// mailer — wrap the synchronous SMTP sender in an async queue so
+	// OTP send latency stays off the HTTP request path.
+	syncMailer := mailer.NewOTPMailer(config.AppConfig.OTPEmail, config.AppConfig.OTPPassword)
+	asyncMailer := mailer.NewAsyncOTPMailer(
+		syncMailer,
+		config.AppConfig.MailerWorkers,
+		config.AppConfig.MailerQueueSize,
+		config.AppConfig.MailerRetries,
+		time.Second,
+	)
 
 	// auth middleware — user with valid token can access endpoint
 	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
@@ -67,7 +76,7 @@ func NewApp() (*App, error) {
 	// API Routes
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
-	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, mailerService).Routes()
+	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, asyncMailer).Routes()
 
 	// setup http server
 	server := &http.Server{
@@ -81,9 +90,10 @@ func NewApp() (*App, error) {
 	}
 
 	return &App{
-		HttpServer: server,
-		db:         conn,
-		redisCache: redisCache,
+		HttpServer:  server,
+		db:          conn,
+		redisCache:  redisCache,
+		asyncMailer: asyncMailer,
 	}, nil
 }
 
@@ -106,6 +116,14 @@ func (a *App) Run() (err error) {
 
 	if err := a.HttpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("error when shutdown server: %v", err)
+	}
+
+	// drain the async mailer queue before tearing down dependencies so
+	// in-flight OTP emails still get delivered.
+	if a.asyncMailer != nil {
+		if err := a.asyncMailer.Shutdown(ctx); err != nil {
+			logger.InfoF("mailer shutdown incomplete: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+		}
 	}
 
 	// close database connection
