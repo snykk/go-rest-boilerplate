@@ -13,6 +13,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
+	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 	"github.com/sirupsen/logrus"
 )
 
@@ -106,7 +107,8 @@ func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 	}
 
 	if err = userUC.mailer.SendOTP(code, email); err != nil {
-		logger.Error("failed to send OTP email", logrus.Fields{
+		observability.ObserveMailerOp("queue_full")
+		logger.Error("failed to enqueue OTP email", logrus.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"email":                  email,
 			"error":                  err.Error(),
@@ -117,11 +119,14 @@ func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 	// store OTP code in Redis and reset failed-attempt counter
 	otpKey := fmt.Sprintf("user_otp:%s", email)
 	if err = userUC.redisCache.Set(ctx, otpKey, code); err != nil {
+		observability.ObserveCacheOp("redis", "set", "error")
 		logger.Error("failed to cache OTP", logrus.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"email":                  email,
 			"error":                  err.Error(),
 		})
+	} else {
+		observability.ObserveCacheOp("redis", "set", "ok")
 	}
 	_ = userUC.redisCache.Del(ctx, otpAttemptsKey(email))
 
@@ -162,8 +167,10 @@ func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP 
 	otpKey := fmt.Sprintf("user_otp:%s", email)
 	otpRedis, err := userUC.redisCache.Get(ctx, otpKey)
 	if err != nil {
+		observability.ObserveCacheOp("redis", "get", "miss")
 		return constants.ErrBadRequest("otp code expired or not found")
 	}
+	observability.ObserveCacheOp("redis", "get", "hit")
 
 	if otpRedis != userOTP {
 		return constants.ErrBadRequest("invalid otp code")
@@ -193,9 +200,13 @@ func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (V1Doma
 	cacheKey := fmt.Sprintf("user/%s", email)
 	if val := userUC.ristrettoCache.Get(cacheKey); val != nil {
 		if cached, ok := val.(V1Domains.UserDomain); ok {
+			observability.ObserveCacheOp("ristretto", "get", "hit")
 			return cached, nil
 		}
+		observability.ObserveCacheOp("ristretto", "get", "error")
 		logger.Info("cache type assertion failed, fetching from DB", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
+	} else {
+		observability.ObserveCacheOp("ristretto", "get", "miss")
 	}
 
 	user, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
@@ -205,6 +216,7 @@ func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (V1Doma
 
 	// populate cache
 	userUC.ristrettoCache.Set(cacheKey, user)
+	observability.ObserveCacheOp("ristretto", "set", "ok")
 
 	return user, nil
 }

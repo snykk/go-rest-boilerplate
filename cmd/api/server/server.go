@@ -24,6 +24,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
+	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 )
 
 type App struct {
@@ -39,6 +40,8 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Expose live DB pool stats via /metrics.
+	observability.RegisterDBStatsProvider(func() *sqlx.DB { return conn })
 
 	// setup router
 	router := setupRouter()

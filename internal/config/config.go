@@ -36,6 +36,8 @@ type Config struct {
 	MailerQueueSize int `mapstructure:"MAILER_QUEUE_SIZE"`
 	MailerRetries   int `mapstructure:"MAILER_RETRIES"`
 
+	BcryptCost int `mapstructure:"BCRYPT_COST"`
+
 	REDISHost     string `mapstructure:"REDIS_HOST"`
 	REDISPassword string `mapstructure:"REDIS_PASS"`
 	REDISExpired  int    `mapstructure:"REDIS_EXPIRED"`
@@ -104,6 +106,9 @@ func InitializeAppConfig() error {
 	if AppConfig.OTPMaxAttempts < 1 {
 		return fmt.Errorf("OTP_MAX_ATTEMPTS must be >= 1, got %d", AppConfig.OTPMaxAttempts)
 	}
+	if AppConfig.BcryptCost < 10 || AppConfig.BcryptCost > 31 {
+		return fmt.Errorf("BCRYPT_COST must be between 10 and 31, got %d", AppConfig.BcryptCost)
+	}
 
 	switch AppConfig.Environment {
 	case constants.EnvironmentDevelopment:
@@ -149,5 +154,11 @@ func applyDefaults() {
 	}
 	if AppConfig.MailerRetries == 0 {
 		AppConfig.MailerRetries = 3
+	}
+	if AppConfig.BcryptCost == 0 {
+		// 12 ≈ 100–200 ms on 2026-era CPUs. bcrypt.DefaultCost is still
+		// 10 for historical reasons; bump up but clamp to bcrypt's own
+		// max (31) so misconfig can't wedge the server.
+		AppConfig.BcryptCost = 12
 	}
 }

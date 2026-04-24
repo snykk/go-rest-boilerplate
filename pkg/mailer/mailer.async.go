@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
+	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 )
 
 // AsyncOTPMailer wraps an OTPMailer so SendOTP enqueues a job and
@@ -121,6 +122,7 @@ func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 	for attempt := 1; attempt <= a.retries; attempt++ {
 		lastErr = a.inner.SendOTP(job.code, job.receiver)
 		if lastErr == nil {
+			observability.ObserveMailerOp("sent")
 			logger.Info("otp email sent", logrus.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryCache,
 				"receiver":               job.receiver,
@@ -148,6 +150,7 @@ func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 		}
 	}
 
+	observability.ObserveMailerOp("failed")
 	logger.Error("otp email failed after retries", logrus.Fields{
 		constants.LoggerCategory: constants.LoggerCategoryCache,
 		"receiver":               job.receiver,
