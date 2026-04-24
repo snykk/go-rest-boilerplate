@@ -82,13 +82,100 @@ func (userUC *userUsecase) Login(ctx context.Context, inDom *V1Domains.UserDomai
 	}
 
 	isAdmin := userDomain.RoleID == constants.AdminID
-	token, err := userUC.jwtService.GenerateToken(userDomain.ID, isAdmin, userDomain.Email)
+	pair, err := userUC.jwtService.GenerateTokenPair(userDomain.ID, isAdmin, userDomain.Email)
 	if err != nil {
 		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("generate token: %w", err).Error())
 	}
-	userDomain.Token = token
+	if err := userUC.rememberRefresh(ctx, pair); err != nil {
+		// If Redis is unavailable we'd rather fail login than issue a
+		// refresh token the /refresh endpoint can't verify.
+		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("persist refresh: %w", err).Error())
+	}
+	userDomain.Token = pair.AccessToken
+	userDomain.RefreshToken = pair.RefreshToken
 
 	return userDomain, nil
+}
+
+// refreshKey scopes refresh-token jti entries so they don't collide
+// with OTP keys in Redis.
+func refreshKey(jti string) string { return fmt.Sprintf("refresh:%s", jti) }
+
+// rememberRefresh stores the refresh jti in Redis with a TTL matching
+// the refresh token's exp. /refresh and /logout treat absence here as
+// "revoked", which is how logout works without an access-token
+// blacklist.
+func (userUC *userUsecase) rememberRefresh(ctx context.Context, pair jwt.TokenPair) error {
+	ttl := time.Until(pair.RefreshExpiresAt)
+	if ttl <= 0 {
+		return fmt.Errorf("refresh token already expired")
+	}
+	if err := userUC.redisCache.Set(ctx, refreshKey(pair.RefreshJTI), pair.RefreshJTI); err != nil {
+		return err
+	}
+	// Set() in this project applies the cache-wide expires in minutes;
+	// override it explicitly so each refresh token has its own TTL.
+	return userUC.redisCache.Expire(ctx, refreshKey(pair.RefreshJTI), ttl)
+}
+
+// Refresh verifies the supplied refresh token against the store,
+// rotates it, and returns a new access+refresh pair. Replay of an
+// already-used refresh token fails because rememberRefresh → Del
+// makes the old jti unknown.
+func (userUC *userUsecase) Refresh(ctx context.Context, refreshToken string) (V1Domains.UserDomain, error) {
+	claims, err := userUC.jwtService.ParseRefreshToken(refreshToken)
+	if err != nil {
+		return V1Domains.UserDomain{}, constants.ErrUnauthorized("invalid refresh token")
+	}
+
+	// Verify the jti is still live server-side; logout / previous
+	// rotation would have removed it.
+	if _, err := userUC.redisCache.Get(ctx, refreshKey(claims.ID)); err != nil {
+		return V1Domains.UserDomain{}, constants.ErrUnauthorized("refresh token has been revoked")
+	}
+
+	// Fresh identity lookup so revoked / deactivated accounts stop
+	// getting new access tokens even while their refresh is live.
+	userDomain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: claims.Email})
+	if err != nil {
+		return V1Domains.UserDomain{}, constants.ErrUnauthorized("user no longer exists")
+	}
+	if !userDomain.Active {
+		return V1Domains.UserDomain{}, constants.ErrForbidden("account is not activated")
+	}
+
+	isAdmin := userDomain.RoleID == constants.AdminID
+	pair, err := userUC.jwtService.GenerateTokenPair(userDomain.ID, isAdmin, userDomain.Email)
+	if err != nil {
+		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("generate token: %w", err).Error())
+	}
+
+	// Rotate: remove the old jti, record the new one. Do this after
+	// the new pair is minted so a mint failure doesn't leave the user
+	// with no valid refresh token at all.
+	if err := userUC.rememberRefresh(ctx, pair); err != nil {
+		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("persist refresh: %w", err).Error())
+	}
+	_ = userUC.redisCache.Del(ctx, refreshKey(claims.ID))
+
+	userDomain.Token = pair.AccessToken
+	userDomain.RefreshToken = pair.RefreshToken
+	return userDomain, nil
+}
+
+// Logout revokes the refresh token so /refresh rejects it. Access
+// tokens remain valid until their natural expiry — clients should
+// discard them on logout. (A full blacklist would require checking
+// every request against Redis; we trade that off for simplicity.)
+func (userUC *userUsecase) Logout(ctx context.Context, refreshToken string) error {
+	claims, err := userUC.jwtService.ParseRefreshToken(refreshToken)
+	if err != nil {
+		return constants.ErrUnauthorized("invalid refresh token")
+	}
+	if err := userUC.redisCache.Del(ctx, refreshKey(claims.ID)); err != nil {
+		return constants.ErrInternal(fmt.Errorf("revoke refresh: %w", err).Error())
+	}
+	return nil
 }
 
 func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {

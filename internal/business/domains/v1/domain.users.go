@@ -6,16 +6,17 @@ import (
 )
 
 type UserDomain struct {
-	ID        string
-	Username  string
-	Email     string
-	Password  string
-	Active    bool
-	Token     string
-	RoleID    int
-	CreatedAt time.Time
-	UpdatedAt *time.Time
-	DeletedAt *time.Time
+	ID           string
+	Username     string
+	Email        string
+	Password     string
+	Active       bool
+	Token        string // access token
+	RefreshToken string
+	RoleID       int
+	CreatedAt    time.Time
+	UpdatedAt    *time.Time
+	DeletedAt    *time.Time
 }
 
 type UserUsecase interface {
@@ -24,6 +25,8 @@ type UserUsecase interface {
 	SendOTP(ctx context.Context, email string) error
 	VerifyOTP(ctx context.Context, email string, userOTP string) error
 	GetByEmail(ctx context.Context, email string) (outDom UserDomain, err error)
+	Refresh(ctx context.Context, refreshToken string) (outDom UserDomain, err error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 type UserRepository interface {

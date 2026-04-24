@@ -54,6 +54,48 @@ func (_m *JWTService) ParseToken(tokenString string) (jwt.JwtCustomClaim, error)
 	return r0, r1
 }
 
+// ParseRefreshToken provides a mock function with given fields: tokenString
+func (_m *JWTService) ParseRefreshToken(tokenString string) (jwt.JwtCustomClaim, error) {
+	ret := _m.Called(tokenString)
+
+	var r0 jwt.JwtCustomClaim
+	if rf, ok := ret.Get(0).(func(string) jwt.JwtCustomClaim); ok {
+		r0 = rf(tokenString)
+	} else {
+		r0 = ret.Get(0).(jwt.JwtCustomClaim)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(tokenString)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GenerateTokenPair provides a mock function with given fields: userID, isAdmin, email
+func (_m *JWTService) GenerateTokenPair(userID string, isAdmin bool, email string) (jwt.TokenPair, error) {
+	ret := _m.Called(userID, isAdmin, email)
+
+	var r0 jwt.TokenPair
+	if rf, ok := ret.Get(0).(func(string, bool, string) jwt.TokenPair); ok {
+		r0 = rf(userID, isAdmin, email)
+	} else {
+		r0 = ret.Get(0).(jwt.TokenPair)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, bool, string) error); ok {
+		r1 = rf(userID, isAdmin, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTNewJWTService interface {
 	mock.TestingT
 	Cleanup(func())

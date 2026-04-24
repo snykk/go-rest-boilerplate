@@ -24,9 +24,10 @@ type Config struct {
 	DBMaxIdleConns    int `mapstructure:"DB_MAX_IDLE_CONNS"`
 	DBConnMaxLifeMins int `mapstructure:"DB_CONN_MAX_LIFE_MINS"`
 
-	JWTSecret  string `mapstructure:"JWT_SECRET"`
-	JWTExpired int    `mapstructure:"JWT_EXPIRED"`
-	JWTIssuer  string `mapstructure:"JWT_ISSUER"`
+	JWTSecret         string `mapstructure:"JWT_SECRET"`
+	JWTExpired        int    `mapstructure:"JWT_EXPIRED"`
+	JWTIssuer         string `mapstructure:"JWT_ISSUER"`
+	JWTRefreshExpired int    `mapstructure:"JWT_REFRESH_EXPIRED"` // days
 
 	OTPEmail       string `mapstructure:"OTP_EMAIL"`
 	OTPPassword    string `mapstructure:"OTP_PASSWORD"`
@@ -94,6 +95,9 @@ func InitializeAppConfig() error {
 	if AppConfig.JWTExpired < 1 || AppConfig.JWTExpired > 720 {
 		return fmt.Errorf("JWT_EXPIRED must be between 1 and 720 hours, got %d", AppConfig.JWTExpired)
 	}
+	if AppConfig.JWTRefreshExpired < 1 || AppConfig.JWTRefreshExpired > 365 {
+		return fmt.Errorf("JWT_REFRESH_EXPIRED must be between 1 and 365 days, got %d", AppConfig.JWTRefreshExpired)
+	}
 	if len(AppConfig.JWTSecret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 characters (got %d) — HS256 requires 256-bit entropy", len(AppConfig.JWTSecret))
 	}
@@ -160,5 +164,8 @@ func applyDefaults() {
 		// 10 for historical reasons; bump up but clamp to bcrypt's own
 		// max (31) so misconfig can't wedge the server.
 		AppConfig.BcryptCost = 12
+	}
+	if AppConfig.JWTRefreshExpired == 0 {
+		AppConfig.JWTRefreshExpired = 7
 	}
 }

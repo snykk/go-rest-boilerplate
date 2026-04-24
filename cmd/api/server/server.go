@@ -47,7 +47,12 @@ func NewApp() (*App, error) {
 	router := setupRouter()
 
 	// jwt service
-	jwtService := jwt.NewJWTService(config.AppConfig.JWTSecret, config.AppConfig.JWTIssuer, config.AppConfig.JWTExpired)
+	jwtService := jwt.NewJWTServiceWithRefresh(
+		config.AppConfig.JWTSecret,
+		config.AppConfig.JWTIssuer,
+		config.AppConfig.JWTExpired,
+		config.AppConfig.JWTRefreshExpired,
+	)
 
 	// cache
 	redisCache := caches.NewRedisCache(config.AppConfig.REDISHost, 0, config.AppConfig.REDISPassword, time.Duration(config.AppConfig.REDISExpired))

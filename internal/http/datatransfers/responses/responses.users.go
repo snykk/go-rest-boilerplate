@@ -7,13 +7,14 @@ import (
 )
 
 type UserResponse struct {
-	Id        string     `json:"id"`
-	Username  string     `json:"username"`
-	Email     string     `json:"email"`
-	RoleId    int        `json:"role_id"`
-	Token     string     `json:"token,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
+	Id           string     `json:"id"`
+	Username     string     `json:"username"`
+	Email        string     `json:"email"`
+	RoleId       int        `json:"role_id"`
+	Token        string     `json:"token,omitempty"`
+	RefreshToken string     `json:"refresh_token,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    *time.Time `json:"updated_at"`
 }
 
 func (u *UserResponse) ToV1Domain() V1Domains.UserDomain {
@@ -29,13 +30,14 @@ func (u *UserResponse) ToV1Domain() V1Domains.UserDomain {
 
 func FromV1Domain(u V1Domains.UserDomain) UserResponse {
 	return UserResponse{
-		Id:        u.ID,
-		Username:  u.Username,
-		Email:     u.Email,
-		Token:     u.Token,
-		RoleId:    u.RoleID,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
+		Id:           u.ID,
+		Username:     u.Username,
+		Email:        u.Email,
+		Token:        u.Token,
+		RefreshToken: u.RefreshToken,
+		RoleId:       u.RoleID,
+		CreatedAt:    u.CreatedAt,
+		UpdatedAt:    u.UpdatedAt,
 	}
 }
 

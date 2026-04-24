@@ -12,6 +12,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/mocks"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
+	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -112,7 +113,16 @@ func TestLogin(t *testing.T) {
 		userDataFromDB.Password, _ = helpers.GenerateHash(userDataFromDB.Password)
 
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
-		jwtServiceMock.Mock.On("GenerateToken", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string")).Return("eyBlablablabla", nil).Once()
+		jwtServiceMock.Mock.On("GenerateTokenPair", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string")).Return(jwt.TokenPair{
+			AccessToken:      "eyBlablablabla",
+			RefreshToken:     "eyRefresh",
+			AccessExpiresAt:  time.Now().Add(time.Hour),
+			RefreshExpiresAt: time.Now().Add(24 * time.Hour),
+			AccessJTI:        "access-jti",
+			RefreshJTI:       "refresh-jti",
+		}, nil).Once()
+		redisMock.Mock.On("Set", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
+		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
 
 		result, err := userUsecase.Login(context.Background(), req.ToV1Domain())
 

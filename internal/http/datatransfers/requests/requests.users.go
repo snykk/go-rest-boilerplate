@@ -38,6 +38,11 @@ type UserLoginRequest struct {
 	Password string `json:"password" validate:"required,min=1,max=72"`
 }
 
+// Refresh Request — carries the refresh token minted at login.
+type UserRefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
 // Mapping Login Request to Domain User
 func (u *UserLoginRequest) ToV1Domain() *V1Domains.UserDomain {
 	return &V1Domains.UserDomain{

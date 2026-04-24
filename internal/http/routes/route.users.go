@@ -43,6 +43,8 @@ func (r *usersRoutes) Routes() {
 		V1AuhtRoute.POST("/login", r.V1Handler.Login)
 		V1AuhtRoute.POST("/send-otp", r.V1Handler.SendOTP)
 		V1AuhtRoute.POST("/verify-otp", r.V1Handler.VerifyOTP)
+		V1AuhtRoute.POST("/refresh", r.V1Handler.Refresh)
+		V1AuhtRoute.POST("/logout", r.V1Handler.Logout)
 
 		// users
 		userRoute := V1Route.Group("/users")
