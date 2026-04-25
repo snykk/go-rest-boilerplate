@@ -1,31 +1,52 @@
-# Build stage
-FROM golang:1.25-alpine AS builder
+# syntax=docker/dockerfile:1.7
+#
+# Multi-stage, multi-arch build. BUILDPLATFORM / TARGETPLATFORM are set
+# by `docker buildx` when building for linux/amd64 + linux/arm64; a
+# plain `docker build` still works because they default to the local
+# platform.
 
-RUN apk add --no-cache git
+# ---------- builder ----------
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/api ./cmd/api/main.go
+ARG TARGETOS
+ARG TARGETARCH
+ENV CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64}
 
-# Runtime stage
-FROM alpine:3.21
+# -trimpath strips local file-system paths from the binary; -s -w
+# drops the symbol/debug tables for a smaller image.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
-RUN apk add --no-cache ca-certificates tzdata \
-    && addgroup -S appgroup \
-    && adduser -S appuser -G appgroup
+# Migrations are copied separately at runtime; build the migration CLI
+# too so the same image can run `./migrate -up` in init containers.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migration
+
+# ---------- runtime ----------
+# Distroless static: no shell, no package manager, nonroot user baked in.
+# ~2 MB base vs ~8 MB for alpine. No apt/apk surface to patch either.
+FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
 
-COPY --from=builder /app/bin/api .
-COPY --from=builder /app/cmd/migration/migrations ./cmd/migration/migrations
+COPY --from=builder /out/api      /app/api
+COPY --from=builder /out/migrate  /app/migrate
+COPY --from=builder /app/cmd/migration/migrations /app/cmd/migration/migrations
 
-USER appuser
+USER nonroot:nonroot
 
 EXPOSE 8080
 
-CMD ["./api"]
+ENTRYPOINT ["/app/api"]
