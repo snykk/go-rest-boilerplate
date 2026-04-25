@@ -19,3 +19,22 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
         run: govulncheck ./...
+
+  gosec:
+    name: Static Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      # gosec catches a different class of issues than govulncheck:
+      # govulncheck reads vuln DB → flags vulnerable deps; gosec reads
+      # source → flags antipatterns (hardcoded creds, weak crypto,
+      # SQL injection patterns, unsafe file perms, etc.).
+      - name: Run gosec
+        uses: securego/gosec@master
+        with:
+          # G104 (errcheck) is noisy and golangci-lint already covers
+          # it. Vendor is third-party code — out of scope.
+          args: "-exclude=G104 -exclude-dir=vendor ./..."
