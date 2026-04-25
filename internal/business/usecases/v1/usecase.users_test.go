@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
@@ -258,7 +259,7 @@ func TestGetByEmail(t *testing.T) {
 
 	t.Run("Test 3 | User doesn't exist", func(t *testing.T) {
 		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrNotFound("email not found")).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, apperror.NotFound("email not found")).Once()
 
 		result, err := userUsecase.GetByEmail(context.Background(), "johndoe@gmail.com")
 

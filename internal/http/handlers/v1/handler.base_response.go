@@ -5,7 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 type BaseResponse struct {
@@ -41,22 +44,56 @@ func NewAbortResponse(c *gin.Context, message string) {
 
 // mapDomainErrorToHTTP converts a domain error to an HTTP status code.
 func mapDomainErrorToHTTP(err error) int {
-	var domErr *constants.DomainError
+	var domErr *apperror.DomainError
 	if errors.As(err, &domErr) {
 		switch domErr.Type {
-		case constants.ErrTypeNotFound:
+		case apperror.ErrTypeNotFound:
 			return http.StatusNotFound
-		case constants.ErrTypeUnauthorized:
+		case apperror.ErrTypeUnauthorized:
 			return http.StatusUnauthorized
-		case constants.ErrTypeForbidden:
+		case apperror.ErrTypeForbidden:
 			return http.StatusForbidden
-		case constants.ErrTypeConflict:
+		case apperror.ErrTypeConflict:
 			return http.StatusConflict
-		case constants.ErrTypeBadRequest:
+		case apperror.ErrTypeBadRequest:
 			return http.StatusBadRequest
 		default:
 			return http.StatusInternalServerError
 		}
 	}
 	return http.StatusInternalServerError
+}
+
+// RespondWithError emits a sanitized error response and logs the
+// underlying cause for any internal (5xx) failures. Centralizes the
+// "log the gory detail, show the user a clean message" rule so no
+// handler accidentally pushes a wrapped library error into the body.
+func RespondWithError(c *gin.Context, err error) {
+	status := mapDomainErrorToHTTP(err)
+	message := err.Error()
+
+	if status >= http.StatusInternalServerError {
+		// Log the real cause (or the error itself if no cause is
+		// attached) and send back a generic message. Without this,
+		// clients see things like "hash password: bcrypt: …".
+		fields := logrus.Fields{
+			constants.LoggerCategory: constants.LoggerCategoryHTTP,
+			"path":                   c.FullPath(),
+		}
+		var domErr *apperror.DomainError
+		if errors.As(err, &domErr) && domErr.Cause != nil {
+			fields["cause"] = domErr.Cause.Error()
+		} else {
+			fields["cause"] = err.Error()
+		}
+		if rid, ok := c.Get("X-Request-ID"); ok {
+			if s, ok := rid.(string); ok {
+				fields["request_id"] = s
+			}
+		}
+		logger.Error("internal error while handling request", fields)
+		message = "internal server error"
+	}
+
+	NewErrorResponse(c, status, message)
 }

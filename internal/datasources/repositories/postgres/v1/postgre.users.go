@@ -7,8 +7,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
-	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
 )
 
@@ -29,7 +29,7 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.User
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return constants.ErrConflict("username or email already exists")
+			return apperror.Conflict("username or email already exists")
 		}
 		return err
 	}
@@ -46,7 +46,7 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains
 	err = r.conn.GetContext(ctx, &userRecord, `SELECT * FROM users WHERE "email" = $1 AND deleted_at IS NULL`, userRecord.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return V1Domains.UserDomain{}, constants.ErrNotFound("user not found")
+			return V1Domains.UserDomain{}, apperror.NotFound("user not found")
 		}
 		return V1Domains.UserDomain{}, err
 	}

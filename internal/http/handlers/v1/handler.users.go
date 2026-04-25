@@ -37,7 +37,7 @@ func (userH UserHandler) Register(ctx *gin.Context) {
 	userDomain := UserRegisRequest.ToV1Domain()
 	userDomainn, err := userH.usecase.Store(ctx.Request.Context(), userDomain)
 	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -60,7 +60,7 @@ func (userH UserHandler) Login(ctx *gin.Context) {
 
 	userDomain, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
 	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (userH UserHandler) SendOTP(ctx *gin.Context) {
 
 	err := userH.usecase.SendOTP(ctx.Request.Context(), userOTP.Email)
 	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -104,7 +104,7 @@ func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 
 	err := userH.usecase.VerifyOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code)
 	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (userH UserHandler) Refresh(ctx *gin.Context) {
 
 	userDomain, err := userH.usecase.Refresh(ctx.Request.Context(), req.RefreshToken)
 	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (userH UserHandler) Logout(ctx *gin.Context) {
 	}
 
 	if err := userH.usecase.Logout(ctx.Request.Context(), req.RefreshToken); err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -159,7 +159,7 @@ func (userH UserHandler) GetUserData(ctx *gin.Context) {
 
 	userDom, err := userH.usecase.GetByEmail(ctx.Request.Context(), user.Email)
 	if err != nil {
-		NewErrorResponse(ctx, mapDomainErrorToHTTP(err), err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 

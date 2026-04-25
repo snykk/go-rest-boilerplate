@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
@@ -45,7 +46,7 @@ func NewUserUsecase(repo V1Domains.UserRepository, jwtService jwt.JWTService, ma
 func (userUC *userUsecase) Store(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {
 	hashed, err := helpers.GenerateHash(inDom.Password)
 	if err != nil {
-		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("hash password: %w", err).Error())
+		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("hash password: %w", err))
 	}
 	inDom.Password = hashed
 
@@ -70,26 +71,26 @@ func (userUC *userUsecase) Login(ctx context.Context, inDom *V1Domains.UserDomai
 		// an attacker can enumerate valid emails by measuring response
 		// latency.
 		_ = helpers.ValidateHash(inDom.Password, dummyBcryptHash)
-		return V1Domains.UserDomain{}, constants.ErrUnauthorized("invalid email or password")
+		return V1Domains.UserDomain{}, apperror.Unauthorized("invalid email or password")
 	}
 
 	if !userDomain.Active {
-		return V1Domains.UserDomain{}, constants.ErrForbidden("account is not activated")
+		return V1Domains.UserDomain{}, apperror.Forbidden("account is not activated")
 	}
 
 	if !helpers.ValidateHash(inDom.Password, userDomain.Password) {
-		return V1Domains.UserDomain{}, constants.ErrUnauthorized("invalid email or password")
+		return V1Domains.UserDomain{}, apperror.Unauthorized("invalid email or password")
 	}
 
 	isAdmin := userDomain.RoleID == constants.AdminID
 	pair, err := userUC.jwtService.GenerateTokenPair(userDomain.ID, isAdmin, userDomain.Email)
 	if err != nil {
-		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("generate token: %w", err).Error())
+		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
 	}
 	if err := userUC.rememberRefresh(ctx, pair); err != nil {
 		// If Redis is unavailable we'd rather fail login than issue a
 		// refresh token the /refresh endpoint can't verify.
-		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("persist refresh: %w", err).Error())
+		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("persist refresh: %w", err))
 	}
 	userDomain.Token = pair.AccessToken
 	userDomain.RefreshToken = pair.RefreshToken
@@ -125,36 +126,36 @@ func (userUC *userUsecase) rememberRefresh(ctx context.Context, pair jwt.TokenPa
 func (userUC *userUsecase) Refresh(ctx context.Context, refreshToken string) (V1Domains.UserDomain, error) {
 	claims, err := userUC.jwtService.ParseRefreshToken(refreshToken)
 	if err != nil {
-		return V1Domains.UserDomain{}, constants.ErrUnauthorized("invalid refresh token")
+		return V1Domains.UserDomain{}, apperror.Unauthorized("invalid refresh token")
 	}
 
 	// Verify the jti is still live server-side; logout / previous
 	// rotation would have removed it.
 	if _, err := userUC.redisCache.Get(ctx, refreshKey(claims.ID)); err != nil {
-		return V1Domains.UserDomain{}, constants.ErrUnauthorized("refresh token has been revoked")
+		return V1Domains.UserDomain{}, apperror.Unauthorized("refresh token has been revoked")
 	}
 
 	// Fresh identity lookup so revoked / deactivated accounts stop
 	// getting new access tokens even while their refresh is live.
 	userDomain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: claims.Email})
 	if err != nil {
-		return V1Domains.UserDomain{}, constants.ErrUnauthorized("user no longer exists")
+		return V1Domains.UserDomain{}, apperror.Unauthorized("user no longer exists")
 	}
 	if !userDomain.Active {
-		return V1Domains.UserDomain{}, constants.ErrForbidden("account is not activated")
+		return V1Domains.UserDomain{}, apperror.Forbidden("account is not activated")
 	}
 
 	isAdmin := userDomain.RoleID == constants.AdminID
 	pair, err := userUC.jwtService.GenerateTokenPair(userDomain.ID, isAdmin, userDomain.Email)
 	if err != nil {
-		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("generate token: %w", err).Error())
+		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
 	}
 
 	// Rotate: remove the old jti, record the new one. Do this after
 	// the new pair is minted so a mint failure doesn't leave the user
 	// with no valid refresh token at all.
 	if err := userUC.rememberRefresh(ctx, pair); err != nil {
-		return V1Domains.UserDomain{}, constants.ErrInternal(fmt.Errorf("persist refresh: %w", err).Error())
+		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("persist refresh: %w", err))
 	}
 	_ = userUC.redisCache.Del(ctx, refreshKey(claims.ID))
 
@@ -170,10 +171,10 @@ func (userUC *userUsecase) Refresh(ctx context.Context, refreshToken string) (V1
 func (userUC *userUsecase) Logout(ctx context.Context, refreshToken string) error {
 	claims, err := userUC.jwtService.ParseRefreshToken(refreshToken)
 	if err != nil {
-		return constants.ErrUnauthorized("invalid refresh token")
+		return apperror.Unauthorized("invalid refresh token")
 	}
 	if err := userUC.redisCache.Del(ctx, refreshKey(claims.ID)); err != nil {
-		return constants.ErrInternal(fmt.Errorf("revoke refresh: %w", err).Error())
+		return apperror.InternalCause(fmt.Errorf("revoke refresh: %w", err))
 	}
 	return nil
 }
@@ -181,16 +182,16 @@ func (userUC *userUsecase) Logout(ctx context.Context, refreshToken string) erro
 func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
-		return constants.ErrNotFound("email not found")
+		return apperror.NotFound("email not found")
 	}
 
 	if domain.Active {
-		return constants.ErrBadRequest("account already activated")
+		return apperror.BadRequest("account already activated")
 	}
 
 	code, err := helpers.GenerateOTPCode(6)
 	if err != nil {
-		return constants.ErrInternal(fmt.Errorf("generate otp: %w", err).Error())
+		return apperror.InternalCause(fmt.Errorf("generate otp: %w", err))
 	}
 
 	if err = userUC.mailer.SendOTP(code, email); err != nil {
@@ -200,7 +201,7 @@ func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 			"email":                  email,
 			"error":                  err.Error(),
 		})
-		return constants.ErrInternal(fmt.Errorf("send otp: %w", err).Error())
+		return apperror.InternalCause(fmt.Errorf("send otp: %w", err))
 	}
 
 	// store OTP code in Redis and reset failed-attempt counter
@@ -223,11 +224,11 @@ func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP string) error {
 	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
-		return constants.ErrNotFound("email not found")
+		return apperror.NotFound("email not found")
 	}
 
 	if domain.Active {
-		return constants.ErrBadRequest("account already activated")
+		return apperror.BadRequest("account already activated")
 	}
 
 	// Brute-force guard: OTP is only 6 digits (1M combinations), so we
@@ -247,7 +248,7 @@ func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP 
 		_ = userUC.redisCache.Expire(ctx, attemptsKey, ttl)
 	}
 	if attempts > int64(config.AppConfig.OTPMaxAttempts) {
-		return constants.ErrForbidden("too many invalid otp attempts, please request a new code")
+		return apperror.Forbidden("too many invalid otp attempts, please request a new code")
 	}
 
 	// retrieve OTP from Redis and validate
@@ -255,17 +256,17 @@ func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP 
 	otpRedis, err := userUC.redisCache.Get(ctx, otpKey)
 	if err != nil {
 		observability.ObserveCacheOp("redis", "get", "miss")
-		return constants.ErrBadRequest("otp code expired or not found")
+		return apperror.BadRequest("otp code expired or not found")
 	}
 	observability.ObserveCacheOp("redis", "get", "hit")
 
 	if otpRedis != userOTP {
-		return constants.ErrBadRequest("invalid otp code")
+		return apperror.BadRequest("invalid otp code")
 	}
 
 	// activate user
 	if err = userUC.repo.ChangeActiveUser(ctx, &V1Domains.UserDomain{ID: domain.ID, Active: true}); err != nil {
-		return constants.ErrInternal(fmt.Errorf("activate user: %w", err).Error())
+		return apperror.InternalCause(fmt.Errorf("activate user: %w", err))
 	}
 
 	// cleanup caches
@@ -298,7 +299,7 @@ func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (V1Doma
 
 	user, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
-		return V1Domains.UserDomain{}, constants.ErrNotFound("email not found")
+		return V1Domains.UserDomain{}, apperror.NotFound("email not found")
 	}
 
 	// populate cache
@@ -321,8 +322,8 @@ func mapRepoError(err error, op string) error {
 	if err == nil {
 		return nil
 	}
-	if _, ok := err.(*constants.DomainError); ok {
+	if _, ok := err.(*apperror.DomainError); ok {
 		return err
 	}
-	return constants.ErrInternal(fmt.Errorf("%s: %w", op, err).Error())
+	return apperror.InternalCause(fmt.Errorf("%s: %w", op, err))
 }
