@@ -1,10 +1,41 @@
 package mailer
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
+	"html/template"
 	"time"
 
 	gomail "gopkg.in/mail.v2"
+)
+
+// Embedded so the binary is self-contained — distroless runtime has
+// no shell or filesystem to load templates from at deploy time.
+//
+//go:embed templates/*.html
+var templatesFS embed.FS
+
+// otpTpl is parsed once at package init. html/template (not text)
+// auto-escapes the OTP code, defending against an attacker
+// somehow injecting markup into the OTP path.
+var otpTpl = template.Must(template.ParseFS(templatesFS, "templates/otp.html"))
+
+// otpTemplateData feeds the template. AppName / Region are constants
+// today; pulling them out makes white-labeling and i18n a config
+// change rather than a code edit.
+type otpTemplateData struct {
+	AppName      string
+	Region       string
+	Code         string
+	Year         int
+	ValidMinutes int
+}
+
+const (
+	defaultAppName      = "Go Rest boilerplate"
+	defaultRegion       = "East Java, Indonesia"
+	defaultValidMinutes = 5
 )
 
 type OTPMailer interface {
@@ -24,33 +55,36 @@ func NewOTPMailer(email, password string) OTPMailer {
 }
 
 func (mailer *otpMailer) SendOTP(otpCode string, receiver string) (err error) {
-	now := time.Now()
-	configMessage := gomail.NewMessage()
-	configMessage.SetHeader("From", mailer.email)
-	configMessage.SetHeader("To", receiver)
-	configMessage.SetHeader("Subject", "Verification Email")
-	configMessage.SetBody("text/html",
-		`<div style="font-family: Helvetica,Arial,sans-serif;min-width:1000px;overflow:auto;line-height:2">
-			<div style="margin:50px auto;width:70%;padding:20px 0">
-			<div style="border-bottom:1px solid #eee">
-				<a href="" style="font-size:1.4em;color: #00466a;text-decoration:none;font-weight:600">Go Rest boilerplate</a>
-			</div>
-			<p style="font-size:1.1em">Hi,</p>
-			<p>Thank you for choosing Our Services. Use the following OTP to complete your Sign Up procedures. OTP is valid for 5 minutes</p>
-			<h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">`+otpCode+`</h2>
-			<p style="font-size:0.9em;">Regards,<br />Go Rest boilerplate</p>
-			<hr style="border:none;border-top:1px solid #eee" />
-			<div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300">
-				<p>Copyright &copy; Go Rest boilerplate `+fmt.Sprintf("%d", now.Year())+`</p>
-				<p>East Java, Indonesia</p>
-			</div>
-			</div>
-		</div>
-		`)
+	body, err := renderOTPBody(otpCode)
+	if err != nil {
+		return fmt.Errorf("render otp template: %w", err)
+	}
+
+	msg := gomail.NewMessage()
+	msg.SetHeader("From", mailer.email)
+	msg.SetHeader("To", receiver)
+	msg.SetHeader("Subject", "Verification Email")
+	msg.SetBody("text/html", body)
 
 	dialer := gomail.NewDialer("smtp.gmail.com", 587, mailer.email, mailer.password)
 	dialer.Timeout = 10 * time.Second
 
-	err = dialer.DialAndSend(configMessage)
-	return
+	return dialer.DialAndSend(msg)
+}
+
+// renderOTPBody is exported as a helper for tests so they can assert
+// on the rendered HTML without spinning up an SMTP dialer.
+func renderOTPBody(code string) (string, error) {
+	var buf bytes.Buffer
+	data := otpTemplateData{
+		AppName:      defaultAppName,
+		Region:       defaultRegion,
+		Code:         code,
+		Year:         time.Now().Year(),
+		ValidMinutes: defaultValidMinutes,
+	}
+	if err := otpTpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
