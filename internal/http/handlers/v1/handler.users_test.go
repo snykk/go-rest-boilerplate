@@ -134,7 +134,8 @@ func TestRegister(t *testing.T) {
 		s.ServeHTTP(w, r)
 
 		body := w.Body.String()
-		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		// Validation failures now render as 422 with structured detail.
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Result().StatusCode)
 		assert.Contains(t, body, "required")
 	})
 }
@@ -173,7 +174,7 @@ func TestSendOTP(t *testing.T) {
 
 		s.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Result().StatusCode)
 	})
 	t.Run("Test 3 | When Failure Send OTP", func(t *testing.T) {
 		req := requests.UserSendOTPRequest{
@@ -232,7 +233,7 @@ func TestVerifyOTP(t *testing.T) {
 
 		s.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Result().StatusCode)
 	})
 	t.Run("Test 3 | Invalid OTP Code", func(t *testing.T) {
 		req := requests.UserVerifOTPRequest{

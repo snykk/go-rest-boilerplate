@@ -9,6 +9,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
+	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
 type BaseResponse struct {
@@ -69,6 +70,19 @@ func mapDomainErrorToHTTP(err error) int {
 // "log the gory detail, show the user a clean message" rule so no
 // handler accidentally pushes a wrapped library error into the body.
 func RespondWithError(c *gin.Context, err error) {
+	// Validation failures get their own structured response — clients
+	// need to know *which field* is wrong, not just the concatenated
+	// summary. Render as 422 with per-field detail in `data`.
+	var ve *validators.ValidationErrors
+	if errors.As(err, &ve) {
+		c.JSON(http.StatusUnprocessableEntity, BaseResponse{
+			Status:  false,
+			Message: "validation failed",
+			Data:    map[string]any{"errors": ve.Errors},
+		})
+		return
+	}
+
 	status := mapDomainErrorToHTTP(err)
 	message := err.Error()
 

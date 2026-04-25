@@ -25,12 +25,12 @@ func NewUserHandler(usecase V1Domains.UserUsecase) UserHandler {
 func (userH UserHandler) Register(ctx *gin.Context) {
 	var UserRegisRequest requests.UserRequest
 	if err := ctx.ShouldBindJSON(&UserRegisRequest); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := validators.ValidatePayloads(UserRegisRequest); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -49,12 +49,12 @@ func (userH UserHandler) Register(ctx *gin.Context) {
 func (userH UserHandler) Login(ctx *gin.Context) {
 	var UserLoginRequest requests.UserLoginRequest
 	if err := ctx.ShouldBindJSON(&UserLoginRequest); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := validators.ValidatePayloads(UserLoginRequest); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -71,12 +71,12 @@ func (userH UserHandler) SendOTP(ctx *gin.Context) {
 	var userOTP requests.UserSendOTPRequest
 
 	if err := ctx.ShouldBindJSON(&userOTP); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := validators.ValidatePayloads(userOTP); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -93,12 +93,12 @@ func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 	var userOTP requests.UserVerifOTPRequest
 
 	if err := ctx.ShouldBindJSON(&userOTP); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := validators.ValidatePayloads(userOTP); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -114,11 +114,11 @@ func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 func (userH UserHandler) Refresh(ctx *gin.Context) {
 	var req requests.UserRefreshRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := validators.ValidatePayloads(req); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
@@ -134,11 +134,11 @@ func (userH UserHandler) Refresh(ctx *gin.Context) {
 func (userH UserHandler) Logout(ctx *gin.Context) {
 	var req requests.UserRefreshRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := validators.ValidatePayloads(req); err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
+		RespondWithError(ctx, err)
 		return
 	}
 
