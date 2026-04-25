@@ -49,18 +49,13 @@ func (userUC *userUsecase) Store(ctx context.Context, inDom *V1Domains.UserDomai
 		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("hash password: %w", err))
 	}
 	inDom.Password = hashed
-
 	inDom.CreatedAt = time.Now().In(constants.GMT7)
-	if err := userUC.repo.Store(ctx, inDom); err != nil {
+
+	stored, err := userUC.repo.Store(ctx, inDom)
+	if err != nil {
 		return V1Domains.UserDomain{}, mapRepoError(err, "store user")
 	}
-
-	outDom, err := userUC.repo.GetByEmail(ctx, inDom)
-	if err != nil {
-		return V1Domains.UserDomain{}, mapRepoError(err, "fetch newly created user")
-	}
-
-	return outDom, nil
+	return stored, nil
 }
 
 func (userUC *userUsecase) Login(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {

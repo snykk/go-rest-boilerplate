@@ -30,7 +30,10 @@ type UserUsecase interface {
 }
 
 type UserRepository interface {
-	Store(ctx context.Context, inDom *UserDomain) (err error)
+	// Store inserts the user and returns the persisted row in a single
+	// round-trip so callers don't need a follow-up GetByEmail (which
+	// would orphan the INSERT if it failed).
+	Store(ctx context.Context, inDom *UserDomain) (UserDomain, error)
 	GetByEmail(ctx context.Context, inDom *UserDomain) (outDomain UserDomain, err error)
 	ChangeActiveUser(ctx context.Context, inDom *UserDomain) (err error)
 }

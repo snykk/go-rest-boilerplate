@@ -83,8 +83,7 @@ func TestStore(t *testing.T) {
 	t.Run("Test 1 | Success Store User Data", func(t *testing.T) {
 		pass, _ := helpers.GenerateHash("11111")
 
-		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
 		result, err := userUsecase.Store(context.Background(), req.ToV1Domain())
 
 		assert.Nil(t, err)
@@ -95,7 +94,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("Test 2 | Failure When Store User Data", func(t *testing.T) {
-		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(constants.ErrUnexpected).Once()
+		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUnexpected).Once()
 		result, err := userUsecase.Store(context.Background(), req.ToV1Domain())
 
 		assert.NotNil(t, err)

@@ -111,8 +111,7 @@ func TestRegister(t *testing.T) {
 		}
 		reqBody, _ := json.Marshal(req)
 
-		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, constants.EndpointV1+"/auth/register", bytes.NewReader(reqBody))
