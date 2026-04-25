@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
@@ -16,7 +17,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 )
 
 // normalizeEmail trims whitespace and lowercases the address so
@@ -41,6 +42,11 @@ type userUsecase struct {
 	mailer         mailer.OTPMailer
 	redisCache     caches.RedisCache
 	ristrettoCache caches.RistrettoCache
+
+	// userByEmailGroup coalesces concurrent cache misses for the
+	// same email so a thundering herd can't fan out into N parallel
+	// DB round-trips. The group is keyed by normalized email.
+	userByEmailGroup singleflight.Group
 }
 
 func NewUserUsecase(repo V1Domains.UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache) V1Domains.UserUsecase {
@@ -307,16 +313,23 @@ func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (V1Doma
 		observability.ObserveCacheOp("ristretto", "get", "miss")
 	}
 
-	user, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
+	// Coalesce concurrent misses for the same email — without this,
+	// N goroutines all racing on a cold cache fan out into N DB
+	// round-trips. singleflight runs the fn() once per key and hands
+	// the result to every joiner.
+	v, err, _ := userUC.userByEmailGroup.Do(email, func() (any, error) {
+		user, repoErr := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
+		if repoErr != nil {
+			return V1Domains.UserDomain{}, repoErr
+		}
+		userUC.ristrettoCache.Set(cacheKey, user)
+		observability.ObserveCacheOp("ristretto", "set", "ok")
+		return user, nil
+	})
 	if err != nil {
 		return V1Domains.UserDomain{}, apperror.NotFound("email not found")
 	}
-
-	// populate cache
-	userUC.ristrettoCache.Set(cacheKey, user)
-	observability.ObserveCacheOp("ristretto", "set", "ok")
-
-	return user, nil
+	return v.(V1Domains.UserDomain), nil
 }
 
 // otpAttemptsKey returns the Redis key that tracks failed VerifyOTP
