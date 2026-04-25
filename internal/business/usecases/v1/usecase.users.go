@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
@@ -17,6 +18,15 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 	"github.com/sirupsen/logrus"
 )
+
+// normalizeEmail trims whitespace and lowercases the address so
+// "User@Example.com " and "user@example.com" hash to the same Redis
+// key, query the same DB row, and produce the same uniqueness
+// violation. RFC 5321 says the local part is technically
+// case-sensitive, but every consumer-grade mail provider treats it
+// case-insensitively; matching that expectation avoids "I can't log in
+// because I capitalized the U" support tickets.
+func normalizeEmail(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
 
 // dummyBcryptHash is a pre-computed bcrypt hash used to mask the timing
 // difference between "user not found" and "wrong password" branches in
@@ -49,6 +59,7 @@ func (userUC *userUsecase) Store(ctx context.Context, inDom *V1Domains.UserDomai
 		return V1Domains.UserDomain{}, apperror.InternalCause(fmt.Errorf("hash password: %w", err))
 	}
 	inDom.Password = hashed
+	inDom.Email = normalizeEmail(inDom.Email)
 	inDom.CreatedAt = time.Now().In(constants.GMT7)
 
 	stored, err := userUC.repo.Store(ctx, inDom)
@@ -59,6 +70,7 @@ func (userUC *userUsecase) Store(ctx context.Context, inDom *V1Domains.UserDomai
 }
 
 func (userUC *userUsecase) Login(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {
+	inDom.Email = normalizeEmail(inDom.Email)
 	userDomain, err := userUC.repo.GetByEmail(ctx, inDom)
 	if err != nil {
 		// Run a dummy bcrypt comparison so this path takes roughly the
@@ -175,6 +187,7 @@ func (userUC *userUsecase) Logout(ctx context.Context, refreshToken string) erro
 }
 
 func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
+	email = normalizeEmail(email)
 	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
 		return apperror.NotFound("email not found")
@@ -217,6 +230,7 @@ func (userUC *userUsecase) SendOTP(ctx context.Context, email string) error {
 }
 
 func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP string) error {
+	email = normalizeEmail(email)
 	domain, err := userUC.repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: email})
 	if err != nil {
 		return apperror.NotFound("email not found")
@@ -279,6 +293,7 @@ func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP 
 }
 
 func (userUC *userUsecase) GetByEmail(ctx context.Context, email string) (V1Domains.UserDomain, error) {
+	email = normalizeEmail(email)
 	// check in-memory cache first
 	cacheKey := fmt.Sprintf("user/%s", email)
 	if val := userUC.ristrettoCache.Get(cacheKey); val != nil {
