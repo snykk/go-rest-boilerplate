@@ -1,233 +1,194 @@
 # go-rest-boilerplate
 
-A great starting point for building RESTful APIs in Go using Gin framework, and sqlx for connecting to a PostgreSQL database. The implementation follows Clean Architecture principles as described by Uncle Bob.
+A starting point for building RESTful APIs in Go using the Gin framework, sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture principles as described by Uncle Bob.
 
-### Features
+## Features
 
--   Implements the Clean Architecture pattern for a scalable and maintainable codebase
--   Uses the Gin framework for efficient and fast handling of HTTP requests
--   Integrates with PostgreSQL databases using SQLx.DB for powerful and flexible database operations
+### Core
+- Clean Architecture layering — `handler → usecase → repository`, no back-imports
+- Gin HTTP router with structured access log + request-ID middleware
+- PostgreSQL via sqlx, Ristretto + Redis two-tier caching
+- Graceful shutdown drains in-flight HTTP, mailer queue, DB, Redis, and tracer in order
 
-##### Authentication
+### Authentication
+- JWT access tokens + refresh tokens (rotation on `/auth/refresh`, revocation on `/auth/logout`)
+- HMAC signing-method check + `kind` claim guard against access/refresh confusion
+- bcrypt password hashing (configurable cost, default 12)
+- OTP-verified registration with brute-force lockout (configurable max attempts)
+- Login timing-attack mitigation (dummy bcrypt on user-not-found)
 
--   Supports JWT authentication with configurable expiration and issuer, allowing for flexible and secure authentication processes.
--   Supports OTP authentication with configurable expiration and Redis caching to store and retrieve the OTP codes, providing fast and efficient authentication processes.
+### Observability
+- Prometheus metrics: HTTP, cache (hit/miss/error per layer), mailer outcomes, DB pool stats
+- OpenTelemetry tracing — HTTP server spans, DB queries (otelsqlx), Redis commands (redisotel), mailer attempts
+- Structured request/audit logs (logrus) with X-Request-ID propagation
+- `/health` (liveness), `/ready` (DB + Redis probe), `/metrics`, `/swagger`
 
-### Getting Started
+### Security
+- HSTS, CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy headers
+- CORS origins from env (whitelist), wildcard only in dev
+- Per-IP rate limiting on auth endpoints
+- 1MB body size limit, configurable HTTP timeouts (Idle, ReadHeader, Read, Write)
+- Soft-delete-aware queries; partial unique indexes on `(LOWER(email))` and `(LOWER(username))`
 
-##### Prerequisites
+### Testing & DevOps
+- Unit tests with mockery-generated mocks
+- Integration tests via testcontainers-go (real Postgres + Redis)
+- CI: lint (golangci-lint), unit + race, integration with Docker, OpenAPI drift detection, build, multi-arch Docker
+- Security scans: govulncheck (deps) + gosec (source) on schedule
+- Distroless multi-arch (amd64/arm64) container image
+- Async OTP mailer with retry & graceful drain
 
--   Go version 1.17 or higher
--   PostgreSQL version 9.1 or higher
+## Getting Started
 
-To get up and running with the Go-REST-Boilerplate, follow these simple steps:
+### Prerequisites
+- Go 1.25+
+- PostgreSQL 16+
+- Redis 7+
+- Docker (only required for integration tests; production runs against managed services)
 
-```
-$ git clone https://github.com/snykk/go-rest-boilerplate.git
-$ cd go-rest-boilerplate
-$ cp internal/config/.env.example internal/config/.env # create a copy of the example environment file, and also follow configuration steps on the difference section below
-$ go build -o go-rest-boilerplate.out cmd/api/main.go
-$ ./go-rest-boilerplate.out
-```
+### Quick start
+```bash
+git clone https://github.com/snykk/go-rest-boilerplate.git
+cd go-rest-boilerplate
+cp internal/config/.env.example internal/config/.env
+# Edit .env — JWT_SECRET must be at least 32 characters
 
-#### Configuration
+# Option 1: Docker Compose (full stack)
+make docker-up
 
-The application can be configured using environment variables to fit your specific needs. A sample environment file is provided as .env.example with the following variables available for customization:
-
-##### App
-
--   `PORT`: The port on which the server will listen (defaults to 8080)
--   `ENVIRONMENT`: The environment the application is running in (defaults to "development")
--   `DEBUG`: Enable or disable debug mode (defaults to true)
-
-##### Database
-
-PostgreSQL
-
--   `DB_POSTGRE_DRIVER`: The database driver to use (defaults to "postgres")
--   `DB_POSTGRE_DSN`: The database connection URI in DSN format (defaults to "user=myuser password=mypassword host=myhost port=5432 dbname=mydb sslmode=disable timezone=Asia/Jakarta")
--   `DB_POSTGRE_URL`: The database connection URI in URL format (defaults to "postgres://user:pass@host/db")
-
-##### JWT
-
--   `JWT_SECRET`: The secret key used to sign and verify JWT tokens (defaults to "dont-tuch-mytralalala-mydangdingdong")
--   `JWT_EXPIRED`: The number of hours until JWT tokens expire (defaults to 5)
--   `JWT_ISSUER`: The issuer of JWT tokens (defaults to "snykk_here")
-
-##### OTP
-
--   `OTP_EMAIL`: The email address to send OTP codes to (defaults to "patrick@gmail.com")
--   `OTP_PASSWORD`: The password to use for sending OTP codes (defaults to "idonthavepassword")
-
-##### Cache
-
-Redis
-
--   `REDIS_HOST`: The host and port of the Redis server (defaults to "localhost:6969")
--   `REDIS_PASS`: The password to use for connecting to Redis (defaults to "mydangdingdong")
--   `REDIS_EXPIRED`: The number of minutes until cache items expire in Redis (defaults to 5)
-
-### Folder Structure
-
-```
-root/
-|-- cmd/
-|   |-- api
-|   |   |-- server/
-|   |   |-- main.go
-|   |-- cron/
-|   |   |-- jobs/
-|   |   |-- main.go
-|   |-- migration/
-|   |   |-- migrations/
-|   |   |-- main.go
-|   |-- seed
-|       |-- seeds/
-|       |-- main.go
-|-- deploy/
-|   |-- Dockerfile
-|   |-- docker-compose.yml
-|-- docs/
-|   |-- swagger.yaml
-|-- internal/
-|   |-- business/
-|   |   |-- domains
-|   |   |   |-- v1
-|   |   |       |-- domains.users.go
-|   |   |-- usecases
-|   |       |-- v1
-|   |           |-- usecase.users.go
-|   |           |-- usecase.users_test.go
-|   |-- config/
-|   |   |-- .env
-|   |   |-- .env.example
-|   |   |-- config.go
-|   |-- constants/
-|   |   |-- constant.users.go
-|   |-- datasources/
-|   |   |-- caches/
-|   |   |   |-- cache.redis.go
-|   |   |-- drivers/
-|   |   |   |-- driver.postgre.go
-|   |   |-- records/
-|   |   |   |-- record.user.go
-|   |   |   |-- record.user_mapper_v1.go
-|   |   |-- repositories
-|   |   |   |-- postgres/
-|   |   |   |   |-- v1
-|   |   |   |       |-- postgre.user.go
-|   |   |   |-- mongos/
-|   |-- http/
-|   |   |-- datatransfers/
-|   |   |   |-- requests/
-|   |   |   |   |-- request.users.go
-|   |   |   |-- responses/
-|   |   |       |-- response.users.go
-|   |   |-- handlers/
-|   |   |   |-- v1/
-|   |   |       |-- handler.base_response.go
-|   |   |       |-- handler.users.go
-|   |   |       |-- handler.users_test.go
-|   |   |-- middlewares/
-|   |   |   |-- middleware.auth.go
-|   |   |   |-- middleware.auth_test.go
-|   |   |-- routes/
-|   |       |-- route.users.go
-|   |-- mocks/
-|   |   |-- mock.cache_redis.go
-|   |-- utils/
-|-- pkg/
-|   |-- helpers/
-|   |   |-- helper.bcrypt.go
-|   |   |-- helper.bcrypt_test.go
-|   |-- jwt/
-|   |   |-- jwt.go
-|   |   |-- jwt_test.go
-|   |-- logger/
-|   |-- mailer/
-|   |-- validators/
-|-- vendor/
-|-- go.mod
-|-- go.sum
-|-- makefile
-|-- README.md (thisfile)
-|-- rest.http
+# Option 2: local dev with hot-reload
+make mig-up   # apply migrations
+make dev      # air-powered hot reload
 ```
 
-##### `cmd` folder
+## Configuration
 
-This folder contains all the entry points of the application. There are four sub-folders in the `cmd` folder:
+All configuration is via environment variables loaded from `internal/config/.env`. See [`.env.example`](internal/config/.env.example) for the full list. Highlights:
 
--   `api`: This folder contains the main entry point of the REST API server. The `main.go` file in the `server` sub-folder is responsible for starting the server and setting up all the necessary routes.
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `PORT` | 8080 | |
+| `ENVIRONMENT` | development | `production` enables HSTS and requires `ALLOWED_ORIGINS` |
+| `JWT_SECRET` | _(required, ≥32 chars)_ | HS256 needs 256-bit entropy |
+| `JWT_EXPIRED` | 5 | Access token TTL in hours |
+| `JWT_REFRESH_EXPIRED` | 7 | Refresh token TTL in days |
+| `BCRYPT_COST` | 12 | Range 10–31 |
+| `OTP_MAX_ATTEMPTS` | 5 | Lockout threshold per email |
+| `MAILER_WORKERS` / `_QUEUE_SIZE` / `_RETRIES` | 2 / 64 / 3 | Async mailer pool |
+| `DB_MAX_OPEN_CONNS` / `_IDLE_CONNS` / `_LIFE_MINS` | 25 / 5 / 15 | sqlx pool |
+| `OTEL_EXPORTER` | _(empty = disabled)_ | `stdout` for dev, `otlp` for prod |
+| `ALLOWED_ORIGINS` | _(empty)_ | Comma-separated; required in production |
 
--   `cron`: This folder contains the main entry point for any cron jobs that need to be run.
+## Make targets
 
--   `migration`: This folder contains the main entry point for managing database migrations.
+```bash
+make serve              # run the API directly
+make dev                # hot reload via air
+make test               # unit tests (mocks only — fast, no Docker)
+make test-integration   # integration tests via testcontainers (requires Docker)
+make test-cover         # coverage.html
+make lint               # golangci-lint
+make swag               # regenerate OpenAPI spec from handler annotations
+make mig-up / mig-down  # apply / revert migrations (idempotent)
+make seed               # seed the database
+make docker-up / -down  # full stack via docker-compose
+```
 
--   `seed`: This folder contains the main entry point for seed data into the database.
+## Endpoints
 
-##### `deploy` folder
+OpenAPI spec is auto-generated from godoc annotations on the handlers. Browse it at:
 
-This folder contains the necessary configuration files for deploying the application to a production environment.
+```
+http://localhost:8080/swagger/index.html
+```
 
--   `Dockerfile`: This file is used to build a Docker image of the application.
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| POST | `/api/v1/auth/register` | - | Create account (inactive until OTP verified) |
+| POST | `/api/v1/auth/send-otp` | - | Email a 6-digit OTP |
+| POST | `/api/v1/auth/verify-otp` | - | Activate account |
+| POST | `/api/v1/auth/login` | - | Issue access + refresh token pair |
+| POST | `/api/v1/auth/refresh` | - | Rotate refresh, return new pair |
+| POST | `/api/v1/auth/logout` | - | Revoke refresh token |
+| GET | `/api/v1/users/me` | Bearer | Current user profile |
+| GET | `/health` | - | Liveness probe |
+| GET | `/ready` | - | Readiness — checks DB + Redis |
+| GET | `/metrics` | - | Prometheus scrape endpoint |
+| GET | `/swagger/*` | - | OpenAPI UI |
 
--   `docker-compose.yml`: This file is used to start the application and its dependencies (such as the database) using Docker Compose.
+## Folder structure
 
-##### `docs` folder
+```
+.
+├── cmd/
+│   ├── api/                # HTTP server entry point + DI wiring
+│   ├── migration/          # CLI wrapper around internal/datasources/migration
+│   └── seed/
+├── deploy/                 # Dockerfile, docker-compose
+├── docs/                   # OpenAPI spec (generated by `make swag` — do not edit)
+├── internal/
+│   ├── apperror/           # Typed error envelope (DomainError + Unwrap)
+│   ├── business/
+│   │   ├── domains/v1/     # Entity + interfaces (UserDomain, UserRepository, UserUsecase)
+│   │   └── usecases/v1/    # Business logic
+│   ├── config/             # Viper-backed config + .env.example
+│   ├── constants/          # True constants only (sentinel errors, enum values)
+│   ├── datasources/
+│   │   ├── caches/         # Redis (with OTel hook) + Ristretto
+│   │   ├── drivers/        # sqlx wrapped in otelsqlx
+│   │   ├── migration/      # Idempotent migration runner (lib + tests)
+│   │   ├── records/        # DB row structs
+│   │   └── repositories/   # Postgres impl of domain interfaces
+│   ├── http/
+│   │   ├── auth/           # CurrentUserFromContext helper
+│   │   ├── datatransfers/  # Request/Response DTOs
+│   │   ├── handlers/v1/    # HTTP handlers + RespondWithError
+│   │   ├── middlewares/    # auth, cors, security headers, rate limit, metrics, ...
+│   │   └── routes/
+│   └── test/
+│       ├── mocks/          # mockery-generated test doubles
+│       └── testenv/        # testcontainers harness (build-tagged: integration)
+├── pkg/
+│   ├── audit/              # Auth event JSON-line logger
+│   ├── helpers/            # bcrypt, OTP code generator
+│   ├── jwt/                # Access + refresh token service
+│   ├── logger/             # logrus wrapper, HTTP access log formatter
+│   ├── mailer/             # Sync + async OTP mailer (HTML template embedded)
+│   ├── observability/      # Prometheus metrics + OpenTelemetry tracing
+│   └── validators/         # go-playground/validator + structured FieldError
+├── go.mod / go.sum
+├── makefile
+└── README.md
+```
 
-This folder contains the documentation for the REST API, including the `swagger.yaml` file which defines the API specification.
+## Testing
 
-##### `internal` folder
+```bash
+make test               # unit tests, mocks only — runs in seconds
+make test-integration   # spins up Postgres + Redis containers; ~30s first run
+```
 
-This folder contains all the business logic and other implementation details of the application. It is structured as follows:
+Unit tests live next to the code they test (`*_test.go`). Integration tests are gated behind the `integration` build tag so they're excluded from the default test run; the harness is in `internal/test/testenv/`.
 
--   `business` folder
+## Observability
 
-    -   domains folder: This folder contains domain-specific logic, such as the business rules for creating, updating, and deleting users.
+Set `OTEL_EXPORTER=stdout` in dev to print spans, or `OTEL_EXPORTER=otlp` in production with `OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317`. Spans flow:
 
-    -   usecases folder: This folder contains the implementation of the use cases that are defined in the domains folder.
+```
+HTTP server (otelgin)
+  ├── DB SELECT/INSERT (otelsqlx) — db.statement, db.system=postgresql
+  ├── Redis GET/SET/INCR/EXPIRE (redisotel)
+  └── (separate root) mailer.SendOTP per attempt
+```
 
--   `config` folder
+## Contributing
 
-    -   `.env`: This file contains the environment variables that are used by the application.
-    -   `.env.example`: This file is an example of the .env file, with all the necessary environment variables listed.
-    -   `config.go`: This file reads the environment variables and sets up the configuration for the application.
+PRs welcome. The CI fails when:
+- `go test ./...` fails (race detector enabled)
+- `go test -tags=integration ./...` fails (needs Docker, runs in the runner)
+- `make swag` regeneration produces a diff — run it locally and commit the result
+- govulncheck or gosec flags an issue (security workflow)
 
--   `constants` folder
+## License
 
-    -   this folder contains constant values used throughout the application.
-
--   `datasources` folder
-
-    -   `caches` folder: This folder contains the implementation of cache storage, such as Redis.
-    -   `drivers` folder: This folder contains the implementation of database drivers, such as PostgreSQL.
-    -   `records` folder: This folder contains the implementation of database records, such as User.
-    -   `repositories` folder: This folder contains the implementation of database repositories, such as PostgreSQL and MongoDB.
-
--   `http` folder
-
-    -   `datatransfers` folder: This folder contains the implementation of data transfer objects, such as request and response objects.
-    -   `handlers` folder: This folder contains the implementation of HTTP handlers, which handle incoming HTTP requests and send responses back to the client.
-    -   `middlewares` folder: This folder contains the implementation of middlewares, which are executed before the request is handled by the handler.
-    -   `routes` folder: This folder contains the implementation of routes, which map URLs to handlers.
-
--   `mocks` folder
-
-    -   this folder contains the implementation of mock objects used in tests.
-
--   `utils` folder
-
-    -   this folder contains utility functions and classes used throughout the application.
-
-##### `pkg` folder
-
-This folder contains reusable packages that are shared across different parts of the application.
-
-### Contributing
-
-This project is open for contributions and suggestions. If you have an idea for a new feature or a bug fix, don't hesitate to open a pull request
-
-### License
-
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/snykk/go-rest-boilerplate/blob/master/LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
