@@ -1,11 +1,15 @@
-// Package users owns the User-domain gateway abstraction. Concrete
-// adapters (postgres/, future mongo/, etc.) sit in subpackages and
-// implement Repository.
+// Package _interface holds the gateway abstractions for every domain
+// in the repositories layer. The package name is "_interface" because
+// "interface" is a Go reserved keyword and can't be used as an
+// identifier directly; the leading underscore keeps it a valid
+// identifier without changing the conceptual meaning.
 //
-// The use case layer depends on this package — never on a concrete
-// adapter — so swapping the storage engine doesn't ripple into
-// business code.
-package users
+// Concrete adapters (postgres/, future mongo/, etc.) implement these
+// interfaces and live as siblings of this package. The use case
+// layer depends only on this package — never on a concrete adapter
+// — so swapping the storage engine doesn't ripple into business
+// code.
+package _interface
 
 import (
 	"context"
@@ -13,18 +17,19 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
 )
 
-// ListFilter narrows down List() results. Each field is optional;
-// the empty value means "no filter on this dimension".
-type ListFilter struct {
+// UserListFilter narrows down UserRepository.List() results. Each
+// field is optional; the empty value means "no filter on this
+// dimension". Domain-prefixed (UserListFilter, future
+// ProductListFilter) so multiple filter types can co-exist in this
+// shared package without collision.
+type UserListFilter struct {
 	RoleID         int  // 0 = any role
 	ActiveOnly     bool // true = only active=true users
 	IncludeDeleted bool // false (default) = WHERE deleted_at IS NULL
 }
 
-// Repository is the gateway for loading and persisting users.
-// Callers see it as users.Repository — the package name carries the
-// "user" qualifier, so the type itself doesn't need to repeat it.
-type Repository interface {
+// UserRepository is the gateway for loading and persisting users.
+type UserRepository interface {
 	// Store inserts the user and returns the persisted row in a single
 	// round-trip so callers don't need a follow-up GetByEmail (which
 	// would orphan the INSERT if it failed). Duplicate username/email
@@ -39,7 +44,7 @@ type Repository interface {
 	// List returns users matching filter, paginated by offset/limit.
 	// Limit is hard-capped server-side so a misbehaving caller can't
 	// pull the whole table.
-	List(ctx context.Context, filter ListFilter, offset, limit int) ([]entities.UserDomain, error)
+	List(ctx context.Context, filter UserListFilter, offset, limit int) ([]entities.UserDomain, error)
 	// ChangeActiveUser flips the active flag (used by the OTP-verify
 	// flow) and stamps updated_at. No-op on soft-deleted rows.
 	ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) (err error)

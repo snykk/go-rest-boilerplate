@@ -6,7 +6,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
-	usersrepo "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/users"
+	repointerface "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/interface"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -14,7 +14,7 @@ import (
 // method lives in its own file so PR diffs stay surgical when a
 // single behavior changes.
 type usecase struct {
-	repo           usersrepo.Repository
+	repo           repointerface.UserRepository
 	ristrettoCache caches.RistrettoCache
 
 	// userByEmailGroup coalesces concurrent cache misses for the
@@ -26,7 +26,7 @@ type usecase struct {
 // NewUsecase builds the User CRUD use case. It does not depend on any
 // auth-related collaborator (no JWT, no Redis, no mailer) — that's
 // the whole point of the User vs Auth split.
-func NewUsecase(repo usersrepo.Repository, ristrettoCache caches.RistrettoCache) Usecase {
+func NewUsecase(repo repointerface.UserRepository, ristrettoCache caches.RistrettoCache) Usecase {
 	return &usecase{
 		repo:           repo,
 		ristrettoCache: ristrettoCache,
