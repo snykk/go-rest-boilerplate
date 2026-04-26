@@ -25,6 +25,16 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// LoginResult bundles the user record and the freshly-minted token
+// pair returned by Login / Refresh. Tokens are not properties of the
+// user entity (they're produced by the auth flow), so they live here
+// instead of on entities.UserDomain.
+type LoginResult struct {
+	User         entities.UserDomain
+	AccessToken  string
+	RefreshToken string
+}
+
 // UserUsecaseConfig is the slice of configuration the use case needs.
 // Injecting it via NewUserUsecase removes the implicit dependency on
 // the config.AppConfig global — tests can pass exact values, and the
@@ -51,7 +61,7 @@ type UserUsecase interface {
 	// Login validates credentials and returns a fresh access+refresh
 	// token pair. Wrong password and unknown email take the same wall
 	// time to mask user enumeration.
-	Login(ctx context.Context, inDom *entities.UserDomain) (outDom entities.UserDomain, err error)
+	Login(ctx context.Context, inDom *entities.UserDomain) (LoginResult, error)
 	// SendOTP generates a 6-digit code, stores it in Redis with TTL,
 	// and enqueues the email via the async mailer. The HTTP response
 	// returns on enqueue, not on actual SMTP delivery.
@@ -65,7 +75,7 @@ type UserUsecase interface {
 	GetByEmail(ctx context.Context, email string) (outDom entities.UserDomain, err error)
 	// Refresh verifies and rotates the refresh token, mints a new
 	// access+refresh pair, and revokes the old jti.
-	Refresh(ctx context.Context, refreshToken string) (outDom entities.UserDomain, err error)
+	Refresh(ctx context.Context, refreshToken string) (LoginResult, error)
 	// Logout revokes the supplied refresh token by deleting its jti
 	// from Redis. Access tokens remain valid until their natural exp.
 	Logout(ctx context.Context, refreshToken string) error
@@ -132,7 +142,7 @@ func (userUC *userUsecase) Store(ctx context.Context, inDom *entities.UserDomain
 	return stored, nil
 }
 
-func (userUC *userUsecase) Login(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
+func (userUC *userUsecase) Login(ctx context.Context, inDom *entities.UserDomain) (LoginResult, error) {
 	inDom.Email = normalizeEmail(inDom.Email)
 	userDomain, err := userUC.repo.GetByEmail(ctx, inDom)
 	if err != nil {
@@ -141,31 +151,33 @@ func (userUC *userUsecase) Login(ctx context.Context, inDom *entities.UserDomain
 		// an attacker can enumerate valid emails by measuring response
 		// latency.
 		_ = helpers.ValidateHash(inDom.Password, dummyBcryptHash)
-		return entities.UserDomain{}, apperror.Unauthorized("invalid email or password")
+		return LoginResult{}, apperror.Unauthorized("invalid email or password")
 	}
 
 	if !userDomain.Active {
-		return entities.UserDomain{}, apperror.Forbidden("account is not activated")
+		return LoginResult{}, apperror.Forbidden("account is not activated")
 	}
 
 	if !helpers.ValidateHash(inDom.Password, userDomain.Password) {
-		return entities.UserDomain{}, apperror.Unauthorized("invalid email or password")
+		return LoginResult{}, apperror.Unauthorized("invalid email or password")
 	}
 
 	isAdmin := userDomain.RoleID == constants.AdminID
 	pair, err := userUC.jwtService.GenerateTokenPair(userDomain.ID, isAdmin, userDomain.Email)
 	if err != nil {
-		return entities.UserDomain{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
+		return LoginResult{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
 	}
 	if err := userUC.rememberRefresh(ctx, pair); err != nil {
 		// If Redis is unavailable we'd rather fail login than issue a
 		// refresh token the /refresh endpoint can't verify.
-		return entities.UserDomain{}, apperror.InternalCause(fmt.Errorf("persist refresh: %w", err))
+		return LoginResult{}, apperror.InternalCause(fmt.Errorf("persist refresh: %w", err))
 	}
-	userDomain.Token = pair.AccessToken
-	userDomain.RefreshToken = pair.RefreshToken
 
-	return userDomain, nil
+	return LoginResult{
+		User:         userDomain,
+		AccessToken:  pair.AccessToken,
+		RefreshToken: pair.RefreshToken,
+	}, nil
 }
 
 // refreshKey scopes refresh-token jti entries so they don't collide
@@ -193,45 +205,47 @@ func (userUC *userUsecase) rememberRefresh(ctx context.Context, pair jwt.TokenPa
 // rotates it, and returns a new access+refresh pair. Replay of an
 // already-used refresh token fails because rememberRefresh → Del
 // makes the old jti unknown.
-func (userUC *userUsecase) Refresh(ctx context.Context, refreshToken string) (entities.UserDomain, error) {
+func (userUC *userUsecase) Refresh(ctx context.Context, refreshToken string) (LoginResult, error) {
 	claims, err := userUC.jwtService.ParseRefreshToken(refreshToken)
 	if err != nil {
-		return entities.UserDomain{}, apperror.Unauthorized("invalid refresh token")
+		return LoginResult{}, apperror.Unauthorized("invalid refresh token")
 	}
 
 	// Verify the jti is still live server-side; logout / previous
 	// rotation would have removed it.
 	if _, err := userUC.redisCache.Get(ctx, refreshKey(claims.ID)); err != nil {
-		return entities.UserDomain{}, apperror.Unauthorized("refresh token has been revoked")
+		return LoginResult{}, apperror.Unauthorized("refresh token has been revoked")
 	}
 
 	// Fresh identity lookup so revoked / deactivated accounts stop
 	// getting new access tokens even while their refresh is live.
 	userDomain, err := userUC.repo.GetByEmail(ctx, &entities.UserDomain{Email: claims.Email})
 	if err != nil {
-		return entities.UserDomain{}, apperror.Unauthorized("user no longer exists")
+		return LoginResult{}, apperror.Unauthorized("user no longer exists")
 	}
 	if !userDomain.Active {
-		return entities.UserDomain{}, apperror.Forbidden("account is not activated")
+		return LoginResult{}, apperror.Forbidden("account is not activated")
 	}
 
 	isAdmin := userDomain.RoleID == constants.AdminID
 	pair, err := userUC.jwtService.GenerateTokenPair(userDomain.ID, isAdmin, userDomain.Email)
 	if err != nil {
-		return entities.UserDomain{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
+		return LoginResult{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
 	}
 
 	// Rotate: remove the old jti, record the new one. Do this after
 	// the new pair is minted so a mint failure doesn't leave the user
 	// with no valid refresh token at all.
 	if err := userUC.rememberRefresh(ctx, pair); err != nil {
-		return entities.UserDomain{}, apperror.InternalCause(fmt.Errorf("persist refresh: %w", err))
+		return LoginResult{}, apperror.InternalCause(fmt.Errorf("persist refresh: %w", err))
 	}
 	_ = userUC.redisCache.Del(ctx, refreshKey(claims.ID))
 
-	userDomain.Token = pair.AccessToken
-	userDomain.RefreshToken = pair.RefreshToken
-	return userDomain, nil
+	return LoginResult{
+		User:         userDomain,
+		AccessToken:  pair.AccessToken,
+		RefreshToken: pair.RefreshToken,
+	}, nil
 }
 
 // Logout revokes the refresh token so /refresh rejects it. Access

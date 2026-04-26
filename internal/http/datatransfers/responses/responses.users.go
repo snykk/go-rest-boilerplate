@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 )
 
 type UserResponse struct {
@@ -28,17 +29,28 @@ func (u *UserResponse) ToV1Domain() entities.UserDomain {
 	}
 }
 
+// FromV1Domain projects the user entity into the response DTO. Token
+// fields stay zero — the entity carries no auth artifacts. Use
+// FromLoginResult on the /login and /refresh paths.
 func FromV1Domain(u entities.UserDomain) UserResponse {
 	return UserResponse{
-		Id:           u.ID,
-		Username:     u.Username,
-		Email:        u.Email,
-		Token:        u.Token,
-		RefreshToken: u.RefreshToken,
-		RoleId:       u.RoleID,
-		CreatedAt:    u.CreatedAt,
-		UpdatedAt:    u.UpdatedAt,
+		Id:        u.ID,
+		Username:  u.Username,
+		Email:     u.Email,
+		RoleId:    u.RoleID,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
+}
+
+// FromLoginResult is the /login + /refresh response shape: the user
+// fields are the same as FromV1Domain, plus the freshly-minted token
+// pair from the auth flow.
+func FromLoginResult(r usecases.LoginResult) UserResponse {
+	resp := FromV1Domain(r.User)
+	resp.Token = r.AccessToken
+	resp.RefreshToken = r.RefreshToken
+	return resp
 }
 
 func ToResponseList(domains []entities.UserDomain) []UserResponse {

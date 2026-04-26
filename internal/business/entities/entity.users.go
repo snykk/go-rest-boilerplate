@@ -6,21 +6,18 @@ package entities
 
 import "time"
 
-// UserDomain is the User entity. The Token / RefreshToken fields
-// stay here for now (callers across the codebase consume them); a
-// follow-up commit splits the auth artifacts into a LoginResult
-// type owned by the usecase layer so the entity ends up free of
-// delivery concerns.
+// UserDomain is the User entity. It carries only fields that
+// describe the user themselves — auth artifacts (access / refresh
+// tokens) live on usecases.LoginResult because they are produced by
+// the auth flow, not properties of the user.
 type UserDomain struct {
-	ID           string
-	Username     string
-	Email        string
-	Password     string
-	Active       bool
-	Token        string // access token (TODO: move to usecases.LoginResult)
-	RefreshToken string // (TODO: move to usecases.LoginResult)
-	RoleID       int
-	CreatedAt    time.Time
-	UpdatedAt    *time.Time
-	DeletedAt    *time.Time
+	ID        string
+	Username  string
+	Email     string
+	Password  string
+	Active    bool
+	RoleID    int
+	CreatedAt time.Time
+	UpdatedAt *time.Time
+	DeletedAt *time.Time
 }

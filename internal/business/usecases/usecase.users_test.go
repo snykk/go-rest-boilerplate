@@ -128,7 +128,7 @@ func TestLogin(t *testing.T) {
 
 		assert.NotNil(t, result)
 		assert.Nil(t, err)
-		assert.Contains(t, result.Token, "ey")
+		assert.Contains(t, result.AccessToken, "ey")
 	})
 	t.Run("Test 2 | Account Not Activated Yet", func(t *testing.T) {
 		req := requests.UserLoginRequest{
@@ -141,7 +141,7 @@ func TestLogin(t *testing.T) {
 		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		result, err := userUsecase.Login(context.Background(), req.ToV1Domain())
 
-		assert.Equal(t, entities.UserDomain{}, result)
+		assert.Equal(t, usecases.LoginResult{}, result)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "account is not activated")
 	})
@@ -157,7 +157,7 @@ func TestLogin(t *testing.T) {
 
 		result, err := userUsecase.Login(context.Background(), req.ToV1Domain())
 
-		assert.Equal(t, entities.UserDomain{}, result)
+		assert.Equal(t, usecases.LoginResult{}, result)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "invalid email or password")
 	})

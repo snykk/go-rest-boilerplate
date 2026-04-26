@@ -99,7 +99,7 @@ func (userH UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	userDomain, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
+	loginResult, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
 	if err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventLoginFailure
@@ -113,11 +113,11 @@ func (userH UserHandler) Login(ctx *gin.Context) {
 	ev := auditFromGin(ctx)
 	ev.Type = audit.EventLoginSuccess
 	ev.Success = true
-	ev.UserID = userDomain.ID
-	ev.Email = userDomain.Email
+	ev.UserID = loginResult.User.ID
+	ev.Email = loginResult.User.Email
 	audit.Record(ev)
 
-	NewSuccessResponse(ctx, http.StatusOK, "login success", responses.FromV1Domain(userDomain))
+	NewSuccessResponse(ctx, http.StatusOK, "login success", responses.FromLoginResult(loginResult))
 }
 
 // SendOTP godoc
@@ -237,7 +237,7 @@ func (userH UserHandler) Refresh(ctx *gin.Context) {
 		return
 	}
 
-	userDomain, err := userH.usecase.Refresh(ctx.Request.Context(), req.RefreshToken)
+	refreshResult, err := userH.usecase.Refresh(ctx.Request.Context(), req.RefreshToken)
 	if err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventRefreshFail
@@ -250,11 +250,11 @@ func (userH UserHandler) Refresh(ctx *gin.Context) {
 	ev := auditFromGin(ctx)
 	ev.Type = audit.EventRefreshOK
 	ev.Success = true
-	ev.UserID = userDomain.ID
-	ev.Email = userDomain.Email
+	ev.UserID = refreshResult.User.ID
+	ev.Email = refreshResult.User.Email
 	audit.Record(ev)
 
-	NewSuccessResponse(ctx, http.StatusOK, "token refreshed", responses.FromV1Domain(userDomain))
+	NewSuccessResponse(ctx, http.StatusOK, "token refreshed", responses.FromLoginResult(refreshResult))
 }
 
 // Logout godoc

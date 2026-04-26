@@ -47,7 +47,7 @@ func TestE2E_HappyPath_RegisterVerifyLogin(t *testing.T) {
 		Password: "Secret_123!",
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, out.Token, "Login must return an access token")
+	assert.NotEmpty(t, out.AccessToken, "Login must return an access token")
 	assert.NotEmpty(t, out.RefreshToken, "Login must return a refresh token")
 }
 
@@ -194,5 +194,5 @@ func TestE2E_VerifyOTPActivatesUserAndAllowsLogin(t *testing.T) {
 		Password: "Secret_123!",
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, out.Token)
+	assert.NotEmpty(t, out.AccessToken)
 }
