@@ -7,6 +7,7 @@ import (
 
 	golangJWT "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/snykk/go-rest-boilerplate/pkg/clock"
 )
 
 // ErrInvalidToken is returned when a token fails parsing or validation.
@@ -62,6 +63,10 @@ type jwtService struct {
 	issuer         string
 	expired        int
 	refreshExpired int // days
+	// clock is the source of "now" used for IssuedAt and expiry
+	// arithmetic. Default RealClock; tests inject clock.Frozen or
+	// clock.Stub to assert exact timestamps without sleeping.
+	clock clock.Clock
 }
 
 func NewJWTService(secretKey, issuer string, expired int) JWTService {
@@ -70,6 +75,7 @@ func NewJWTService(secretKey, issuer string, expired int) JWTService {
 		secretKey:      secretKey,
 		expired:        expired,
 		refreshExpired: 7,
+		clock:          clock.RealClock{},
 	}
 }
 
@@ -82,7 +88,20 @@ func NewJWTServiceWithRefresh(secretKey, issuer string, expiredHours, refreshExp
 		secretKey:      secretKey,
 		expired:        expiredHours,
 		refreshExpired: refreshExpiredDays,
+		clock:          clock.RealClock{},
 	}
+}
+
+// WithClock returns a copy of the service with the given clock
+// substituted. Tests use this to freeze time around token issuance
+// so they can assert exact ExpiresAt values.
+func WithClock(svc JWTService, c clock.Clock) JWTService {
+	if s, ok := svc.(*jwtService); ok {
+		copy := *s
+		copy.clock = c
+		return &copy
+	}
+	return svc
 }
 
 func (j *jwtService) GenerateToken(userID string, isAdmin bool, email string) (string, error) {
@@ -110,7 +129,8 @@ func (j *jwtService) GenerateTokenPair(userID string, isAdmin bool, email string
 }
 
 func (j *jwtService) signAccess(userID string, isAdmin bool, email string) (string, time.Time, string, error) {
-	exp := time.Now().Add(time.Hour * time.Duration(j.expired))
+	now := j.clock.Now()
+	exp := now.Add(time.Hour * time.Duration(j.expired))
 	jti := uuid.NewString()
 	claims := &JwtCustomClaim{
 		UserID:  userID,
@@ -121,7 +141,7 @@ func (j *jwtService) signAccess(userID string, isAdmin bool, email string) (stri
 			ID:        jti,
 			ExpiresAt: golangJWT.NewNumericDate(exp),
 			Issuer:    j.issuer,
-			IssuedAt:  golangJWT.NewNumericDate(time.Now()),
+			IssuedAt:  golangJWT.NewNumericDate(now),
 		},
 	}
 	signed, err := j.sign(claims)
@@ -132,7 +152,8 @@ func (j *jwtService) signAccess(userID string, isAdmin bool, email string) (stri
 }
 
 func (j *jwtService) signRefresh(userID, email string) (string, time.Time, string, error) {
-	exp := time.Now().Add(24 * time.Hour * time.Duration(j.refreshExpired))
+	now := j.clock.Now()
+	exp := now.Add(24 * time.Hour * time.Duration(j.refreshExpired))
 	jti := uuid.NewString()
 	claims := &JwtCustomClaim{
 		UserID: userID,
@@ -142,7 +163,7 @@ func (j *jwtService) signRefresh(userID, email string) (string, time.Time, strin
 			ID:        jti,
 			ExpiresAt: golangJWT.NewNumericDate(exp),
 			Issuer:    j.issuer,
-			IssuedAt:  golangJWT.NewNumericDate(time.Now()),
+			IssuedAt:  golangJWT.NewNumericDate(now),
 		},
 	}
 	signed, err := j.sign(claims)

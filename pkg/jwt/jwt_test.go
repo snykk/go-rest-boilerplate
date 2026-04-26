@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/snykk/go-rest-boilerplate/pkg/clock"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -44,4 +46,29 @@ func TestParseToken(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, errors.Is(err, jwt.ErrInvalidToken), "expected error to wrap ErrInvalidToken, got %v", err)
 	})
+}
+
+func TestGenerateTokenPair_RespectsInjectedClock(t *testing.T) {
+	// Freeze time at a known instant so the asserted ExpiresAt and
+	// IssuedAt values are exact — no flake from time.Now() drift.
+	at := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	svc := jwt.WithClock(
+		jwt.NewJWTServiceWithRefresh(testSecret, testIssuer, 5, 7),
+		clock.Frozen(at),
+	)
+
+	pair, err := svc.GenerateTokenPair("user-1", false, "alice@example.com")
+	require.NoError(t, err)
+
+	// Access token: IssuedAt = at, ExpiresAt = at + 5h.
+	accessClaims, err := svc.ParseToken(pair.AccessToken)
+	require.NoError(t, err)
+	assert.Equal(t, at, accessClaims.IssuedAt.Time.UTC())
+	assert.Equal(t, at.Add(5*time.Hour), accessClaims.ExpiresAt.Time.UTC())
+
+	// Refresh token: IssuedAt = at, ExpiresAt = at + 7d.
+	refreshClaims, err := svc.ParseRefreshToken(pair.RefreshToken)
+	require.NoError(t, err)
+	assert.Equal(t, at, refreshClaims.IssuedAt.Time.UTC())
+	assert.Equal(t, at.Add(7*24*time.Hour), refreshClaims.ExpiresAt.Time.UTC())
 }
