@@ -39,6 +39,10 @@ const (
 )
 
 type OTPMailer interface {
+	// SendOTP delivers the OTP code to the receiver's inbox via the
+	// configured SMTP relay. The async wrapper (AsyncOTPMailer) makes
+	// this non-blocking from the request path; the inner sync impl
+	// blocks for the SMTP round-trip.
 	SendOTP(otpCode string, receiver string) (err error)
 }
 

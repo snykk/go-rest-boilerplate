@@ -13,12 +13,26 @@ import (
 const defaultOpTimeout = 3 * time.Second
 
 type RedisCache interface {
+	// Set marshals value to JSON and writes it under key with the
+	// cache-wide default TTL. Each call is bounded by defaultOpTimeout
+	// so a slow Redis can't hang the caller.
 	Set(ctx context.Context, key string, value interface{}) error
+	// Get returns the JSON-decoded string at key, or redis.Nil when
+	// the key is absent.
 	Get(ctx context.Context, key string) (string, error)
+	// Del removes key. Missing keys are not an error.
 	Del(ctx context.Context, key string) error
+	// Incr atomically increments the integer at key (creating it as 1
+	// if absent) and returns the new value.
 	Incr(ctx context.Context, key string) (int64, error)
+	// Expire (re)sets the TTL on key. Used to scope counters like
+	// otp_attempts to a fixed window.
 	Expire(ctx context.Context, key string, ttl time.Duration) error
+	// Close terminates the underlying connection pool.
 	Close() error
+	// Client exposes the raw *redis.Client for callers that need
+	// commands not surfaced through this interface (health probes,
+	// pipelines). Prefer the typed methods above.
 	Client() *redis.Client
 }
 

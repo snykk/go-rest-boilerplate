@@ -24,9 +24,17 @@ const (
 )
 
 type JWTService interface {
+	// GenerateToken mints a single access token. Kept for legacy call
+	// sites; new code should prefer GenerateTokenPair.
 	GenerateToken(userId string, isAdmin bool, email string) (t string, err error)
+	// GenerateTokenPair mints an access+refresh pair, both signed with
+	// the same secret but distinguished by the Kind claim.
 	GenerateTokenPair(userID string, isAdmin bool, email string) (TokenPair, error)
+	// ParseToken verifies the signature, expiry, and HMAC method of
+	// an access token. Refresh tokens are rejected with ErrWrongTokenKind.
 	ParseToken(tokenString string) (claims JwtCustomClaim, err error)
+	// ParseRefreshToken is the refresh-token counterpart of ParseToken.
+	// Access tokens are rejected with ErrWrongTokenKind.
 	ParseRefreshToken(tokenString string) (claims JwtCustomClaim, err error)
 }
 
