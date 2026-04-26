@@ -5,7 +5,8 @@ package mocks
 import (
 	context "context"
 
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -15,11 +16,11 @@ type UserRepository struct {
 }
 
 // ChangeActiveUser provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *V1Domains.UserDomain) error {
+func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) error {
 	ret := _m.Called(ctx, inDom)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *V1Domains.UserDomain) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) error); ok {
 		r0 = rf(ctx, inDom)
 	} else {
 		r0 = ret.Error(0)
@@ -29,18 +30,18 @@ func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *V1Domains
 }
 
 // GetByEmail provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {
+func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
 	ret := _m.Called(ctx, inDom)
 
-	var r0 V1Domains.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, *V1Domains.UserDomain) V1Domains.UserDomain); ok {
+	var r0 entities.UserDomain
+	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) entities.UserDomain); ok {
 		r0 = rf(ctx, inDom)
 	} else {
-		r0 = ret.Get(0).(V1Domains.UserDomain)
+		r0 = ret.Get(0).(entities.UserDomain)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *V1Domains.UserDomain) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *entities.UserDomain) error); ok {
 		r1 = rf(ctx, inDom)
 	} else {
 		r1 = ret.Error(1)
@@ -50,18 +51,18 @@ func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *V1Domains.UserD
 }
 
 // Store provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) Store(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {
+func (_m *UserRepository) Store(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
 	ret := _m.Called(ctx, inDom)
 
-	var r0 V1Domains.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, *V1Domains.UserDomain) V1Domains.UserDomain); ok {
+	var r0 entities.UserDomain
+	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) entities.UserDomain); ok {
 		r0 = rf(ctx, inDom)
 	} else {
-		r0 = ret.Get(0).(V1Domains.UserDomain)
+		r0 = ret.Get(0).(entities.UserDomain)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *V1Domains.UserDomain) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *entities.UserDomain) error); ok {
 		r1 = rf(ctx, inDom)
 	} else {
 		r1 = ret.Error(1)
@@ -71,14 +72,14 @@ func (_m *UserRepository) Store(ctx context.Context, inDom *V1Domains.UserDomain
 }
 
 // GetByID provides a mock function with given fields: ctx, id
-func (_m *UserRepository) GetByID(ctx context.Context, id string) (V1Domains.UserDomain, error) {
+func (_m *UserRepository) GetByID(ctx context.Context, id string) (entities.UserDomain, error) {
 	ret := _m.Called(ctx, id)
 
-	var r0 V1Domains.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, string) V1Domains.UserDomain); ok {
+	var r0 entities.UserDomain
+	if rf, ok := ret.Get(0).(func(context.Context, string) entities.UserDomain); ok {
 		r0 = rf(ctx, id)
 	} else {
-		r0 = ret.Get(0).(V1Domains.UserDomain)
+		r0 = ret.Get(0).(entities.UserDomain)
 	}
 
 	var r1 error
@@ -92,20 +93,20 @@ func (_m *UserRepository) GetByID(ctx context.Context, id string) (V1Domains.Use
 }
 
 // List provides a mock function with given fields: ctx, filter, offset, limit
-func (_m *UserRepository) List(ctx context.Context, filter V1Domains.ListFilter, offset int, limit int) ([]V1Domains.UserDomain, error) {
+func (_m *UserRepository) List(ctx context.Context, filter usecases.ListFilter, offset int, limit int) ([]entities.UserDomain, error) {
 	ret := _m.Called(ctx, filter, offset, limit)
 
-	var r0 []V1Domains.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, V1Domains.ListFilter, int, int) []V1Domains.UserDomain); ok {
+	var r0 []entities.UserDomain
+	if rf, ok := ret.Get(0).(func(context.Context, usecases.ListFilter, int, int) []entities.UserDomain); ok {
 		r0 = rf(ctx, filter, offset, limit)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]V1Domains.UserDomain)
+			r0 = ret.Get(0).([]entities.UserDomain)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, V1Domains.ListFilter, int, int) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, usecases.ListFilter, int, int) error); ok {
 		r1 = rf(ctx, filter, offset, limit)
 	} else {
 		r1 = ret.Error(1)

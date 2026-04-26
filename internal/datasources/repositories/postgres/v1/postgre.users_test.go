@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	postgresrepo "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
 	"github.com/stretchr/testify/assert"
@@ -18,8 +19,8 @@ import (
 
 // fixture builds a UserDomain with sensible defaults for tests.
 // Caller overrides only what's relevant to its scenario.
-func fixture(email string) *V1Domains.UserDomain {
-	return &V1Domains.UserDomain{
+func fixture(email string) *entities.UserDomain {
+	return &entities.UserDomain{
 		Username:  "user_" + email,
 		Email:     email,
 		Password:  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
@@ -39,7 +40,7 @@ func TestRepo_StoreAndGetByEmail(t *testing.T) {
 	assert.Equal(t, "alice@example.com", stored.Email)
 	assert.False(t, stored.Active, "new users start inactive")
 
-	got, err := repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: "alice@example.com"})
+	got, err := repo.GetByEmail(ctx, &entities.UserDomain{Email: "alice@example.com"})
 	require.NoError(t, err)
 	assert.Equal(t, stored.ID, got.ID)
 }
@@ -68,7 +69,7 @@ func TestRepo_GetByEmail_NotFound(t *testing.T) {
 	db := testenv.StartPostgres(t)
 	repo := postgresrepo.NewUserRepository(db)
 
-	_, err := repo.GetByEmail(context.Background(), &V1Domains.UserDomain{Email: "nobody@example.com"})
+	_, err := repo.GetByEmail(context.Background(), &entities.UserDomain{Email: "nobody@example.com"})
 	require.Error(t, err)
 	var domErr *apperror.DomainError
 	require.True(t, errors.As(err, &domErr))
@@ -101,7 +102,7 @@ func TestRepo_SoftDelete_HidesFromQueries(t *testing.T) {
 	// Default queries (GetByEmail / GetByID) must filter on
 	// deleted_at IS NULL — the row exists in the table but should be
 	// invisible to login / lookup paths.
-	_, err = repo.GetByEmail(ctx, &V1Domains.UserDomain{Email: "gone@example.com"})
+	_, err = repo.GetByEmail(ctx, &entities.UserDomain{Email: "gone@example.com"})
 	require.Error(t, err)
 	_, err = repo.GetByID(ctx, stored.ID)
 	require.Error(t, err)
@@ -144,28 +145,28 @@ func TestRepo_List_FiltersAndPagination(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// Activate one user so ActiveOnly filter has something to hit.
-	all, err := repo.List(ctx, V1Domains.ListFilter{}, 0, 10)
+	all, err := repo.List(ctx, usecases.ListFilter{}, 0, 10)
 	require.NoError(t, err)
 	require.Len(t, all, 3)
 
-	require.NoError(t, repo.ChangeActiveUser(ctx, &V1Domains.UserDomain{ID: all[0].ID, Active: true}))
+	require.NoError(t, repo.ChangeActiveUser(ctx, &entities.UserDomain{ID: all[0].ID, Active: true}))
 
 	t.Run("filter by role", func(t *testing.T) {
-		got, err := repo.List(ctx, V1Domains.ListFilter{RoleID: 1}, 0, 10)
+		got, err := repo.List(ctx, usecases.ListFilter{RoleID: 1}, 0, 10)
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
 	})
 
 	t.Run("filter active only", func(t *testing.T) {
-		got, err := repo.List(ctx, V1Domains.ListFilter{ActiveOnly: true}, 0, 10)
+		got, err := repo.List(ctx, usecases.ListFilter{ActiveOnly: true}, 0, 10)
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		page1, err := repo.List(ctx, V1Domains.ListFilter{}, 0, 2)
+		page1, err := repo.List(ctx, usecases.ListFilter{}, 0, 2)
 		require.NoError(t, err)
-		page2, err := repo.List(ctx, V1Domains.ListFilter{}, 2, 2)
+		page2, err := repo.List(ctx, usecases.ListFilter{}, 2, 2)
 		require.NoError(t, err)
 		assert.Len(t, page1, 2)
 		assert.Len(t, page2, 1)

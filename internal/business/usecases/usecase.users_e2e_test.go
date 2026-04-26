@@ -1,6 +1,6 @@
 //go:build integration
 
-package v1_test
+package usecases_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
 	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,11 +17,11 @@ import (
 // register is a small helper that gets a fresh user past the
 // register + verify-OTP gate so individual tests can focus on the
 // scenario under test.
-func register(t *testing.T, fix *testenv.AuthFixture, email, password string) V1Domains.UserDomain {
+func register(t *testing.T, fix *testenv.AuthFixture, email, password string) entities.UserDomain {
 	t.Helper()
 	ctx := context.Background()
 
-	user, err := fix.Usecase.Store(ctx, &V1Domains.UserDomain{
+	user, err := fix.Usecase.Store(ctx, &entities.UserDomain{
 		Username: "user_" + email,
 		Email:    email,
 		Password: password,
@@ -42,7 +42,7 @@ func TestE2E_HappyPath_RegisterVerifyLogin(t *testing.T) {
 
 	register(t, fix, "happy@example.com", "Secret_123!")
 
-	out, err := fix.Usecase.Login(ctx, &V1Domains.UserDomain{
+	out, err := fix.Usecase.Login(ctx, &entities.UserDomain{
 		Email:    "happy@example.com",
 		Password: "Secret_123!",
 	})
@@ -55,7 +55,7 @@ func TestE2E_OTPBruteForceLockout(t *testing.T) {
 	fix := testenv.NewAuthFixture(t)
 	ctx := context.Background()
 
-	_, err := fix.Usecase.Store(ctx, &V1Domains.UserDomain{
+	_, err := fix.Usecase.Store(ctx, &entities.UserDomain{
 		Username: "lockout",
 		Email:    "lock@example.com",
 		Password: "Secret_123!",
@@ -93,7 +93,7 @@ func TestE2E_LoginRejectsInactiveUser(t *testing.T) {
 	ctx := context.Background()
 
 	// Skip the OTP step so the user stays inactive.
-	_, err := fix.Usecase.Store(ctx, &V1Domains.UserDomain{
+	_, err := fix.Usecase.Store(ctx, &entities.UserDomain{
 		Username: "inactive",
 		Email:    "inactive@example.com",
 		Password: "Secret_123!",
@@ -101,7 +101,7 @@ func TestE2E_LoginRejectsInactiveUser(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = fix.Usecase.Login(ctx, &V1Domains.UserDomain{
+	_, err = fix.Usecase.Login(ctx, &entities.UserDomain{
 		Email:    "inactive@example.com",
 		Password: "Secret_123!",
 	})
@@ -116,7 +116,7 @@ func TestE2E_RefreshRotatesAndRevokesOldToken(t *testing.T) {
 	ctx := context.Background()
 
 	register(t, fix, "rotate@example.com", "Secret_123!")
-	loggedIn, err := fix.Usecase.Login(ctx, &V1Domains.UserDomain{
+	loggedIn, err := fix.Usecase.Login(ctx, &entities.UserDomain{
 		Email:    "rotate@example.com",
 		Password: "Secret_123!",
 	})
@@ -147,7 +147,7 @@ func TestE2E_LogoutRevokesRefreshToken(t *testing.T) {
 	ctx := context.Background()
 
 	register(t, fix, "logout@example.com", "Secret_123!")
-	loggedIn, err := fix.Usecase.Login(ctx, &V1Domains.UserDomain{
+	loggedIn, err := fix.Usecase.Login(ctx, &entities.UserDomain{
 		Email:    "logout@example.com",
 		Password: "Secret_123!",
 	})
@@ -168,7 +168,7 @@ func TestE2E_VerifyOTPActivatesUserAndAllowsLogin(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-condition: user exists but inactive — login fails.
-	_, err := fix.Usecase.Store(ctx, &V1Domains.UserDomain{
+	_, err := fix.Usecase.Store(ctx, &entities.UserDomain{
 		Username: "activate",
 		Email:    "activate@example.com",
 		Password: "Secret_123!",
@@ -176,7 +176,7 @@ func TestE2E_VerifyOTPActivatesUserAndAllowsLogin(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = fix.Usecase.Login(ctx, &V1Domains.UserDomain{
+	_, err = fix.Usecase.Login(ctx, &entities.UserDomain{
 		Email:    "activate@example.com",
 		Password: "Secret_123!",
 	})
@@ -189,7 +189,7 @@ func TestE2E_VerifyOTPActivatesUserAndAllowsLogin(t *testing.T) {
 
 	// Now login must succeed — proving VerifyOTP actually flipped the
 	// active flag in Postgres, not just deleted the OTP key from Redis.
-	out, err := fix.Usecase.Login(ctx, &V1Domains.UserDomain{
+	out, err := fix.Usecase.Login(ctx, &entities.UserDomain{
 		Email:    "activate@example.com",
 		Password: "Secret_123!",
 	})

@@ -10,7 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
 )
 
@@ -18,13 +19,13 @@ type postgreUserRepository struct {
 	conn *sqlx.DB
 }
 
-func NewUserRepository(conn *sqlx.DB) V1Domains.UserRepository {
+func NewUserRepository(conn *sqlx.DB) usecases.UserRepository {
 	return &postgreUserRepository{
 		conn: conn,
 	}
 }
 
-func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.UserDomain) (V1Domains.UserDomain, error) {
+func (r *postgreUserRepository) Store(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	// INSERT ... RETURNING * so the caller gets the persisted row in
@@ -39,9 +40,9 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.User
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return V1Domains.UserDomain{}, apperror.Conflict("username or email already exists")
+			return entities.UserDomain{}, apperror.Conflict("username or email already exists")
 		}
-		return V1Domains.UserDomain{}, err
+		return entities.UserDomain{}, err
 	}
 	defer rows.Close()
 
@@ -49,16 +50,16 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *V1Domains.User
 		// RETURNING never produces zero rows on a successful INSERT,
 		// but check anyway so a future schema change can't silently
 		// hand back an empty struct.
-		return V1Domains.UserDomain{}, fmt.Errorf("insert succeeded but RETURNING produced no row")
+		return entities.UserDomain{}, fmt.Errorf("insert succeeded but RETURNING produced no row")
 	}
 	var stored records.Users
 	if err := rows.StructScan(&stored); err != nil {
-		return V1Domains.UserDomain{}, fmt.Errorf("scan inserted user: %w", err)
+		return entities.UserDomain{}, fmt.Errorf("scan inserted user: %w", err)
 	}
 	return stored.ToV1Domain(), nil
 }
 
-func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains.UserDomain) (outDomain V1Domains.UserDomain, err error) {
+func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *entities.UserDomain) (outDomain entities.UserDomain, err error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	// Exclude soft-deleted rows — the schema keeps a deleted_at column
@@ -67,15 +68,15 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *V1Domains
 	err = r.conn.GetContext(ctx, &userRecord, `SELECT * FROM users WHERE "email" = $1 AND deleted_at IS NULL`, userRecord.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return V1Domains.UserDomain{}, apperror.NotFound("user not found")
+			return entities.UserDomain{}, apperror.NotFound("user not found")
 		}
-		return V1Domains.UserDomain{}, err
+		return entities.UserDomain{}, err
 	}
 
 	return userRecord.ToV1Domain(), nil
 }
 
-func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *V1Domains.UserDomain) (err error) {
+func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) (err error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	_, err = r.conn.NamedQueryContext(ctx, `UPDATE users SET active = :active, updated_at = NOW() WHERE id = :id AND deleted_at IS NULL`, userRecord)
@@ -83,14 +84,14 @@ func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *V1D
 	return
 }
 
-func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (V1Domains.UserDomain, error) {
+func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (entities.UserDomain, error) {
 	var stored records.Users
 	err := r.conn.GetContext(ctx, &stored, `SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return V1Domains.UserDomain{}, apperror.NotFound("user not found")
+			return entities.UserDomain{}, apperror.NotFound("user not found")
 		}
-		return V1Domains.UserDomain{}, err
+		return entities.UserDomain{}, err
 	}
 	return stored.ToV1Domain(), nil
 }
@@ -100,7 +101,7 @@ func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (V1Domai
 // to whatever clamping the handler does) is defense in depth.
 const hardLimit = 200
 
-func (r *postgreUserRepository) List(ctx context.Context, filter V1Domains.ListFilter, offset, limit int) ([]V1Domains.UserDomain, error) {
+func (r *postgreUserRepository) List(ctx context.Context, filter usecases.ListFilter, offset, limit int) ([]entities.UserDomain, error) {
 	if limit <= 0 || limit > hardLimit {
 		limit = hardLimit
 	}
@@ -139,7 +140,7 @@ func (r *postgreUserRepository) List(ctx context.Context, filter V1Domains.ListF
 	if err := r.conn.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
-	out := make([]V1Domains.UserDomain, 0, len(rows))
+	out := make([]entities.UserDomain, 0, len(rows))
 	for i := range rows {
 		out = append(out, rows[i].ToV1Domain())
 	}

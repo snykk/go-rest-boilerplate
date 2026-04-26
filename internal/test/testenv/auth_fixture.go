@@ -6,8 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
-	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
@@ -21,7 +20,7 @@ import (
 // to feed them back into VerifyOTP, and SMTP isn't worth running in
 // CI anyway.
 type AuthFixture struct {
-	Usecase V1Domains.UserUsecase
+	Usecase usecases.UserUsecase
 	Mailer  *CapturingMailer
 	JWT     jwt.JWTService
 }
@@ -104,7 +103,7 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 
 	mailer := &CapturingMailer{}
 	repo := V1PostgresRepository.NewUserRepository(db)
-	uc := V1Usecases.NewUserUsecase(repo, jwtSvc, mailer, redis, ristretto)
+	uc := usecases.NewUserUsecase(repo, jwtSvc, mailer, redis, ristretto)
 
 	return &AuthFixture{
 		Usecase: uc,

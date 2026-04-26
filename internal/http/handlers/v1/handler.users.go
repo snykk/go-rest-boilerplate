@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/http/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
@@ -16,10 +16,10 @@ import (
 )
 
 type UserHandler struct {
-	usecase V1Domains.UserUsecase
+	usecase usecases.UserUsecase
 }
 
-func NewUserHandler(usecase V1Domains.UserUsecase) UserHandler {
+func NewUserHandler(usecase usecases.UserUsecase) UserHandler {
 	return UserHandler{
 		usecase: usecase,
 	}

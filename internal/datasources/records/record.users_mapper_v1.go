@@ -1,11 +1,11 @@
 package records
 
 import (
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
 )
 
-func (u *Users) ToV1Domain() V1Domains.UserDomain {
-	return V1Domains.UserDomain{
+func (u *Users) ToV1Domain() entities.UserDomain {
+	return entities.UserDomain{
 		ID:        u.Id,
 		Username:  u.Username,
 		Email:     u.Email,
@@ -17,7 +17,7 @@ func (u *Users) ToV1Domain() V1Domains.UserDomain {
 	}
 }
 
-func FromUsersV1Domain(u *V1Domains.UserDomain) Users {
+func FromUsersV1Domain(u *entities.UserDomain) Users {
 	return Users{
 		Id:        u.ID,
 		Username:  u.Username,
@@ -30,8 +30,8 @@ func FromUsersV1Domain(u *V1Domains.UserDomain) Users {
 	}
 }
 
-func ToArrayOfUsersV1Domain(u *[]Users) []V1Domains.UserDomain {
-	var result []V1Domains.UserDomain
+func ToArrayOfUsersV1Domain(u *[]Users) []entities.UserDomain {
+	var result []entities.UserDomain
 
 	for _, val := range *u {
 		result = append(result, val.ToV1Domain())

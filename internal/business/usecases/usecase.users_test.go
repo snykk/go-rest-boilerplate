@@ -1,4 +1,4 @@
-package v1_test
+package usecases_test
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
-	V1Usecases "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
@@ -24,9 +24,9 @@ var (
 	mailerOTPMock   *mocks.OTPMailer
 	redisMock       *mocks.RedisCache
 	ristrettoMock   *mocks.RistrettoCache
-	userUsecase     V1Domains.UserUsecase
-	usersDataFromDB []V1Domains.UserDomain
-	userDataFromDB  V1Domains.UserDomain
+	userUsecase     usecases.UserUsecase
+	usersDataFromDB []entities.UserDomain
+	userDataFromDB  entities.UserDomain
 )
 
 func setup(t *testing.T) {
@@ -40,8 +40,8 @@ func setup(t *testing.T) {
 	userRepoMock = mocks.NewUserRepository(t)
 	redisMock = mocks.NewRedisCache(t)
 	ristrettoMock = mocks.NewRistrettoCache(t)
-	userUsecase = V1Usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock)
-	usersDataFromDB = []V1Domains.UserDomain{
+	userUsecase = usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock)
+	usersDataFromDB = []entities.UserDomain{
 		{
 			ID:        "ddfcea5c-d919-4a8f-a631-4ace39337s3a",
 			Username:  "itsmepatrick",
@@ -62,7 +62,7 @@ func setup(t *testing.T) {
 		},
 	}
 
-	userDataFromDB = V1Domains.UserDomain{
+	userDataFromDB = entities.UserDomain{
 		ID:        "fjskeie8-jfk8-qke0-sksj-ksjf89e8ehfu",
 		Username:  "itsmepatrick",
 		Email:     "najibfikri13@gmail.com",
@@ -83,7 +83,7 @@ func TestStore(t *testing.T) {
 	t.Run("Test 1 | Success Store User Data", func(t *testing.T) {
 		pass, _ := helpers.GenerateHash("11111")
 
-		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		result, err := userUsecase.Store(context.Background(), req.ToV1Domain())
 
 		assert.Nil(t, err)
@@ -94,7 +94,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("Test 2 | Failure When Store User Data", func(t *testing.T) {
-		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUnexpected).Once()
+		userRepoMock.Mock.On("Store", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(entities.UserDomain{}, constants.ErrUnexpected).Once()
 		result, err := userUsecase.Store(context.Background(), req.ToV1Domain())
 
 		assert.NotNil(t, err)
@@ -112,7 +112,7 @@ func TestLogin(t *testing.T) {
 		userDataFromDB.Active = true
 		userDataFromDB.Password, _ = helpers.GenerateHash(userDataFromDB.Password)
 
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		jwtServiceMock.Mock.On("GenerateTokenPair", mock.AnythingOfType("string"), mock.AnythingOfType("bool"), mock.AnythingOfType("string")).Return(jwt.TokenPair{
 			AccessToken:      "eyBlablablabla",
 			RefreshToken:     "eyRefresh",
@@ -138,10 +138,10 @@ func TestLogin(t *testing.T) {
 		userDataFromDB.Active = false
 		userDataFromDB.Password, _ = helpers.GenerateHash(userDataFromDB.Password)
 
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		result, err := userUsecase.Login(context.Background(), req.ToV1Domain())
 
-		assert.Equal(t, V1Domains.UserDomain{}, result)
+		assert.Equal(t, entities.UserDomain{}, result)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "account is not activated")
 	})
@@ -153,11 +153,11 @@ func TestLogin(t *testing.T) {
 		userDataFromDB.Active = true
 		userDataFromDB.Password, _ = helpers.GenerateHash(userDataFromDB.Password)
 
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 
 		result, err := userUsecase.Login(context.Background(), req.ToV1Domain())
 
-		assert.Equal(t, V1Domains.UserDomain{}, result)
+		assert.Equal(t, entities.UserDomain{}, result)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "invalid email or password")
 	})
@@ -166,7 +166,7 @@ func TestLogin(t *testing.T) {
 func TestSendOTP(t *testing.T) {
 	setup(t)
 	t.Run("Test 1 | Success Send OTP", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		mailerOTPMock.On("SendOTP", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
 		redisMock.On("Set", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
 		redisMock.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Once()
@@ -177,14 +177,14 @@ func TestSendOTP(t *testing.T) {
 	})
 
 	t.Run("Test 2 | Email Not Registered", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUserNotFound).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(entities.UserDomain{}, constants.ErrUserNotFound).Once()
 
 		err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
 
 		assert.NotNil(t, err)
 	})
 	t.Run("Test 3 | Failure When Send OTP", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		mailerOTPMock.On("SendOTP", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(constants.ErrUnexpected).Once()
 
 		err := userUsecase.SendOTP(context.Background(), "najibfikri13@gmail.com")
@@ -196,11 +196,11 @@ func TestSendOTP(t *testing.T) {
 func TestVerifyOTP(t *testing.T) {
 	setup(t)
 	t.Run("Test 1 | Success Verify OTP", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		redisMock.Mock.On("Incr", mock.Anything, mock.AnythingOfType("string")).Return(int64(1), nil).Once()
 		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
 		redisMock.Mock.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("112233", nil).Once()
-		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(nil).Once()
+		userRepoMock.Mock.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(nil).Once()
 		redisMock.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Twice()
 		ristrettoMock.On("Del", "users", mock.AnythingOfType("string")).Once()
 
@@ -209,21 +209,21 @@ func TestVerifyOTP(t *testing.T) {
 		assert.Nil(t, err)
 	})
 	t.Run("Test 2 | Email Not Registered", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, constants.ErrUserNotFound).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(entities.UserDomain{}, constants.ErrUserNotFound).Once()
 
 		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
 
 		assert.NotNil(t, err)
 	})
 	t.Run("Test 3 | Account Already Activated", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(usersDataFromDB[0], nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(usersDataFromDB[0], nil).Once()
 
 		err := userUsecase.VerifyOTP(context.Background(), "najibfikri13@gmail.com", "112233")
 
 		assert.NotNil(t, err)
 	})
 	t.Run("Test 4 | Invalid OTP Code", func(t *testing.T) {
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		redisMock.Mock.On("Incr", mock.Anything, mock.AnythingOfType("string")).Return(int64(1), nil).Once()
 		redisMock.Mock.On("Expire", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil).Once()
 		redisMock.Mock.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("112233", nil).Once()
@@ -238,7 +238,7 @@ func TestGetByEmail(t *testing.T) {
 	setup(t)
 	t.Run("Test 1 | Success Get User Data By Email (cache miss)", func(t *testing.T) {
 		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(userDataFromDB, nil).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(userDataFromDB, nil).Once()
 		ristrettoMock.Mock.On("Set", mock.AnythingOfType("string"), mock.Anything).Once()
 
 		result, err := userUsecase.GetByEmail(context.Background(), "najibfikri13@gmail.com")
@@ -258,11 +258,11 @@ func TestGetByEmail(t *testing.T) {
 
 	t.Run("Test 3 | User doesn't exist", func(t *testing.T) {
 		ristrettoMock.Mock.On("Get", mock.AnythingOfType("string")).Return(nil).Once()
-		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*v1.UserDomain")).Return(V1Domains.UserDomain{}, apperror.NotFound("email not found")).Once()
+		userRepoMock.Mock.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).Return(entities.UserDomain{}, apperror.NotFound("email not found")).Once()
 
 		result, err := userUsecase.GetByEmail(context.Background(), "johndoe@gmail.com")
 
-		assert.Equal(t, V1Domains.UserDomain{}, result)
+		assert.Equal(t, entities.UserDomain{}, result)
 		assert.NotNil(t, err)
 	})
 }

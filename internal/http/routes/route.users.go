@@ -3,7 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	V1Usecase "github.com/snykk/go-rest-boilerplate/internal/business/usecases/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -23,7 +23,7 @@ type usersRoutes struct {
 
 func NewUsersRoute(router *gin.RouterGroup, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer) *usersRoutes {
 	V1UserRepository := V1PostgresRepository.NewUserRepository(db)
-	V1UserUsecase := V1Usecase.NewUserUsecase(V1UserRepository, jwtService, mailer, redisCache, ristrettoCache)
+	V1UserUsecase := usecases.NewUserUsecase(V1UserRepository, jwtService, mailer, redisCache, ristrettoCache)
 	V1UserHandler := V1Handler.NewUserHandler(V1UserUsecase)
 
 	// 5 requests per minute per IP for auth endpoints

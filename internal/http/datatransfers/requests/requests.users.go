@@ -1,7 +1,7 @@
 package requests
 
 import (
-	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
 )
 
 // General Request
@@ -12,8 +12,8 @@ type UserRequest struct {
 }
 
 // Mapping General Request to Domain User
-func (user UserRequest) ToV1Domain() *V1Domains.UserDomain {
-	return &V1Domains.UserDomain{
+func (user UserRequest) ToV1Domain() *entities.UserDomain {
+	return &entities.UserDomain{
 		Username: user.Username,
 		Email:    user.Email,
 		Password: user.Password,
@@ -44,8 +44,8 @@ type UserRefreshRequest struct {
 }
 
 // Mapping Login Request to Domain User
-func (u *UserLoginRequest) ToV1Domain() *V1Domains.UserDomain {
-	return &V1Domains.UserDomain{
+func (u *UserLoginRequest) ToV1Domain() *entities.UserDomain {
+	return &entities.UserDomain{
 		Email:    u.Email,
 		Password: u.Password,
 	}
