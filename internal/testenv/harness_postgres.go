@@ -30,12 +30,26 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// StartPostgresEmpty launches a throwaway Postgres container, installs
+// the uuid-ossp extension, and returns a *sqlx.DB pointing at it. No
+// migrations are applied. Use this when the test itself drives schema
+// changes (e.g., the migration runner's own integration test).
+func StartPostgresEmpty(t *testing.T) *sqlx.DB {
+	t.Helper()
+	return startPostgres(t, false)
+}
+
 // StartPostgres launches a throwaway Postgres container, applies every
 // .up.sql migration in cmd/migration/migrations in lexicographic order,
 // and returns a connected *sqlx.DB. The container is terminated by
 // t.Cleanup so each test gets a clean slate; nothing leaks between
 // tests in the same package.
 func StartPostgres(t *testing.T) *sqlx.DB {
+	t.Helper()
+	return startPostgres(t, true)
+}
+
+func startPostgres(t *testing.T, runMigrations bool) *sqlx.DB {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
