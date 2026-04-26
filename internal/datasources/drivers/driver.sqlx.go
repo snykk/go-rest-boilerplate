@@ -9,6 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
+	"github.com/uptrace/opentelemetry-go-extra/otelsql"
+	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 // SQLXConfig holds the configuration for the database instance
@@ -20,9 +23,17 @@ type SQLXConfig struct {
 	MaxLifetime    time.Duration
 }
 
-// InitializeSQLXDatabase returns a new DBInstance
+// InitializeSQLXDatabase returns a new DBInstance. The handle is
+// instrumented with OpenTelemetry — every Query/Exec emits a span
+// tagged with semantic-convention attributes (db.system, db.statement)
+// and the underlying *sql.DB stats are exposed as OTel metrics.
 func (config *SQLXConfig) InitializeSQLXDatabase() (*sqlx.DB, error) {
-	db, err := sqlx.Open(config.DriverName, config.DataSourceName)
+	db, err := otelsqlx.Open(
+		config.DriverName,
+		config.DataSourceName,
+		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
+		otelsql.WithDBName(config.DriverName),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error opening database: %v", err)
 	}
