@@ -36,9 +36,14 @@ func (r *usersRoutes) Routes() {
 	// Routes V1
 	V1Route := r.router.Group("/v1")
 	{
-		// auth (rate limited)
+		// auth (rate limited + tight body cap)
+		// Auth payloads are small JSON blobs — capping at 4 KiB blocks
+		// slow-body / oversized-payload attacks against the only routes
+		// that accept anonymous traffic, without affecting any
+		// legitimate request.
 		V1AuhtRoute := V1Route.Group("/auth")
 		V1AuhtRoute.Use(r.rateLimiter)
+		V1AuhtRoute.Use(middlewares.BodySizeLimitMiddleware(middlewares.AuthBodyMaxBytes))
 		V1AuhtRoute.POST("/register", r.V1Handler.Register)
 		V1AuhtRoute.POST("/login", r.V1Handler.Login)
 		V1AuhtRoute.POST("/send-otp", r.V1Handler.SendOTP)
