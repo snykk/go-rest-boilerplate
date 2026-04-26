@@ -36,6 +36,33 @@ jobs:
           name: coverage
           path: coverage.out
 
+  swag-drift:
+    name: OpenAPI Spec Drift
+    runs-on: ubuntu-latest
+    # Catches PRs that change a handler annotation or DTO struct but
+    # forget to run `make swag`. Without this, docs/swagger.* silently
+    # decays away from the actual API.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Install swag CLI
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+      - name: Regenerate spec
+        env:
+          GOFLAGS: "-mod=mod"
+        run: swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
+      - name: Fail on diff
+        # If `git diff` shows changes after regeneration, the committed
+        # docs/ is stale. The diff is printed so the PR author can see
+        # exactly what's missing.
+        run: |
+          if ! git diff --exit-code -- docs/; then
+            echo "::error::docs/ is out of sync with handler annotations. Run 'make swag' locally and commit the result."
+            exit 1
+          fi
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
