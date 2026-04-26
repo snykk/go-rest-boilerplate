@@ -20,7 +20,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
-	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
+	userspostgres "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/users"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/internal/http/routes"
@@ -109,7 +109,7 @@ func NewApp() (*App, error) {
 	// Compose the bounded contexts. Users owns identity CRUD, Auth
 	// owns credential / session flows; Auth depends on Users for
 	// reads/writes of user records.
-	userRepo := V1PostgresRepository.NewUserRepository(conn)
+	userRepo := userspostgres.NewUserRepository(conn)
 	usersUC := users.NewUsecase(userRepo, ristrettoCache)
 	authUC := auth.NewUsecase(usersUC, jwtService, asyncMailer, redisCache, auth.Config{
 		OTPMaxAttempts: config.AppConfig.OTPMaxAttempts,

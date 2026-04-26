@@ -1,11 +1,11 @@
-// Package repositories owns the gateway abstractions for the data
-// layer. Subpackages (postgres/, mongo/, etc.) provide concrete
-// implementations of these interfaces.
+// Package users owns the User-domain gateway abstraction. Concrete
+// adapters (postgres/, future mongo/, etc.) sit in subpackages and
+// implement Repository.
 //
 // The use case layer depends on this package — never on a concrete
 // adapter — so swapping the storage engine doesn't ripple into
 // business code.
-package repositories
+package users
 
 import (
 	"context"
@@ -21,10 +21,10 @@ type ListFilter struct {
 	IncludeDeleted bool // false (default) = WHERE deleted_at IS NULL
 }
 
-// UserRepository is the gateway for loading and persisting users.
-// Implementations live alongside the storage engine they target
-// (e.g., repositories/postgres/v1).
-type UserRepository interface {
+// Repository is the gateway for loading and persisting users.
+// Callers see it as users.Repository — the package name carries the
+// "user" qualifier, so the type itself doesn't need to repeat it.
+type Repository interface {
 	// Store inserts the user and returns the persisted row in a single
 	// round-trip so callers don't need a follow-up GetByEmail (which
 	// would orphan the INSERT if it failed). Duplicate username/email

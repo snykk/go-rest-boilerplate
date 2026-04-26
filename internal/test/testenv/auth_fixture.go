@@ -11,7 +11,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
-	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
+	userspostgres "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/require"
 )
@@ -107,7 +107,7 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 	)
 
 	mailer := &CapturingMailer{}
-	repo := V1PostgresRepository.NewUserRepository(db)
+	repo := userspostgres.NewUserRepository(db)
 	usersUC := users.NewUsecase(repo, ristretto)
 	authUC := auth.NewUsecase(usersUC, jwtSvc, mailer, redis, auth.Config{
 		OTPMaxAttempts: 5,

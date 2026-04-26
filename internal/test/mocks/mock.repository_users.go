@@ -6,7 +6,7 @@ import (
 	context "context"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
-	"github.com/snykk/go-rest-boilerplate/internal/datasources/repositories"
+	usersrepo "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/users"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -93,11 +93,11 @@ func (_m *UserRepository) GetByID(ctx context.Context, id string) (entities.User
 }
 
 // List provides a mock function with given fields: ctx, filter, offset, limit
-func (_m *UserRepository) List(ctx context.Context, filter repositories.ListFilter, offset int, limit int) ([]entities.UserDomain, error) {
+func (_m *UserRepository) List(ctx context.Context, filter usersrepo.ListFilter, offset int, limit int) ([]entities.UserDomain, error) {
 	ret := _m.Called(ctx, filter, offset, limit)
 
 	var r0 []entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, repositories.ListFilter, int, int) []entities.UserDomain); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, usersrepo.ListFilter, int, int) []entities.UserDomain); ok {
 		r0 = rf(ctx, filter, offset, limit)
 	} else {
 		if ret.Get(0) != nil {
@@ -106,7 +106,7 @@ func (_m *UserRepository) List(ctx context.Context, filter repositories.ListFilt
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, repositories.ListFilter, int, int) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, usersrepo.ListFilter, int, int) error); ok {
 		r1 = rf(ctx, filter, offset, limit)
 	} else {
 		r1 = ret.Error(1)
