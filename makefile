@@ -17,8 +17,11 @@ build: ## Build the API binary
 tidy: ## Tidy and vendor dependencies
 	go mod tidy && go mod vendor
 
-test: ## Run all tests
+test: ## Run unit tests (mocks only — fast, no Docker)
 	go test -v ./...
+
+test-integration: ## Run integration tests (requires Docker; spins up Postgres + Redis)
+	go test -tags=integration -v ./...
 
 test-cover: ## Run tests with coverage report
 	go test -coverprofile=coverage.out ./...
