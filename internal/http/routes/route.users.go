@@ -3,13 +3,13 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
-	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
+	usershandler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1/users"
 )
 
 // usersRoute wires the /users/* group — endpoints scoped to a user's
 // own profile / data. Auth flows live in route.auth.go.
 type usersRoute struct {
-	handler        V1Handler.UserHandler
+	handler        usershandler.Handler
 	router         *gin.RouterGroup
 	authMiddleware gin.HandlerFunc
 }
@@ -19,7 +19,7 @@ type usersRoute struct {
 // middleware is shared across every protected route group.
 func NewUsersRoute(router *gin.RouterGroup, usersUC users.Usecase, authMiddleware gin.HandlerFunc) *usersRoute {
 	return &usersRoute{
-		handler:        V1Handler.NewUserHandler(usersUC),
+		handler:        usershandler.NewHandler(usersUC),
 		router:         router,
 		authMiddleware: authMiddleware,
 	}
@@ -28,9 +28,9 @@ func NewUsersRoute(router *gin.RouterGroup, usersUC users.Usecase, authMiddlewar
 // Routes mounts the /users group and its endpoints.
 func (r *usersRoute) Routes() {
 	v1 := r.router.Group("/v1")
-	users := v1.Group("/users")
-	users.Use(r.authMiddleware)
+	usersGrp := v1.Group("/users")
+	usersGrp.Use(r.authMiddleware)
 	{
-		users.GET("/me", r.handler.GetUserData)
+		usersGrp.GET("/me", r.handler.GetUserData)
 	}
 }

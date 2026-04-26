@@ -3,7 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
-	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
+	authhandler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"golang.org/x/time/rate"
 )
@@ -12,7 +12,7 @@ import (
 // refresh / logout. All endpoints are anonymous (no JWT required) so
 // the group gets the rate limiter and the tight body cap.
 type authRoute struct {
-	handler     V1Handler.AuthHandler
+	handler     authhandler.Handler
 	router      *gin.RouterGroup
 	rateLimiter gin.HandlerFunc
 }
@@ -25,7 +25,7 @@ func NewAuthRoute(router *gin.RouterGroup, authUC auth.Usecase) *authRoute {
 	// 5 requests per minute per IP for auth endpoints.
 	authRateLimiter := middlewares.NewRateLimiter(rate.Limit(5.0/60.0), 5)
 	return &authRoute{
-		handler:     V1Handler.NewAuthHandler(authUC),
+		handler:     authhandler.NewHandler(authUC),
 		router:      router,
 		rateLimiter: authRateLimiter.Middleware(),
 	}

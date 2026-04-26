@@ -1,22 +1,26 @@
-package v1
+// Package users serves the /users/* HTTP endpoints — anything scoped
+// to the authenticated user's own profile / data. Auth flows live in
+// the sibling package internal/http/handlers/v1/auth.
+package users
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
+	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	httpauth "github.com/snykk/go-rest-boilerplate/internal/http/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
 )
 
-// UserHandler serves user-domain endpoints (/users/*). It calls into
-// users.Usecase only — auth flows live on AuthHandler.
-type UserHandler struct {
+// Handler serves user-domain endpoints. It calls into users.Usecase
+// only — never directly into the repository or auth context.
+type Handler struct {
 	usecase users.Usecase
 }
 
-func NewUserHandler(usecase users.Usecase) UserHandler {
-	return UserHandler{usecase: usecase}
+func NewHandler(usecase users.Usecase) Handler {
+	return Handler{usecase: usecase}
 }
 
 // GetUserData godoc
@@ -29,20 +33,20 @@ func NewUserHandler(usecase users.Usecase) UserHandler {
 // @Failure      401  {object}  v1.BaseResponse  "Missing or invalid token"
 // @Failure      404  {object}  v1.BaseResponse  "User no longer exists"
 // @Router       /users/me [get]
-func (h UserHandler) GetUserData(ctx *gin.Context) {
+func (h Handler) GetUserData(ctx *gin.Context) {
 	user, err := httpauth.CurrentUserFromContext(ctx)
 	if err != nil {
-		NewErrorResponse(ctx, http.StatusUnauthorized, err.Error())
+		v1.NewErrorResponse(ctx, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	userDom, err := h.usecase.GetByEmail(ctx.Request.Context(), user.Email)
 	if err != nil {
-		RespondWithError(ctx, err)
+		v1.RespondWithError(ctx, err)
 		return
 	}
 
-	NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
+	v1.NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
 		"user": responses.FromV1Domain(userDom),
 	})
 }
