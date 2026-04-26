@@ -142,11 +142,25 @@ func applyMigrations(ctx context.Context, db *sqlx.DB) error {
 	return nil
 }
 
-// migrationsDir resolves the project-root migrations directory from
-// the location of this source file, so tests work regardless of which
-// package directory `go test` is invoked from.
+// migrationsDir resolves the project-root migrations directory by
+// walking up from this source file until it finds go.mod. Robust
+// against the harness moving inside internal/ — earlier versions
+// hardcoded ".." counts and silently broke when the package was
+// relocated.
 func migrationsDir() string {
 	_, file, _, _ := runtime.Caller(0)
-	// internal/testsupport/postgres.go → ../../cmd/migration/migrations
-	return filepath.Join(filepath.Dir(file), "..", "..", "cmd", "migration", "migrations")
+	dir := filepath.Dir(file)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return filepath.Join(dir, "cmd", "migration", "migrations")
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root without finding go.mod —
+			// return a path that will fail loudly downstream rather
+			// than silently picking up a wrong directory.
+			return filepath.Join("cmd", "migration", "migrations")
+		}
+		dir = parent
+	}
 }
