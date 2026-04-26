@@ -10,6 +10,8 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // AsyncOTPMailer wraps an OTPMailer so SendOTP enqueues a job and
@@ -120,8 +122,23 @@ func (a *AsyncOTPMailer) worker(id int) {
 func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 	var lastErr error
 	for attempt := 1; attempt <= a.retries; attempt++ {
+		// Each attempt is its own span. We don't thread the request
+		// context across the worker boundary (the request goroutine
+		// has likely returned by now and its ctx may be cancelled);
+		// the span is rooted in a fresh context but tagged with
+		// receiver + attempt so it can be correlated with logs.
+		ctx, span := observability.Tracer().Start(context.Background(), "mailer.SendOTP")
+		span.SetAttributes(
+			attribute.String("mail.receiver", job.receiver),
+			attribute.Int("mail.attempt", attempt),
+			attribute.Int("mail.worker", workerID),
+		)
+		_ = ctx // reserved for future use if SendOTP gains a ctx parameter
+
 		lastErr = a.inner.SendOTP(job.code, job.receiver)
 		if lastErr == nil {
+			span.SetStatus(codes.Ok, "")
+			span.End()
 			observability.ObserveMailerOp("sent")
 			logger.Info("otp email sent", logrus.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryCache,
@@ -131,6 +148,9 @@ func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 			})
 			return
 		}
+		span.RecordError(lastErr)
+		span.SetStatus(codes.Error, lastErr.Error())
+		span.End()
 
 		if attempt == a.retries {
 			break

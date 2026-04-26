@@ -387,6 +387,12 @@ github.com/quic-go/quic-go/qlog
 github.com/quic-go/quic-go/qlogwriter
 github.com/quic-go/quic-go/qlogwriter/jsontext
 github.com/quic-go/quic-go/quicvarint
+# github.com/redis/go-redis/extra/rediscmd/v9 v9.18.0
+## explicit; go 1.21
+github.com/redis/go-redis/extra/rediscmd/v9
+# github.com/redis/go-redis/extra/redisotel/v9 v9.18.0
+## explicit; go 1.21
+github.com/redis/go-redis/extra/redisotel/v9
 # github.com/redis/go-redis/v9 v9.18.0
 ## explicit; go 1.21
 github.com/redis/go-redis/v9
@@ -541,6 +547,7 @@ go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/internal
 go.opentelemetry.io/otel/semconv/v1.10.0
 go.opentelemetry.io/otel/semconv/v1.20.0
+go.opentelemetry.io/otel/semconv/v1.24.0
 go.opentelemetry.io/otel/semconv/v1.26.0
 go.opentelemetry.io/otel/semconv/v1.37.0
 go.opentelemetry.io/otel/semconv/v1.40.0

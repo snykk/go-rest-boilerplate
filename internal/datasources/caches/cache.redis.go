@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
+	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 // defaultOpTimeout bounds every Redis operation so a slow/unreachable
@@ -45,16 +49,25 @@ type redisCache struct {
 }
 
 func NewRedisCache(host string, db int, password string, expires time.Duration) RedisCache {
+	client := redis.NewClient(&redis.Options{
+		Addr:     host,
+		Password: password,
+		DB:       db,
+	})
+	// redisotel hooks every command (GET/SET/INCR/EXPIRE/...) into the
+	// active trace as a child span tagged with semconv DB attributes.
+	// A failed install means tracing is misconfigured at the SDK
+	// level — log and continue rather than aborting the app.
+	if err := redisotel.InstrumentTracing(client); err != nil {
+		logger.Info("redis tracing instrumentation skipped: "+err.Error(),
+			logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
+	}
 	return &redisCache{
 		host:     host,
 		db:       db,
 		password: password,
 		expires:  expires,
-		client: redis.NewClient(&redis.Options{
-			Addr:     host,
-			Password: password,
-			DB:       db,
-		}),
+		client:   client,
 	}
 }
 
