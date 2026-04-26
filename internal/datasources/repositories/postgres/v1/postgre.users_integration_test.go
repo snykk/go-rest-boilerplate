@@ -11,7 +11,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	postgresrepo "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
-	"github.com/snykk/go-rest-boilerplate/internal/testenv"
+	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/migration"
-	"github.com/snykk/go-rest-boilerplate/internal/testenv"
+	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -16,7 +16,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	V1Handlers "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
-	"github.com/snykk/go-rest-boilerplate/internal/mocks"
+	"github.com/snykk/go-rest-boilerplate/internal/test/mocks"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
