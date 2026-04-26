@@ -1,0 +1,17 @@
+package auth
+
+import "time"
+
+// Config is the slice of configuration the auth use case needs.
+// Injecting it via NewUsecase keeps this package free of any
+// dependency on internal/config — the composition root translates
+// the env config into the shape the auth domain cares about.
+type Config struct {
+	// OTPMaxAttempts is the lockout threshold for VerifyOTP. After
+	// this many failures within the OTP window the email is locked
+	// out even with the correct code.
+	OTPMaxAttempts int
+	// OTPTTL is how long the OTP code (and its attempt counter)
+	// stay live in Redis before expiring.
+	OTPTTL time.Duration
+}

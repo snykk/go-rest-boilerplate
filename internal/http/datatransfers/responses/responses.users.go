@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
-	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 )
 
 type UserResponse struct {
@@ -46,7 +46,7 @@ func FromV1Domain(u entities.UserDomain) UserResponse {
 // FromLoginResult is the /login + /refresh response shape: the user
 // fields are the same as FromV1Domain, plus the freshly-minted token
 // pair from the auth flow.
-func FromLoginResult(r usecases.LoginResult) UserResponse {
+func FromLoginResult(r auth.LoginResult) UserResponse {
 	resp := FromV1Domain(r.User)
 	resp.Token = r.AccessToken
 	resp.RefreshToken = r.RefreshToken

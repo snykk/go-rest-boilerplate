@@ -2,61 +2,35 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
-	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
-	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
-	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
-	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
-	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
-	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
-	"golang.org/x/time/rate"
 )
 
-type usersRoutes struct {
-	V1Handler      V1Handler.UserHandler
+// usersRoute wires the /users/* group — endpoints scoped to a user's
+// own profile / data. Auth flows live in route.auth.go.
+type usersRoute struct {
+	handler        V1Handler.UserHandler
 	router         *gin.RouterGroup
-	db             *sqlx.DB
 	authMiddleware gin.HandlerFunc
-	rateLimiter    gin.HandlerFunc
 }
 
-func NewUsersRoute(router *gin.RouterGroup, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer, ucCfg usecases.UserUsecaseConfig) *usersRoutes {
-	V1UserRepository := V1PostgresRepository.NewUserRepository(db)
-	V1UserUsecase := usecases.NewUserUsecase(V1UserRepository, jwtService, mailer, redisCache, ristrettoCache, ucCfg)
-	V1UserHandler := V1Handler.NewUserHandler(V1UserUsecase)
-
-	// 5 requests per minute per IP for auth endpoints
-	authRateLimiter := middlewares.NewRateLimiter(rate.Limit(5.0/60.0), 5)
-
-	return &usersRoutes{V1Handler: V1UserHandler, router: router, db: db, authMiddleware: authMiddleware, rateLimiter: authRateLimiter.Middleware()}
+// NewUsersRoute builds the route module. The auth middleware is
+// passed in (rather than constructed here) so the same JWT-validating
+// middleware is shared across every protected route group.
+func NewUsersRoute(router *gin.RouterGroup, usersUC users.Usecase, authMiddleware gin.HandlerFunc) *usersRoute {
+	return &usersRoute{
+		handler:        V1Handler.NewUserHandler(usersUC),
+		router:         router,
+		authMiddleware: authMiddleware,
+	}
 }
 
-func (r *usersRoutes) Routes() {
-	// Routes V1
-	V1Route := r.router.Group("/v1")
+// Routes mounts the /users group and its endpoints.
+func (r *usersRoute) Routes() {
+	v1 := r.router.Group("/v1")
+	users := v1.Group("/users")
+	users.Use(r.authMiddleware)
 	{
-		// auth (rate limited + tight body cap)
-		// Auth payloads are small JSON blobs — capping at 4 KiB blocks
-		// slow-body / oversized-payload attacks against the only routes
-		// that accept anonymous traffic, without affecting any
-		// legitimate request.
-		V1AuhtRoute := V1Route.Group("/auth")
-		V1AuhtRoute.Use(r.rateLimiter)
-		V1AuhtRoute.Use(middlewares.BodySizeLimitMiddleware(middlewares.AuthBodyMaxBytes))
-		V1AuhtRoute.POST("/register", r.V1Handler.Register)
-		V1AuhtRoute.POST("/login", r.V1Handler.Login)
-		V1AuhtRoute.POST("/send-otp", r.V1Handler.SendOTP)
-		V1AuhtRoute.POST("/verify-otp", r.V1Handler.VerifyOTP)
-		V1AuhtRoute.POST("/refresh", r.V1Handler.Refresh)
-		V1AuhtRoute.POST("/logout", r.V1Handler.Logout)
-
-		// users
-		userRoute := V1Route.Group("/users")
-		userRoute.Use(r.authMiddleware)
-		{
-			userRoute.GET("/me", r.V1Handler.GetUserData)
-			// ...
-		}
+		users.GET("/me", r.handler.GetUserData)
 	}
 }

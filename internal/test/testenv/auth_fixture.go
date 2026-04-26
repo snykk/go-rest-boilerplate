@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
@@ -20,10 +21,15 @@ import (
 // outbound SMTP mailer is faked, because we need to capture OTP codes
 // to feed them back into VerifyOTP, and SMTP isn't worth running in
 // CI anyway.
+//
+// Both bounded contexts are exposed: Auth for the auth flows being
+// tested, Users for any setup / verification step that needs to read
+// or mutate user records directly.
 type AuthFixture struct {
-	Usecase usecases.UserUsecase
-	Mailer  *CapturingMailer
-	JWT     jwt.JWTService
+	Auth   auth.Usecase
+	Users  users.Usecase
+	Mailer *CapturingMailer
+	JWT    jwt.JWTService
 }
 
 // CapturingMailer records every OTP+receiver pair so tests can pluck
@@ -58,7 +64,7 @@ func (m *CapturingMailer) LastOTP(t *testing.T, receiver string) string {
 	return ""
 }
 
-// NewAuthFixture wires the full auth slice against fresh Postgres +
+// NewAuthFixture wires both bounded contexts against fresh Postgres +
 // Redis containers. Tunable knobs (OTP attempts, JWT secret length,
 // bcrypt cost) are seeded from sane defaults — tests that need to
 // vary them can override config.AppConfig directly before calling.
@@ -67,8 +73,6 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 	db := StartPostgres(t)
 	redis := StartRedis(t)
 
-	// VerifyOTP, Login, JWT all read from config.AppConfig. Seed sane
-	// defaults so tests don't need an env file.
 	if config.AppConfig.OTPMaxAttempts == 0 {
 		config.AppConfig.OTPMaxAttempts = 5
 	}
@@ -104,11 +108,16 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 
 	mailer := &CapturingMailer{}
 	repo := V1PostgresRepository.NewUserRepository(db)
-	uc := usecases.NewUserUsecase(repo, jwtSvc, mailer, redis, ristretto, usecases.UserUsecaseConfig{OTPMaxAttempts: 5, OTPTTL: 5 * time.Minute})
+	usersUC := users.NewUsecase(repo, ristretto)
+	authUC := auth.NewUsecase(usersUC, jwtSvc, mailer, redis, auth.Config{
+		OTPMaxAttempts: 5,
+		OTPTTL:         5 * time.Minute,
+	})
 
 	return &AuthFixture{
-		Usecase: uc,
-		Mailer:  mailer,
-		JWT:     jwtSvc,
+		Auth:   authUC,
+		Users:  usersUC,
+		Mailer: mailer,
+		JWT:    jwtSvc,
 	}
 }

@@ -14,11 +14,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
-	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
+	V1PostgresRepository "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/internal/http/routes"
@@ -104,16 +106,21 @@ func NewApp() (*App, error) {
 	// time, so this route just needs to point at it.
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// API Routes — build the use-case-specific config from AppConfig
-	// here in the composition root so the use case package itself
-	// stays free of any global-state dependency.
-	userUsecaseCfg := usecases.UserUsecaseConfig{
+	// Compose the bounded contexts. Users owns identity CRUD, Auth
+	// owns credential / session flows; Auth depends on Users for
+	// reads/writes of user records.
+	userRepo := V1PostgresRepository.NewUserRepository(conn)
+	usersUC := users.NewUsecase(userRepo, ristrettoCache)
+	authUC := auth.NewUsecase(usersUC, jwtService, asyncMailer, redisCache, auth.Config{
 		OTPMaxAttempts: config.AppConfig.OTPMaxAttempts,
 		OTPTTL:         time.Duration(config.AppConfig.REDISExpired) * time.Minute,
-	}
+	})
+
+	// API Routes
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
-	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, asyncMailer, userUsecaseCfg).Routes()
+	routes.NewAuthRoute(api, authUC).Routes()
+	routes.NewUsersRoute(api, usersUC, authMiddleware).Routes()
 
 	// setup http server
 	server := &http.Server{
