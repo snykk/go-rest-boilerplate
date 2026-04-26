@@ -43,6 +43,12 @@ func New(db *sqlx.DB, dir string) *Runner {
 // the runner during tests.
 func (r *Runner) SetLogger(fn func(string, logrus.Fields)) { r.log = fn }
 
+// DB exposes the underlying handle for callers that need to assert
+// post-migration state (e.g., integration tests querying
+// schema_migrations directly). Production code should not reach for
+// this — use the Up/Down methods.
+func (r *Runner) DB() *sqlx.DB { return r.db }
+
 func (r *Runner) info(msg string, fields logrus.Fields) {
 	if r.log != nil {
 		r.log(msg, fields)
