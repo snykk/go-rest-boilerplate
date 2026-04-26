@@ -21,9 +21,9 @@ type usersRoutes struct {
 	rateLimiter    gin.HandlerFunc
 }
 
-func NewUsersRoute(router *gin.RouterGroup, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer) *usersRoutes {
+func NewUsersRoute(router *gin.RouterGroup, db *sqlx.DB, jwtService jwt.JWTService, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, authMiddleware gin.HandlerFunc, mailer mailer.OTPMailer, ucCfg usecases.UserUsecaseConfig) *usersRoutes {
 	V1UserRepository := V1PostgresRepository.NewUserRepository(db)
-	V1UserUsecase := usecases.NewUserUsecase(V1UserRepository, jwtService, mailer, redisCache, ristrettoCache)
+	V1UserUsecase := usecases.NewUserUsecase(V1UserRepository, jwtService, mailer, redisCache, ristrettoCache, ucCfg)
 	V1UserHandler := V1Handler.NewUserHandler(V1UserUsecase)
 
 	// 5 requests per minute per IP for auth endpoints

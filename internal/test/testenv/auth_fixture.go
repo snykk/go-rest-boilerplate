@@ -5,6 +5,7 @@ package testenv
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
@@ -103,7 +104,7 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 
 	mailer := &CapturingMailer{}
 	repo := V1PostgresRepository.NewUserRepository(db)
-	uc := usecases.NewUserUsecase(repo, jwtSvc, mailer, redis, ristretto)
+	uc := usecases.NewUserUsecase(repo, jwtSvc, mailer, redis, ristretto, usecases.UserUsecaseConfig{OTPMaxAttempts: 5, OTPTTL: 5 * time.Minute})
 
 	return &AuthFixture{
 		Usecase: uc,

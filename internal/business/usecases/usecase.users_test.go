@@ -40,7 +40,7 @@ func setup(t *testing.T) {
 	userRepoMock = mocks.NewUserRepository(t)
 	redisMock = mocks.NewRedisCache(t)
 	ristrettoMock = mocks.NewRistrettoCache(t)
-	userUsecase = usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock)
+	userUsecase = usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock, usecases.UserUsecaseConfig{OTPMaxAttempts: 5, OTPTTL: 5 * time.Minute})
 	usersDataFromDB = []entities.UserDomain{
 		{
 			ID:        "ddfcea5c-d919-4a8f-a631-4ace39337s3a",

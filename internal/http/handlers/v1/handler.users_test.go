@@ -46,7 +46,7 @@ func setup(t *testing.T) {
 	mailerOTPMock = mocks.NewOTPMailer(t)
 	ristrettoMock = mocks.NewRistrettoCache(t)
 	userRepoMock = mocks.NewUserRepository(t)
-	userUsecase = usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock)
+	userUsecase = usecases.NewUserUsecase(userRepoMock, jwtServiceMock, mailerOTPMock, redisMock, ristrettoMock, usecases.UserUsecaseConfig{OTPMaxAttempts: 5, OTPTTL: 5 * time.Minute})
 	userHandler = V1Handlers.NewUserHandler(userUsecase)
 
 	usersDataFromDB = []entities.UserDomain{

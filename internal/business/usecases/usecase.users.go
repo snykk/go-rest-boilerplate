@@ -15,7 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
-	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
@@ -25,6 +24,21 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 	"golang.org/x/sync/singleflight"
 )
+
+// UserUsecaseConfig is the slice of configuration the use case needs.
+// Injecting it via NewUserUsecase removes the implicit dependency on
+// the config.AppConfig global — tests can pass exact values, and the
+// composition root in cmd/api stays the only caller that knows the
+// shape of the env file.
+type UserUsecaseConfig struct {
+	// OTPMaxAttempts is the lockout threshold for VerifyOTP. After
+	// this many failures within the OTP window the email is locked
+	// out even with the correct code.
+	OTPMaxAttempts int
+	// OTPTTL is how long the OTP code (and its attempt counter)
+	// stay live in Redis before expiring.
+	OTPTTL time.Duration
+}
 
 // ───────────────────────────── ports ─────────────────────────────
 
@@ -120,6 +134,7 @@ type userUsecase struct {
 	mailer         mailer.OTPMailer
 	redisCache     caches.RedisCache
 	ristrettoCache caches.RistrettoCache
+	cfg            UserUsecaseConfig
 
 	// userByEmailGroup coalesces concurrent cache misses for the
 	// same email so a thundering herd can't fan out into N parallel
@@ -127,13 +142,14 @@ type userUsecase struct {
 	userByEmailGroup singleflight.Group
 }
 
-func NewUserUsecase(repo UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache) UserUsecase {
+func NewUserUsecase(repo UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, cfg UserUsecaseConfig) UserUsecase {
 	return &userUsecase{
 		repo:           repo,
 		jwtService:     jwtService,
 		mailer:         mailer,
 		redisCache:     redisCache,
 		ristrettoCache: ristrettoCache,
+		cfg:            cfg,
 	}
 }
 
@@ -337,10 +353,9 @@ func (userUC *userUsecase) VerifyOTP(ctx context.Context, email string, userOTP 
 		})
 	} else if attempts == 1 {
 		// First attempt in this window — set expiry to match OTP TTL.
-		ttl := time.Duration(config.AppConfig.REDISExpired) * time.Minute
-		_ = userUC.redisCache.Expire(ctx, attemptsKey, ttl)
+		_ = userUC.redisCache.Expire(ctx, attemptsKey, userUC.cfg.OTPTTL)
 	}
-	if attempts > int64(config.AppConfig.OTPMaxAttempts) {
+	if attempts > int64(userUC.cfg.OTPMaxAttempts) {
 		return apperror.Forbidden("too many invalid otp attempts, please request a new code")
 	}
 

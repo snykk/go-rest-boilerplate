@@ -14,6 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
@@ -103,10 +104,16 @@ func NewApp() (*App, error) {
 	// time, so this route just needs to point at it.
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// API Routes
+	// API Routes — build the use-case-specific config from AppConfig
+	// here in the composition root so the use case package itself
+	// stays free of any global-state dependency.
+	userUsecaseCfg := usecases.UserUsecaseConfig{
+		OTPMaxAttempts: config.AppConfig.OTPMaxAttempts,
+		OTPTTL:         time.Duration(config.AppConfig.REDISExpired) * time.Minute,
+	}
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
-	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, asyncMailer).Routes()
+	routes.NewUsersRoute(api, conn, jwtService, redisCache, ristrettoCache, authMiddleware, asyncMailer, userUsecaseCfg).Routes()
 
 	// setup http server
 	server := &http.Server{
