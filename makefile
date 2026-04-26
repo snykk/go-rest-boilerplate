@@ -23,6 +23,9 @@ test: ## Run unit tests (mocks only — fast, no Docker)
 test-integration: ## Run integration tests (requires Docker; spins up Postgres + Redis)
 	go test -tags=integration -v ./...
 
+swag: ## Regenerate OpenAPI spec (docs/) from godoc annotations (requires: go install github.com/swaggo/swag/cmd/swag@latest)
+	$(GOPATH)/bin/swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
+
 test-cover: ## Run tests with coverage report
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html

@@ -25,6 +25,8 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
@@ -94,6 +96,12 @@ func NewApp() (*App, error) {
 	router.GET("/health", healthHandler.Health)
 	router.GET("/ready", healthHandler.Ready)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Swagger UI — spec is generated from godoc annotations by
+	// `make swag` (which runs `swag init -g cmd/api/main.go`). The
+	// _ "<module>/docs" import in main.go registers the spec at init
+	// time, so this route just needs to point at it.
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API Routes
 	api := router.Group("api")
