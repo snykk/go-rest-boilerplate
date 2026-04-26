@@ -580,7 +580,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "Go REST Boilerplate API",
-	Description:      "Production-leaning Go REST boilerplate — JWT access/refresh, OTP-verified registration, Postgres + Redis, Prometheus + OpenTelemetry observability.",
+	Description:      "A starting point for building RESTful APIs in Go using the Gin framework, sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture principles as described by Uncle Bob.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -89,8 +89,9 @@ info:
   contact:
     name: Maintainer
     url: https://github.com/snykk/go-rest-boilerplate/issues
-  description: Production-leaning Go REST boilerplate — JWT access/refresh, OTP-verified
-    registration, Postgres + Redis, Prometheus + OpenTelemetry observability.
+  description: A starting point for building RESTful APIs in Go using the Gin framework,
+    sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture
+    principles as described by Uncle Bob.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT

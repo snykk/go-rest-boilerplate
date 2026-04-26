@@ -2,7 +2,7 @@
 //
 // @title           Go REST Boilerplate API
 // @version         1.0
-// @description     Production-leaning Go REST boilerplate — JWT access/refresh, OTP-verified registration, Postgres + Redis, Prometheus + OpenTelemetry observability.
+// @description     A starting point for building RESTful APIs in Go using the Gin framework, sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture principles as described by Uncle Bob.
 // @termsOfService  https://github.com/snykk/go-rest-boilerplate
 //
 // @contact.name   Maintainer
