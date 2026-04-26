@@ -1,9 +1,8 @@
 // Package usecases is the application business-logic layer. It owns
-// the input ports (UserUsecase) and the gateway ports (UserRepository,
-// caches, mailers) — interfaces describing what the use case needs
-// from the outside world. Implementations live in
-// internal/datasources/* and pkg/*; nothing in this package imports
-// those concrete adapters.
+// the input ports (UserUsecase) and consumes gateway ports defined
+// alongside their adapters — UserRepository in
+// internal/datasources/repositories, cache + mailer interfaces in
+// their respective packages. Nothing here imports a concrete adapter.
 package usecases
 
 import (
@@ -17,6 +16,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/repositories"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -71,43 +71,6 @@ type UserUsecase interface {
 	Logout(ctx context.Context, refreshToken string) error
 }
 
-// ListFilter narrows down List() results. Each field is optional;
-// the empty value means "no filter on this dimension".
-type ListFilter struct {
-	RoleID         int  // 0 = any role
-	ActiveOnly     bool // true = only active=true users
-	IncludeDeleted bool // false (default) = WHERE deleted_at IS NULL
-}
-
-// UserRepository is the gateway port the use case needs to load and
-// persist users. The interface lives here, in the use case package,
-// because the use case dictates what it needs from the outside —
-// implementations adapt to it (internal/datasources/repositories/...).
-type UserRepository interface {
-	// Store inserts the user and returns the persisted row in a single
-	// round-trip so callers don't need a follow-up GetByEmail (which
-	// would orphan the INSERT if it failed). Duplicate username/email
-	// surfaces as apperror.Conflict.
-	Store(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error)
-	// GetByEmail looks up a user by email, excluding soft-deleted
-	// rows. Returns apperror.NotFound when no row matches.
-	GetByEmail(ctx context.Context, inDom *entities.UserDomain) (outDomain entities.UserDomain, err error)
-	// GetByID looks up a user by primary key, excluding soft-deleted
-	// rows. Returns apperror.NotFound when no row matches.
-	GetByID(ctx context.Context, id string) (entities.UserDomain, error)
-	// List returns users matching filter, paginated by offset/limit.
-	// Limit is hard-capped server-side so a misbehaving caller can't
-	// pull the whole table.
-	List(ctx context.Context, filter ListFilter, offset, limit int) ([]entities.UserDomain, error)
-	// ChangeActiveUser flips the active flag (used by the OTP-verify
-	// flow) and stamps updated_at. No-op on soft-deleted rows.
-	ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) (err error)
-	// SoftDelete sets deleted_at = NOW() so the row stays in the table
-	// for audit/restore but stops matching default queries. Returns
-	// apperror.NotFound if the row doesn't exist or is already deleted.
-	SoftDelete(ctx context.Context, id string) error
-}
-
 // ─────────────────────── helpers / constants ───────────────────────
 
 // normalizeEmail trims whitespace and lowercases the address so
@@ -130,7 +93,7 @@ const dummyBcryptHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL1
 
 type userUsecase struct {
 	jwtService     jwt.JWTService
-	repo           UserRepository
+	repo           repositories.UserRepository
 	mailer         mailer.OTPMailer
 	redisCache     caches.RedisCache
 	ristrettoCache caches.RistrettoCache
@@ -142,7 +105,7 @@ type userUsecase struct {
 	userByEmailGroup singleflight.Group
 }
 
-func NewUserUsecase(repo UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, cfg UserUsecaseConfig) UserUsecase {
+func NewUserUsecase(repo repositories.UserRepository, jwtService jwt.JWTService, mailer mailer.OTPMailer, redisCache caches.RedisCache, ristrettoCache caches.RistrettoCache, cfg UserUsecaseConfig) UserUsecase {
 	return &userUsecase{
 		repo:           repo,
 		jwtService:     jwtService,

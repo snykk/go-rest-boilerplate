@@ -10,7 +10,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
-	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/repositories"
 	postgresrepo "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/postgres/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
 	"github.com/stretchr/testify/assert"
@@ -145,28 +145,28 @@ func TestRepo_List_FiltersAndPagination(t *testing.T) {
 		require.NoError(t, err)
 	}
 	// Activate one user so ActiveOnly filter has something to hit.
-	all, err := repo.List(ctx, usecases.ListFilter{}, 0, 10)
+	all, err := repo.List(ctx, repositories.ListFilter{}, 0, 10)
 	require.NoError(t, err)
 	require.Len(t, all, 3)
 
 	require.NoError(t, repo.ChangeActiveUser(ctx, &entities.UserDomain{ID: all[0].ID, Active: true}))
 
 	t.Run("filter by role", func(t *testing.T) {
-		got, err := repo.List(ctx, usecases.ListFilter{RoleID: 1}, 0, 10)
+		got, err := repo.List(ctx, repositories.ListFilter{RoleID: 1}, 0, 10)
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
 	})
 
 	t.Run("filter active only", func(t *testing.T) {
-		got, err := repo.List(ctx, usecases.ListFilter{ActiveOnly: true}, 0, 10)
+		got, err := repo.List(ctx, repositories.ListFilter{ActiveOnly: true}, 0, 10)
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		page1, err := repo.List(ctx, usecases.ListFilter{}, 0, 2)
+		page1, err := repo.List(ctx, repositories.ListFilter{}, 0, 2)
 		require.NoError(t, err)
-		page2, err := repo.List(ctx, usecases.ListFilter{}, 2, 2)
+		page2, err := repo.List(ctx, repositories.ListFilter{}, 2, 2)
 		require.NoError(t, err)
 		assert.Len(t, page1, 2)
 		assert.Len(t, page2, 1)

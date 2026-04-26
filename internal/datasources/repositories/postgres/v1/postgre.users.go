@@ -11,7 +11,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
-	"github.com/snykk/go-rest-boilerplate/internal/business/usecases"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/repositories"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
 )
 
@@ -19,7 +19,7 @@ type postgreUserRepository struct {
 	conn *sqlx.DB
 }
 
-func NewUserRepository(conn *sqlx.DB) usecases.UserRepository {
+func NewUserRepository(conn *sqlx.DB) repositories.UserRepository {
 	return &postgreUserRepository{
 		conn: conn,
 	}
@@ -101,7 +101,7 @@ func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (entitie
 // to whatever clamping the handler does) is defense in depth.
 const hardLimit = 200
 
-func (r *postgreUserRepository) List(ctx context.Context, filter usecases.ListFilter, offset, limit int) ([]entities.UserDomain, error) {
+func (r *postgreUserRepository) List(ctx context.Context, filter repositories.ListFilter, offset, limit int) ([]entities.UserDomain, error) {
 	if limit <= 0 || limit > hardLimit {
 		limit = hardLimit
 	}
