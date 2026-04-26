@@ -25,16 +25,30 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 type App struct {
-	HttpServer  *http.Server
-	db          *sqlx.DB
-	redisCache  caches.RedisCache
-	asyncMailer *mailer.AsyncOTPMailer
+	HttpServer     *http.Server
+	db             *sqlx.DB
+	redisCache     caches.RedisCache
+	asyncMailer    *mailer.AsyncOTPMailer
+	tracerShutdown observability.Shutdown
 }
 
 func NewApp() (*App, error) {
+	// Tracer first so any span emitted by later setup (DB connect,
+	// migration check, etc.) lands in the right provider.
+	shutdownTracer, err := observability.SetupTracing(context.Background(), observability.TracingConfig{
+		ServiceName: "go-rest-boilerplate",
+		Environment: config.AppConfig.Environment,
+		Exporter:    config.AppConfig.OTelExporter,
+		SampleRatio: config.AppConfig.OTelSampleRatio,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("setup tracing: %w", err)
+	}
+
 	// setup databases
 	conn, err := utils.SetupPostgresConnection()
 	if err != nil {
@@ -98,10 +112,11 @@ func NewApp() (*App, error) {
 	}
 
 	return &App{
-		HttpServer:  server,
-		db:          conn,
-		redisCache:  redisCache,
-		asyncMailer: asyncMailer,
+		HttpServer:     server,
+		db:             conn,
+		redisCache:     redisCache,
+		asyncMailer:    asyncMailer,
+		tracerShutdown: shutdownTracer,
 	}, nil
 }
 
@@ -144,6 +159,15 @@ func (a *App) Run() (err error) {
 		logger.InfoF("error closing redis: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
 	}
 
+	// flush any spans the batch exporter is still buffering — must run
+	// after the HTTP server stops accepting requests but before the
+	// process exits, otherwise the tail end of in-flight traces is lost.
+	if a.tracerShutdown != nil {
+		if err := a.tracerShutdown(ctx); err != nil {
+			logger.InfoF("tracer shutdown incomplete: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+		}
+	}
+
 	logger.Info("server exiting", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
 	return
 }
@@ -161,6 +185,11 @@ func setupRouter() *gin.Engine {
 
 	// set up middlewares
 	router.Use(middlewares.RequestIDMiddleware())
+	// otelgin starts a server span per request and pulls a parent
+	// trace from the W3C traceparent header if present, so every span
+	// emitted further down the stack (DB, Redis, mailer) becomes a
+	// child of the request span automatically.
+	router.Use(otelgin.Middleware("go-rest-boilerplate"))
 	router.Use(middlewares.MetricsMiddleware())
 	router.Use(middlewares.SecurityHeadersMiddleware())
 	router.Use(middlewares.CORSMiddleware())

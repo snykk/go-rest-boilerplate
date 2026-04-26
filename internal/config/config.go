@@ -39,6 +39,13 @@ type Config struct {
 
 	BcryptCost int `mapstructure:"BCRYPT_COST"`
 
+	// OTel — when OTelExporter is empty, tracing is disabled (noop
+	// provider). Set to "stdout" in dev to print spans, or "otlp" in
+	// production with OTEL_EXPORTER_OTLP_ENDPOINT pointing at a
+	// collector / Jaeger / Tempo / Honeycomb / Datadog endpoint.
+	OTelExporter    string  `mapstructure:"OTEL_EXPORTER"`
+	OTelSampleRatio float64 `mapstructure:"OTEL_SAMPLE_RATIO"`
+
 	REDISHost     string `mapstructure:"REDIS_HOST"`
 	REDISPassword string `mapstructure:"REDIS_PASS"`
 	REDISExpired  int    `mapstructure:"REDIS_EXPIRED"`
@@ -167,5 +174,11 @@ func applyDefaults() {
 	}
 	if AppConfig.JWTRefreshExpired == 0 {
 		AppConfig.JWTRefreshExpired = 7
+	}
+	// OTel sample ratio defaults to 1.0 only when an exporter is
+	// configured AND the operator hasn't explicitly set a ratio. With
+	// no exporter the ratio is irrelevant (noop provider).
+	if AppConfig.OTelSampleRatio == 0 && AppConfig.OTelExporter != "" {
+		AppConfig.OTelSampleRatio = 1.0
 	}
 }
