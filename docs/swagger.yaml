@@ -87,8 +87,8 @@ definitions:
 host: localhost:8080
 info:
   contact:
-    name: Maintainer
-    url: https://github.com/snykk/go-rest-boilerplate/issues
+    name: Najib Fikri
+    url: mailto:najibfikri26@gmail.com
   description: A starting point for building RESTful APIs in Go using the Gin framework,
     sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture
     principles as described by Uncle Bob.

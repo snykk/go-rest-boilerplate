@@ -11,8 +11,8 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "termsOfService": "https://github.com/snykk/go-rest-boilerplate",
         "contact": {
-            "name": "Maintainer",
-            "url": "https://github.com/snykk/go-rest-boilerplate/issues"
+            "name": "Najib Fikri",
+            "url": "mailto:najibfikri26@gmail.com"
         },
         "license": {
             "name": "MIT",

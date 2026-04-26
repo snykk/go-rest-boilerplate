@@ -5,8 +5,8 @@
 // @description     A starting point for building RESTful APIs in Go using the Gin framework, sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture principles as described by Uncle Bob.
 // @termsOfService  https://github.com/snykk/go-rest-boilerplate
 //
-// @contact.name   Maintainer
-// @contact.url    https://github.com/snykk/go-rest-boilerplate/issues
+// @contact.name   Najib Fikri
+// @contact.url    mailto:najibfikri26@gmail.com
 //
 // @license.name  MIT
 // @license.url   https://opensource.org/licenses/MIT
