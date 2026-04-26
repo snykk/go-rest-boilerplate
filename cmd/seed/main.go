@@ -6,7 +6,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/cmd/seed/seeders"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
-	"github.com/snykk/go-rest-boilerplate/internal/utils"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -18,7 +18,7 @@ func init() {
 }
 
 func main() {
-	db, err := utils.SetupPostgresConnection()
+	db, err := drivers.SetupSQLXPostgres()
 	if err != nil {
 		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 	}

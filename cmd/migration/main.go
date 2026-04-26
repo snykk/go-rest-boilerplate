@@ -7,8 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/migration"
-	"github.com/snykk/go-rest-boilerplate/internal/utils"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -31,7 +31,7 @@ func main() {
 	flag.BoolVar(&down, "down", false, "drop tables, columns, or other structures")
 	flag.Parse()
 
-	db, err := utils.SetupPostgresConnection()
+	db, err := drivers.SetupSQLXPostgres()
 	if err != nil {
 		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 	}

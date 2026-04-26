@@ -17,10 +17,10 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/snykk/go-rest-boilerplate/internal/http/routes"
-	"github.com/snykk/go-rest-boilerplate/internal/utils"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
@@ -52,7 +52,7 @@ func NewApp() (*App, error) {
 	}
 
 	// setup databases
-	conn, err := utils.SetupPostgresConnection()
+	conn, err := drivers.SetupSQLXPostgres()
 	if err != nil {
 		return nil, err
 	}
