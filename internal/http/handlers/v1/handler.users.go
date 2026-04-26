@@ -1,14 +1,17 @@
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	V1Domains "github.com/snykk/go-rest-boilerplate/internal/business/domains/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
+	"github.com/snykk/go-rest-boilerplate/pkg/audit"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
@@ -37,9 +40,21 @@ func (userH UserHandler) Register(ctx *gin.Context) {
 	userDomain := UserRegisRequest.ToV1Domain()
 	userDomainn, err := userH.usecase.Store(ctx.Request.Context(), userDomain)
 	if err != nil {
+		ev := auditFromGin(ctx)
+		ev.Type = audit.EventRegister
+		ev.Email = UserRegisRequest.Email
+		ev.Reason = err.Error()
+		audit.Record(ev)
 		RespondWithError(ctx, err)
 		return
 	}
+
+	ev := auditFromGin(ctx)
+	ev.Type = audit.EventRegister
+	ev.Success = true
+	ev.UserID = userDomainn.ID
+	ev.Email = userDomainn.Email
+	audit.Record(ev)
 
 	NewSuccessResponse(ctx, http.StatusCreated, "registration user success", map[string]interface{}{
 		"user": responses.FromV1Domain(userDomainn),
@@ -60,9 +75,21 @@ func (userH UserHandler) Login(ctx *gin.Context) {
 
 	userDomain, err := userH.usecase.Login(ctx.Request.Context(), UserLoginRequest.ToV1Domain())
 	if err != nil {
+		ev := auditFromGin(ctx)
+		ev.Type = audit.EventLoginFailure
+		ev.Email = UserLoginRequest.Email
+		ev.Reason = err.Error()
+		audit.Record(ev)
 		RespondWithError(ctx, err)
 		return
 	}
+
+	ev := auditFromGin(ctx)
+	ev.Type = audit.EventLoginSuccess
+	ev.Success = true
+	ev.UserID = userDomain.ID
+	ev.Email = userDomain.Email
+	audit.Record(ev)
 
 	NewSuccessResponse(ctx, http.StatusOK, "login success", responses.FromV1Domain(userDomain))
 }
@@ -86,6 +113,12 @@ func (userH UserHandler) SendOTP(ctx *gin.Context) {
 		return
 	}
 
+	ev := auditFromGin(ctx)
+	ev.Type = audit.EventOTPSent
+	ev.Success = true
+	ev.Email = userOTP.Email
+	audit.Record(ev)
+
 	NewSuccessResponse(ctx, http.StatusOK, fmt.Sprintf("otp code has been send to %s", userOTP.Email), nil)
 }
 
@@ -104,9 +137,27 @@ func (userH UserHandler) VerifyOTP(ctx *gin.Context) {
 
 	err := userH.usecase.VerifyOTP(ctx.Request.Context(), userOTP.Email, userOTP.Code)
 	if err != nil {
+		ev := auditFromGin(ctx)
+		ev.Email = userOTP.Email
+		ev.Reason = err.Error()
+		// Distinguish "you got it wrong" from "we locked the account"
+		// — rate-limit + alerting want different signals on each.
+		var domErr *apperror.DomainError
+		if errors.As(err, &domErr) && domErr.Type == apperror.ErrTypeForbidden {
+			ev.Type = audit.EventOTPLockout
+		} else {
+			ev.Type = audit.EventOTPVerifyFail
+		}
+		audit.Record(ev)
 		RespondWithError(ctx, err)
 		return
 	}
+
+	ev := auditFromGin(ctx)
+	ev.Type = audit.EventOTPVerifyOK
+	ev.Success = true
+	ev.Email = userOTP.Email
+	audit.Record(ev)
 
 	NewSuccessResponse(ctx, http.StatusOK, "otp verification success", nil)
 }
@@ -124,9 +175,20 @@ func (userH UserHandler) Refresh(ctx *gin.Context) {
 
 	userDomain, err := userH.usecase.Refresh(ctx.Request.Context(), req.RefreshToken)
 	if err != nil {
+		ev := auditFromGin(ctx)
+		ev.Type = audit.EventRefreshFail
+		ev.Reason = err.Error()
+		audit.Record(ev)
 		RespondWithError(ctx, err)
 		return
 	}
+
+	ev := auditFromGin(ctx)
+	ev.Type = audit.EventRefreshOK
+	ev.Success = true
+	ev.UserID = userDomain.ID
+	ev.Email = userDomain.Email
+	audit.Record(ev)
 
 	NewSuccessResponse(ctx, http.StatusOK, "token refreshed", responses.FromV1Domain(userDomain))
 }
@@ -146,6 +208,11 @@ func (userH UserHandler) Logout(ctx *gin.Context) {
 		RespondWithError(ctx, err)
 		return
 	}
+
+	ev := auditFromGin(ctx)
+	ev.Type = audit.EventLogout
+	ev.Success = true
+	audit.Record(ev)
 
 	NewSuccessResponse(ctx, http.StatusOK, "logout success", nil)
 }
