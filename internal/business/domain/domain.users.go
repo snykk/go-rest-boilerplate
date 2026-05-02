@@ -45,15 +45,16 @@ var (
 // always carries the bcrypt hash post-construction — plaintext only
 // exists transiently inside NewUser.
 type User struct {
-	ID        string
-	Username  string
-	Email     string
-	Password  string
-	Active    bool
-	RoleID    int
-	CreatedAt time.Time
-	UpdatedAt *time.Time
-	DeletedAt *time.Time
+	ID                string
+	Username          string
+	Email             string
+	Password          string
+	Active            bool
+	RoleID            int
+	CreatedAt         time.Time
+	UpdatedAt         *time.Time
+	DeletedAt         *time.Time
+	PasswordChangedAt *time.Time
 }
 
 // NewUser builds a fresh User from registration input. Email is
@@ -122,3 +123,36 @@ func (u User) VerifyPassword(plain string) bool {
 // A method (not a bare comparison at call sites) so the rule lives in
 // one place — change RoleAdmin once and every caller follows.
 func (u User) IsAdmin() bool { return u.RoleID == RoleAdmin }
+
+// ChangePassword hashes plain at the supplied bcrypt cost, swaps the
+// stored hash, and stamps PasswordChangedAt + UpdatedAt. The
+// timestamp is the revocation cutoff: tokens issued before it are
+// rejected on /refresh.
+func (u *User) ChangePassword(plain string, bcryptCost int) error {
+	if plain == "" {
+		return ErrEmptyPassword
+	}
+	if bcryptCost < bcrypt.MinCost || bcryptCost > bcrypt.MaxCost {
+		bcryptCost = bcrypt.DefaultCost
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcryptCost)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	u.Password = string(hash)
+	u.PasswordChangedAt = &now
+	u.UpdatedAt = &now
+	return nil
+}
+
+// TokensRevokedBefore returns the cutoff timestamp for access/refresh
+// tokens. Tokens whose IssuedAt is before this timestamp must be
+// rejected. Zero value means "no revocation cutoff" (account never
+// rotated credentials since registration).
+func (u User) TokensRevokedBefore() time.Time {
+	if u.PasswordChangedAt == nil {
+		return time.Time{}
+	}
+	return *u.PasswordChangedAt
+}

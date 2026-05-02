@@ -37,6 +37,13 @@ const (
 	EventOTPVerifyOK   EventType = "otp_verify_success"
 	EventOTPVerifyFail EventType = "otp_verify_failure"
 	EventOTPLockout    EventType = "otp_lockout"
+
+	EventPasswordChangeOK   EventType = "password_change_success"
+	EventPasswordChangeFail EventType = "password_change_failure"
+	EventPasswordForgotOK   EventType = "password_forgot_success"
+	EventPasswordForgotFail EventType = "password_forgot_failure"
+	EventPasswordResetOK    EventType = "password_reset_success"
+	EventPasswordResetFail  EventType = "password_reset_failure"
 )
 
 // Event is the on-disk shape. Only fields with values are emitted —

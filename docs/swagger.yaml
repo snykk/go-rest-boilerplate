@@ -1,5 +1,39 @@
 basePath: /api/v1
 definitions:
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest:
+    properties:
+      current_password:
+        maxLength: 72
+        minLength: 1
+        type: string
+      new_password:
+        maxLength: 72
+        minLength: 8
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest:
+    properties:
+      email:
+        maxLength: 50
+        type: string
+    required:
+    - email
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest:
+    properties:
+      new_password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
   github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserLoginRequest:
     properties:
       email:
@@ -174,6 +208,110 @@ paths:
           schema:
             $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
       summary: Revoke the refresh token
+      tags:
+      - auth
+  /auth/password/change:
+    put:
+      consumes:
+      - application/json
+      description: Verifies the current password, swaps it for the new one, and stamps
+        the revocation cutoff so refresh tokens issued before now are rejected.
+      parameters:
+      - description: Current + new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password changed
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "401":
+          description: Current password incorrect
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Change the authenticated user's password
+      tags:
+      - auth
+  /auth/password/forgot:
+    post:
+      consumes:
+      - application/json
+      description: Emails an opaque reset token to the address. Always returns 200
+        even if the email isn't registered, to defeat user enumeration.
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset email queued (or email not registered — same response
+            either way)
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Issue a password-reset token
+      tags:
+      - auth
+  /auth/password/reset:
+    post:
+      consumes:
+      - application/json
+      description: Validates the token issued by ForgotPassword, sets the new password,
+        and advances the revocation cutoff.
+      parameters:
+      - description: Reset token + new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "401":
+          description: Reset token invalid or expired
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Consume a reset token and set a new password
       tags:
       - auth
   /auth/refresh:

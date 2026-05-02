@@ -48,6 +48,9 @@ type UserRepository interface {
 	// ChangeActiveUser flips the active flag (used by the OTP-verify
 	// flow) and stamps updated_at. No-op on soft-deleted rows.
 	ChangeActiveUser(ctx context.Context, in *domain.User) (err error)
+	// UpdatePassword swaps the bcrypt hash and stamps password_changed_at +
+	// updated_at. Returns apperror.NotFound if the user is missing/soft-deleted.
+	UpdatePassword(ctx context.Context, in *domain.User) error
 	// SoftDelete sets deleted_at = NOW() so the row stays in the table
 	// for audit/restore but stops matching default queries. Returns
 	// apperror.NotFound if the row doesn't exist or is already deleted.

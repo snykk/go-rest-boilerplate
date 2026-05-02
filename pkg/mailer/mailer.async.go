@@ -36,8 +36,16 @@ type AsyncOTPMailer struct {
 	stop     chan struct{}
 }
 
+type jobKind int
+
+const (
+	jobOTP jobKind = iota
+	jobPasswordReset
+)
+
 type otpJob struct {
-	code     string
+	kind     jobKind
+	payload  string
 	receiver string
 }
 
@@ -80,8 +88,18 @@ func NewAsyncOTPMailer(inner OTPMailer, workers, queueSize, retries int, backoff
 // SendOTP enqueues the mail job. Returns nil on successful enqueue,
 // ErrQueueFull if the channel is saturated.
 func (a *AsyncOTPMailer) SendOTP(otpCode string, receiver string) error {
+	return a.enqueue(otpJob{kind: jobOTP, payload: otpCode, receiver: receiver})
+}
+
+// SendPasswordReset enqueues a password-reset email. Same retry +
+// backoff guarantees as SendOTP.
+func (a *AsyncOTPMailer) SendPasswordReset(token string, receiver string) error {
+	return a.enqueue(otpJob{kind: jobPasswordReset, payload: token, receiver: receiver})
+}
+
+func (a *AsyncOTPMailer) enqueue(j otpJob) error {
 	select {
-	case a.queue <- otpJob{code: otpCode, receiver: receiver}:
+	case a.queue <- j:
 		return nil
 	default:
 		return ErrQueueFull
@@ -120,31 +138,36 @@ func (a *AsyncOTPMailer) worker(id int) {
 }
 
 func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
+	spanName := "mailer.SendOTP"
+	if job.kind == jobPasswordReset {
+		spanName = "mailer.SendPasswordReset"
+	}
 	var lastErr error
 	for attempt := 1; attempt <= a.retries; attempt++ {
-		// Each attempt is its own span. We don't thread the request
-		// context across the worker boundary (the request goroutine
-		// has likely returned by now and its ctx may be cancelled);
-		// the span is rooted in a fresh context but tagged with
-		// receiver + attempt so it can be correlated with logs.
-		ctx, span := observability.Tracer().Start(context.Background(), "mailer.SendOTP")
+		ctx, span := observability.Tracer().Start(context.Background(), spanName)
 		span.SetAttributes(
 			attribute.String("mail.receiver", job.receiver),
 			attribute.Int("mail.attempt", attempt),
 			attribute.Int("mail.worker", workerID),
 		)
-		_ = ctx // reserved for future use if SendOTP gains a ctx parameter
+		_ = ctx
 
-		lastErr = a.inner.SendOTP(job.code, job.receiver)
+		switch job.kind {
+		case jobPasswordReset:
+			lastErr = a.inner.SendPasswordReset(job.payload, job.receiver)
+		default:
+			lastErr = a.inner.SendOTP(job.payload, job.receiver)
+		}
 		if lastErr == nil {
 			span.SetStatus(codes.Ok, "")
 			span.End()
 			observability.ObserveMailerOp("sent")
-			logger.Info("otp email sent", logrus.Fields{
+			logger.Info("mail sent", logrus.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryCache,
 				"receiver":               job.receiver,
 				"attempt":                attempt,
 				"worker":                 workerID,
+				"kind":                   spanName,
 			})
 			return
 		}

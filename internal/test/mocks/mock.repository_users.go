@@ -115,6 +115,20 @@ func (_m *UserRepository) List(ctx context.Context, filter repointerface.UserLis
 	return r0, r1
 }
 
+// UpdatePassword provides a mock function with given fields: ctx, in
+func (_m *UserRepository) UpdatePassword(ctx context.Context, in *domain.User) error {
+	ret := _m.Called(ctx, in)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.User) error); ok {
+		r0 = rf(ctx, in)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SoftDelete provides a mock function with given fields: ctx, id
 func (_m *UserRepository) SoftDelete(ctx context.Context, id string) error {
 	ret := _m.Called(ctx, id)

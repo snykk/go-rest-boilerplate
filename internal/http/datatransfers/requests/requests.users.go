@@ -50,3 +50,20 @@ func (u *UserLoginRequest) ToV1Domain() *domain.User {
 		Password: u.Password,
 	}
 }
+
+// ChangePasswordRequest is the body for PUT /auth/password/change.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required,min=1,max=72"`
+	NewPassword     string `json:"new_password" validate:"required,min=8,max=72,strongpassword"`
+}
+
+// ForgotPasswordRequest is the body for POST /auth/password/forgot.
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email,max=50"`
+}
+
+// ResetPasswordRequest is the body for POST /auth/password/reset.
+type ResetPasswordRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8,max=72,strongpassword"`
+}

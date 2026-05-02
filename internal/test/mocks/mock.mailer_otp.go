@@ -23,6 +23,20 @@ func (_m *OTPMailer) SendOTP(otpCode string, receiver string) error {
 	return r0
 }
 
+// SendPasswordReset provides a mock function with given fields: token, receiver
+func (_m *OTPMailer) SendPasswordReset(token string, receiver string) error {
+	ret := _m.Called(token, receiver)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(token, receiver)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewOTPMailer interface {
 	mock.TestingT
 	Cleanup(func())

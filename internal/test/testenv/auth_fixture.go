@@ -49,6 +49,10 @@ func (m *CapturingMailer) SendOTP(code, receiver string) error {
 	return nil
 }
 
+func (m *CapturingMailer) SendPasswordReset(token, receiver string) error {
+	return m.SendOTP(token, receiver)
+}
+
 // LastOTP returns the most recently captured OTP for receiver, or
 // fails the test if none was sent.
 func (m *CapturingMailer) LastOTP(t *testing.T, receiver string) string {
@@ -112,8 +116,10 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 		BcryptCost: config.AppConfig.BcryptCost,
 	})
 	authUC := auth.NewUsecase(usersUC, jwtSvc, mailer, redis, auth.Config{
-		OTPMaxAttempts: 5,
-		OTPTTL:         5 * time.Minute,
+		OTPMaxAttempts:   5,
+		OTPTTL:           5 * time.Minute,
+		PasswordResetTTL: 30 * time.Minute,
+		BcryptCost:       config.AppConfig.BcryptCost,
 	})
 
 	return &AuthFixture{

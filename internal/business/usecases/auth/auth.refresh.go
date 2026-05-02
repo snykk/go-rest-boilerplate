@@ -33,6 +33,13 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (LoginResul
 		return LoginResult{}, apperror.Forbidden("account is not activated")
 	}
 
+	// Reject tokens issued before the most recent password change —
+	// rotating the password must close pre-existing sessions.
+	if cutoff := user.TokensRevokedBefore(); !cutoff.IsZero() &&
+		claims.IssuedAt != nil && claims.IssuedAt.Time.Before(cutoff) {
+		return LoginResult{}, apperror.Unauthorized("refresh token has been revoked")
+	}
+
 	pair, err := uc.jwtService.GenerateTokenPair(user.ID, user.IsAdmin(), user.Email)
 	if err != nil {
 		return LoginResult{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))

@@ -114,14 +114,16 @@ func NewApp() (*App, error) {
 		BcryptCost: config.AppConfig.BcryptCost,
 	})
 	authUC := auth.NewUsecase(usersUC, jwtService, asyncMailer, redisCache, auth.Config{
-		OTPMaxAttempts: config.AppConfig.OTPMaxAttempts,
-		OTPTTL:         time.Duration(config.AppConfig.REDISExpired) * time.Minute,
+		OTPMaxAttempts:   config.AppConfig.OTPMaxAttempts,
+		OTPTTL:           time.Duration(config.AppConfig.REDISExpired) * time.Minute,
+		PasswordResetTTL: 30 * time.Minute,
+		BcryptCost:       config.AppConfig.BcryptCost,
 	})
 
 	// API Routes
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
-	routes.NewAuthRoute(api, authUC).Routes()
+	routes.NewAuthRoute(api, authUC, authMiddleware).Routes()
 	routes.NewUsersRoute(api, usersUC, authMiddleware).Routes()
 
 	// setup http server

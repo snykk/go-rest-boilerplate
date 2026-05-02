@@ -8,6 +8,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/test/mocks"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // fixture is the per-test wiring for the auth package. Each sub-test
@@ -29,8 +30,10 @@ func newFixture(t *testing.T) *fixture {
 	redis := mocks.NewRedisCache(t)
 	return &fixture{
 		usecase: auth.NewUsecase(usersUC, jwtSvc, otpMailer, redis, auth.Config{
-			OTPMaxAttempts: 5,
-			OTPTTL:         5 * time.Minute,
+			OTPMaxAttempts:   5,
+			OTPTTL:           5 * time.Minute,
+			PasswordResetTTL: 30 * time.Minute,
+			BcryptCost:       bcrypt.MinCost,
 		}),
 		users:  usersUC,
 		jwt:    jwtSvc,

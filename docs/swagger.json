@@ -137,6 +137,161 @@
                 }
             }
         },
+        "/auth/password/change": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifies the current password, swaps it for the new one, and stamps the revocation cutoff so refresh tokens issued before now are rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change the authenticated user's password",
+                "parameters": [
+                    {
+                        "description": "Current + new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password changed",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Current password incorrect",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/forgot": {
+            "post": {
+                "description": "Emails an opaque reset token to the address. Always returns 200 even if the email isn't registered, to defeat user enumeration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Issue a password-reset token",
+                "parameters": [
+                    {
+                        "description": "Email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reset email queued (or email not registered — same response either way)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/reset": {
+            "post": {
+                "description": "Validates the token issued by ForgotPassword, sets the new password, and advances the revocation cutoff.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Consume a reset token and set a new password",
+                "parameters": [
+                    {
+                        "description": "Reset token + new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Reset token invalid or expired",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh": {
             "post": {
                 "description": "Verifies the supplied refresh token, mints a new access+refresh pair, and revokes the old jti in Redis. Replaying an already-rotated token returns 401.",
@@ -438,6 +593,54 @@
         }
     },
     "definitions": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 1
+                },
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "token"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserLoginRequest": {
             "type": "object",
             "required": [

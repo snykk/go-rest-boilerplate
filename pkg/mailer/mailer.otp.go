@@ -44,6 +44,10 @@ type OTPMailer interface {
 	// this non-blocking from the request path; the inner sync impl
 	// blocks for the SMTP round-trip.
 	SendOTP(otpCode string, receiver string) (err error)
+	// SendPasswordReset delivers an opaque reset token to the receiver.
+	// The receiver is expected to follow a link the email contains
+	// back to /auth/password/reset; this layer just transmits the token.
+	SendPasswordReset(token string, receiver string) error
 }
 
 type otpMailer struct {
@@ -73,6 +77,22 @@ func (mailer *otpMailer) SendOTP(otpCode string, receiver string) (err error) {
 	dialer := gomail.NewDialer("smtp.gmail.com", 587, mailer.email, mailer.password)
 	dialer.Timeout = 10 * time.Second
 
+	return dialer.DialAndSend(msg)
+}
+
+func (mailer *otpMailer) SendPasswordReset(token string, receiver string) error {
+	body := fmt.Sprintf(
+		`<p>Use the following token to reset your password. The token expires in %d minutes.</p><p><b>%s</b></p>`,
+		defaultValidMinutes, template.HTMLEscapeString(token),
+	)
+	msg := gomail.NewMessage()
+	msg.SetHeader("From", mailer.email)
+	msg.SetHeader("To", receiver)
+	msg.SetHeader("Subject", "Password Reset")
+	msg.SetBody("text/html", body)
+
+	dialer := gomail.NewDialer("smtp.gmail.com", 587, mailer.email, mailer.password)
+	dialer.Timeout = 10 * time.Second
 	return dialer.DialAndSend(msg)
 }
 

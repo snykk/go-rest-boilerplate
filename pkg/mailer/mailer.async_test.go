@@ -33,6 +33,10 @@ func (s *stubMailer) SendOTP(code, receiver string) error {
 	return nil
 }
 
+func (s *stubMailer) SendPasswordReset(token, receiver string) error {
+	return s.SendOTP(token, receiver)
+}
+
 func TestAsyncMailer_Delivers(t *testing.T) {
 	stub := &stubMailer{}
 	async := mailer.NewAsyncOTPMailer(stub, 1, 4, 3, 10*time.Millisecond)
@@ -100,4 +104,8 @@ type blockingMailer struct {
 func (b *blockingMailer) SendOTP(code, receiver string) error {
 	<-b.release
 	return nil
+}
+
+func (b *blockingMailer) SendPasswordReset(token, receiver string) error {
+	return b.SendOTP(token, receiver)
 }

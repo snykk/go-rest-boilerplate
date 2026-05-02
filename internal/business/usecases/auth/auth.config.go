@@ -14,4 +14,11 @@ type Config struct {
 	// OTPTTL is how long the OTP code (and its attempt counter)
 	// stay live in Redis before expiring.
 	OTPTTL time.Duration
+	// PasswordResetTTL is how long a forgot-password token stays
+	// usable. 30 minutes is a reasonable default — long enough for an
+	// email round-trip, short enough that a leaked link expires fast.
+	PasswordResetTTL time.Duration
+	// BcryptCost is forwarded to domain.User.ChangePassword on
+	// password change/reset. Caller (DI) injects from app config.
+	BcryptCost int
 }

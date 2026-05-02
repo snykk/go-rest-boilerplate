@@ -82,6 +82,20 @@ func (_m *UsersUsecase) GetByID(ctx context.Context, id string) (domain.User, er
 	return r0, r1
 }
 
+// UpdatePassword provides a mock function with given fields: ctx, user
+func (_m *UsersUsecase) UpdatePassword(ctx context.Context, user *domain.User) error {
+	ret := _m.Called(ctx, user)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.User) error); ok {
+		r0 = rf(ctx, user)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Activate provides a mock function with given fields: ctx, userID
 func (_m *UsersUsecase) Activate(ctx context.Context, userID string) error {
 	ret := _m.Called(ctx, userID)
