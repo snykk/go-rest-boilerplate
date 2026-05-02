@@ -3,7 +3,7 @@ package responses
 import (
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 )
 
@@ -18,8 +18,8 @@ type UserResponse struct {
 	UpdatedAt    *time.Time `json:"updated_at"`
 }
 
-func (u *UserResponse) ToV1Domain() entities.UserDomain {
-	return entities.UserDomain{
+func (u *UserResponse) ToV1Domain() domain.User {
+	return domain.User{
 		ID:        u.Id,
 		Username:  u.Username,
 		Email:     u.Email,
@@ -32,7 +32,7 @@ func (u *UserResponse) ToV1Domain() entities.UserDomain {
 // FromV1Domain projects the user entity into the response DTO. Token
 // fields stay zero — the entity carries no auth artifacts. Use
 // FromLoginResult on the /login and /refresh paths.
-func FromV1Domain(u entities.UserDomain) UserResponse {
+func FromV1Domain(u domain.User) UserResponse {
 	return UserResponse{
 		Id:        u.ID,
 		Username:  u.Username,
@@ -53,7 +53,7 @@ func FromLoginResult(r auth.LoginResult) UserResponse {
 	return resp
 }
 
-func ToResponseList(domains []entities.UserDomain) []UserResponse {
+func ToResponseList(domains []domain.User) []UserResponse {
 	var result []UserResponse
 
 	for _, val := range domains {

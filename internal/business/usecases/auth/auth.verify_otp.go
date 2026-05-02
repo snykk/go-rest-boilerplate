@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
@@ -16,7 +17,7 @@ import (
 // Lockout fires after Config.OTPMaxAttempts failures — even with the
 // correct code, to defeat brute force on the 1M-combination keyspace.
 func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) error {
-	email = normalizeEmail(email)
+	email = domain.NormalizeEmail(email)
 	user, err := uc.users.GetByEmail(ctx, email)
 	if err != nil {
 		return apperror.NotFound("email not found")

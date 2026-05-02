@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	repointerface "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/interface"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -16,11 +16,11 @@ type UserRepository struct {
 }
 
 // ChangeActiveUser provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) error {
+func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *domain.User) error {
 	ret := _m.Called(ctx, inDom)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.User) error); ok {
 		r0 = rf(ctx, inDom)
 	} else {
 		r0 = ret.Error(0)
@@ -30,18 +30,18 @@ func (_m *UserRepository) ChangeActiveUser(ctx context.Context, inDom *entities.
 }
 
 // GetByEmail provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
+func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *domain.User) (domain.User, error) {
 	ret := _m.Called(ctx, inDom)
 
-	var r0 entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) entities.UserDomain); ok {
+	var r0 domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.User) domain.User); ok {
 		r0 = rf(ctx, inDom)
 	} else {
-		r0 = ret.Get(0).(entities.UserDomain)
+		r0 = ret.Get(0).(domain.User)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *entities.UserDomain) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *domain.User) error); ok {
 		r1 = rf(ctx, inDom)
 	} else {
 		r1 = ret.Error(1)
@@ -51,18 +51,18 @@ func (_m *UserRepository) GetByEmail(ctx context.Context, inDom *entities.UserDo
 }
 
 // Store provides a mock function with given fields: ctx, inDom
-func (_m *UserRepository) Store(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
+func (_m *UserRepository) Store(ctx context.Context, inDom *domain.User) (domain.User, error) {
 	ret := _m.Called(ctx, inDom)
 
-	var r0 entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) entities.UserDomain); ok {
+	var r0 domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.User) domain.User); ok {
 		r0 = rf(ctx, inDom)
 	} else {
-		r0 = ret.Get(0).(entities.UserDomain)
+		r0 = ret.Get(0).(domain.User)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *entities.UserDomain) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *domain.User) error); ok {
 		r1 = rf(ctx, inDom)
 	} else {
 		r1 = ret.Error(1)
@@ -72,14 +72,14 @@ func (_m *UserRepository) Store(ctx context.Context, inDom *entities.UserDomain)
 }
 
 // GetByID provides a mock function with given fields: ctx, id
-func (_m *UserRepository) GetByID(ctx context.Context, id string) (entities.UserDomain, error) {
+func (_m *UserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
 	ret := _m.Called(ctx, id)
 
-	var r0 entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, string) entities.UserDomain); ok {
+	var r0 domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, string) domain.User); ok {
 		r0 = rf(ctx, id)
 	} else {
-		r0 = ret.Get(0).(entities.UserDomain)
+		r0 = ret.Get(0).(domain.User)
 	}
 
 	var r1 error
@@ -93,15 +93,15 @@ func (_m *UserRepository) GetByID(ctx context.Context, id string) (entities.User
 }
 
 // List provides a mock function with given fields: ctx, filter, offset, limit
-func (_m *UserRepository) List(ctx context.Context, filter repointerface.UserListFilter, offset int, limit int) ([]entities.UserDomain, error) {
+func (_m *UserRepository) List(ctx context.Context, filter repointerface.UserListFilter, offset int, limit int) ([]domain.User, error) {
 	ret := _m.Called(ctx, filter, offset, limit)
 
-	var r0 []entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, repointerface.UserListFilter, int, int) []entities.UserDomain); ok {
+	var r0 []domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, repointerface.UserListFilter, int, int) []domain.User); ok {
 		r0 = rf(ctx, filter, offset, limit)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]entities.UserDomain)
+			r0 = ret.Get(0).([]domain.User)
 		}
 	}
 

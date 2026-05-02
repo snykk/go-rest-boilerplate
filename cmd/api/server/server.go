@@ -110,7 +110,9 @@ func NewApp() (*App, error) {
 	// owns credential / session flows; Auth depends on Users for
 	// reads/writes of user records.
 	userRepo := userspostgres.NewUserRepository(conn)
-	usersUC := users.NewUsecase(userRepo, ristrettoCache)
+	usersUC := users.NewUsecase(userRepo, ristrettoCache, users.Config{
+		BcryptCost: config.AppConfig.BcryptCost,
+	})
 	authUC := auth.NewUsecase(usersUC, jwtService, asyncMailer, redisCache, auth.Config{
 		OTPMaxAttempts: config.AppConfig.OTPMaxAttempts,
 		OTPTTL:         time.Duration(config.AppConfig.REDISExpired) * time.Minute,

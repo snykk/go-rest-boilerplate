@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/test/mocks"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
@@ -42,13 +42,13 @@ func newFixture(t *testing.T) *fixture {
 // activeUser returns a stable user record with a known plaintext
 // password ("Pwd_123!") whose bcrypt hash is computed once and
 // reused across tests.
-func activeUser(t *testing.T) entities.UserDomain {
+func activeUser(t *testing.T) domain.User {
 	t.Helper()
 	hash, err := helpers.GenerateHash("Pwd_123!")
 	if err != nil {
 		t.Fatalf("hash sample password: %v", err)
 	}
-	return entities.UserDomain{
+	return domain.User{
 		ID:       "user-1",
 		Username: "patrick",
 		Email:    "patrick@example.com",

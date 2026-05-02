@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/test/mocks"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // fixture is the per-test wiring. Each sub-test calls newFixture()
@@ -23,15 +24,17 @@ func newFixture(t *testing.T) *fixture {
 	repo := mocks.NewUserRepository(t)
 	rc := mocks.NewRistrettoCache(t)
 	return &fixture{
-		usecase: users.NewUsecase(repo, rc),
+		// MinCost keeps Store's bcrypt hashing fast in tests (~1ms vs
+		// ~80ms at the production cost of 12). Behaviour is identical.
+		usecase: users.NewUsecase(repo, rc, users.Config{BcryptCost: bcrypt.MinCost}),
 		repo:    repo,
 		rc:      rc,
 	}
 }
 
 // sampleUser returns a stable UserDomain used as canned repo output.
-func sampleUser() entities.UserDomain {
-	return entities.UserDomain{
+func sampleUser() domain.User {
+	return domain.User{
 		ID:        "11111111-1111-1111-1111-111111111111",
 		Username:  "patrick",
 		Email:     "patrick@example.com",

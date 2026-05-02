@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -16,7 +17,7 @@ import (
 // enqueues the email via the async mailer. The HTTP response returns
 // on enqueue, not on actual SMTP delivery.
 func (uc *usecase) SendOTP(ctx context.Context, email string) error {
-	email = normalizeEmail(email)
+	email = domain.NormalizeEmail(email)
 	user, err := uc.users.GetByEmail(ctx, email)
 	if err != nil {
 		return apperror.NotFound("email not found")

@@ -129,7 +129,7 @@ http://localhost:8080/swagger/index.html
 ├── internal/
 │   ├── apperror/                  # Typed error envelope (DomainError + Unwrap)
 │   ├── business/
-│   │   ├── entities/              # User entity (no auth artifacts)
+│   │   ├── domain/                # User entity + behaviour (NewUser, Activate, VerifyPassword, IsAdmin)
 │   │   └── usecases/
 │   │       ├── users/             # User CRUD bounded context (per-method files)
 │   │       └── auth/              # Auth flows bounded context (per-method files)

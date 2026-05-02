@@ -8,15 +8,15 @@ package users
 import (
 	"context"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 )
 
 // Usecase is the input boundary the auth context and HTTP handlers
 // talk to when they need a user record. Each method's behavior is
 // documented on its implementation file.
 type Usecase interface {
-	Store(ctx context.Context, in *entities.UserDomain) (entities.UserDomain, error)
-	GetByEmail(ctx context.Context, email string) (entities.UserDomain, error)
-	GetByID(ctx context.Context, id string) (entities.UserDomain, error)
+	Store(ctx context.Context, in *domain.User) (domain.User, error)
+	GetByEmail(ctx context.Context, email string) (domain.User, error)
+	GetByID(ctx context.Context, id string) (domain.User, error)
 	Activate(ctx context.Context, userID string) error
 }

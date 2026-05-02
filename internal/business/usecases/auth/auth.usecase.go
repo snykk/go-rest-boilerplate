@@ -10,13 +10,13 @@ package auth
 import (
 	"context"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 )
 
 // Usecase is the input boundary the HTTP handler talks to. Each
 // method's behavior is documented on its implementation file.
 type Usecase interface {
-	Register(ctx context.Context, in *entities.UserDomain) (entities.UserDomain, error)
+	Register(ctx context.Context, in *domain.User) (domain.User, error)
 	Login(ctx context.Context, email, password string) (LoginResult, error)
 	SendOTP(ctx context.Context, email string) error
 	VerifyOTP(ctx context.Context, email, otpCode string) error

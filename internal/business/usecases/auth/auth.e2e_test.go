@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,11 +17,11 @@ import (
 // register puts a fresh user past the register + verify-OTP gate so
 // individual tests can focus on the scenario under test rather than
 // re-doing the activation dance.
-func register(t *testing.T, fix *testenv.AuthFixture, email, password string) entities.UserDomain {
+func register(t *testing.T, fix *testenv.AuthFixture, email, password string) domain.User {
 	t.Helper()
 	ctx := context.Background()
 
-	user, err := fix.Auth.Register(ctx, &entities.UserDomain{
+	user, err := fix.Auth.Register(ctx, &domain.User{
 		Username: "user_" + email,
 		Email:    email,
 		Password: password,
@@ -52,7 +52,7 @@ func TestE2E_OTPBruteForceLockout(t *testing.T) {
 	fix := testenv.NewAuthFixture(t)
 	ctx := context.Background()
 
-	_, err := fix.Auth.Register(ctx, &entities.UserDomain{
+	_, err := fix.Auth.Register(ctx, &domain.User{
 		Username: "lockout",
 		Email:    "lock@example.com",
 		Password: "Secret_123!",
@@ -90,7 +90,7 @@ func TestE2E_LoginRejectsInactiveUser(t *testing.T) {
 	ctx := context.Background()
 
 	// Skip the OTP step so the user stays inactive.
-	_, err := fix.Auth.Register(ctx, &entities.UserDomain{
+	_, err := fix.Auth.Register(ctx, &domain.User{
 		Username: "inactive",
 		Email:    "inactive@example.com",
 		Password: "Secret_123!",
@@ -156,7 +156,7 @@ func TestE2E_VerifyOTPActivatesUserAndAllowsLogin(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-condition: user exists but inactive — login fails.
-	_, err := fix.Auth.Register(ctx, &entities.UserDomain{
+	_, err := fix.Auth.Register(ctx, &domain.User{
 		Username: "activate",
 		Email:    "activate@example.com",
 		Password: "Secret_123!",

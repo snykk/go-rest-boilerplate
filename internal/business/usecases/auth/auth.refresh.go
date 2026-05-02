@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/constants"
 )
 
 // Refresh verifies the supplied refresh token, mints a new
@@ -34,8 +33,7 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (LoginResul
 		return LoginResult{}, apperror.Forbidden("account is not activated")
 	}
 
-	isAdmin := user.RoleID == constants.AdminID
-	pair, err := uc.jwtService.GenerateTokenPair(user.ID, isAdmin, user.Email)
+	pair, err := uc.jwtService.GenerateTokenPair(user.ID, user.IsAdmin(), user.Email)
 	if err != nil {
 		return LoginResult{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
 	}

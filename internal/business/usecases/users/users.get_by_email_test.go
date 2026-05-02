@@ -6,55 +6,88 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetByEmail_CacheHit(t *testing.T) {
-	f := newFixture(t)
+func TestGetByEmail(t *testing.T) {
 	cached := sampleUser()
-	f.rc.On("Get", "user/patrick@example.com").Return(cached).Once()
 
-	out, err := f.usecase.GetByEmail(context.Background(), "patrick@example.com")
-	require.NoError(t, err)
-	assert.Equal(t, cached, out)
-	// Repo never gets called on a cache hit.
-}
+	tests := []struct {
+		name       string
+		inputEmail string
+		setup      func(f *fixture)
+		wantUser   domain.User // zero value = no positive identity check
+		// wantErr / wantErrType: paired flag + value because
+		// apperror.ErrTypeInternal is the iota zero, so a single
+		// "0 means no error" sentinel would collide with that type.
+		wantErr     bool
+		wantErrType apperror.ErrorType
+	}{
+		{
+			name:       "cache hit returns immediately without touching repo",
+			inputEmail: "patrick@example.com",
+			setup: func(f *fixture) {
+				f.rc.On("Get", "user/patrick@example.com").Return(cached).Once()
+			},
+			wantUser: cached,
+		},
+		{
+			name:       "cache miss reads repo and populates cache",
+			inputEmail: "patrick@example.com",
+			setup: func(f *fixture) {
+				f.rc.On("Get", "user/patrick@example.com").Return(nil).Once()
+				f.repo.On("GetByEmail", mock.Anything, mock.AnythingOfType("*domain.User")).
+					Return(cached, nil).Once()
+				f.rc.On("Set", "user/patrick@example.com", cached).Once()
+			},
+			wantUser: cached,
+		},
+		{
+			name:       "repo NotFound surfaces as DomainError NotFound",
+			inputEmail: "ghost@example.com",
+			setup: func(f *fixture) {
+				f.rc.On("Get", "user/ghost@example.com").Return(nil).Once()
+				f.repo.On("GetByEmail", mock.Anything, mock.AnythingOfType("*domain.User")).
+					Return(domain.User{}, apperror.NotFound("user not found")).Once()
+			},
+			wantErr:     true,
+			wantErrType: apperror.ErrTypeNotFound,
+		},
+		{
+			name:       "input email is normalized (trim + lowercase) before cache + repo lookups",
+			inputEmail: "  Patrick@Example.COM ",
+			setup: func(f *fixture) {
+				// Mixed-case input must hash to the same lowercase
+				// cache key as the canonical form — otherwise two
+				// users with the same email-up-to-case would diverge
+				// in the cache.
+				f.rc.On("Get", "user/patrick@example.com").Return(cached).Once()
+			},
+			wantUser: cached,
+		},
+	}
 
-func TestGetByEmail_CacheMissPopulatesCache(t *testing.T) {
-	f := newFixture(t)
-	expected := sampleUser()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			tt.setup(f)
 
-	f.rc.On("Get", "user/patrick@example.com").Return(nil).Once()
-	f.repo.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).
-		Return(expected, nil).Once()
-	f.rc.On("Set", "user/patrick@example.com", expected).Once()
+			out, err := f.usecase.GetByEmail(context.Background(), tt.inputEmail)
 
-	out, err := f.usecase.GetByEmail(context.Background(), "patrick@example.com")
-	require.NoError(t, err)
-	assert.Equal(t, expected, out)
-}
-
-func TestGetByEmail_NotFound(t *testing.T) {
-	f := newFixture(t)
-	f.rc.On("Get", "user/ghost@example.com").Return(nil).Once()
-	f.repo.On("GetByEmail", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).
-		Return(entities.UserDomain{}, apperror.NotFound("user not found")).Once()
-
-	_, err := f.usecase.GetByEmail(context.Background(), "ghost@example.com")
-	require.Error(t, err)
-	var domErr *apperror.DomainError
-	require.True(t, errors.As(err, &domErr))
-	assert.Equal(t, apperror.ErrTypeNotFound, domErr.Type)
-}
-
-func TestGetByEmail_NormalizesInputEmail(t *testing.T) {
-	f := newFixture(t)
-	// Mixed-case input must hash to the same lowercase cache key.
-	f.rc.On("Get", "user/patrick@example.com").Return(sampleUser()).Once()
-
-	_, err := f.usecase.GetByEmail(context.Background(), "  Patrick@Example.COM ")
-	require.NoError(t, err)
+			if !tt.wantErr {
+				require.NoError(t, err)
+				if tt.wantUser.ID != "" {
+					assert.Equal(t, tt.wantUser, out)
+				}
+				return
+			}
+			require.Error(t, err)
+			var domErr *apperror.DomainError
+			require.True(t, errors.As(err, &domErr))
+			assert.Equal(t, tt.wantErrType, domErr.Type)
+		})
+	}
 }

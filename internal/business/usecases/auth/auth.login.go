@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 )
 
@@ -13,7 +13,7 @@ import (
 // token pair. Wrong password and unknown email take the same wall
 // time to mask user enumeration.
 func (uc *usecase) Login(ctx context.Context, email, password string) (LoginResult, error) {
-	email = normalizeEmail(email)
+	email = domain.NormalizeEmail(email)
 	user, err := uc.users.GetByEmail(ctx, email)
 	if err != nil {
 		// Run a dummy bcrypt comparison so this path takes roughly
@@ -28,12 +28,11 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (LoginResu
 		return LoginResult{}, apperror.Forbidden("account is not activated")
 	}
 
-	if !helpers.ValidateHash(password, user.Password) {
+	if !user.VerifyPassword(password) {
 		return LoginResult{}, apperror.Unauthorized("invalid email or password")
 	}
 
-	isAdmin := user.RoleID == constants.AdminID
-	pair, err := uc.jwtService.GenerateTokenPair(user.ID, isAdmin, user.Email)
+	pair, err := uc.jwtService.GenerateTokenPair(user.ID, user.IsAdmin(), user.Email)
 	if err != nil {
 		return LoginResult{}, apperror.InternalCause(fmt.Errorf("generate token: %w", err))
 	}

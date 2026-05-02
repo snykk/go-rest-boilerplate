@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	repointerface "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/interface"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
 )
@@ -25,7 +25,7 @@ func NewUserRepository(conn *sqlx.DB) repointerface.UserRepository {
 	}
 }
 
-func (r *postgreUserRepository) Store(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error) {
+func (r *postgreUserRepository) Store(ctx context.Context, inDom *domain.User) (domain.User, error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	// INSERT ... RETURNING * so the caller gets the persisted row in
@@ -40,9 +40,9 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *entities.UserD
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return entities.UserDomain{}, apperror.Conflict("username or email already exists")
+			return domain.User{}, apperror.Conflict("username or email already exists")
 		}
-		return entities.UserDomain{}, err
+		return domain.User{}, err
 	}
 	defer rows.Close()
 
@@ -50,16 +50,16 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *entities.UserD
 		// RETURNING never produces zero rows on a successful INSERT,
 		// but check anyway so a future schema change can't silently
 		// hand back an empty struct.
-		return entities.UserDomain{}, fmt.Errorf("insert succeeded but RETURNING produced no row")
+		return domain.User{}, fmt.Errorf("insert succeeded but RETURNING produced no row")
 	}
 	var stored records.Users
 	if err := rows.StructScan(&stored); err != nil {
-		return entities.UserDomain{}, fmt.Errorf("scan inserted user: %w", err)
+		return domain.User{}, fmt.Errorf("scan inserted user: %w", err)
 	}
 	return stored.ToV1Domain(), nil
 }
 
-func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *entities.UserDomain) (outDomain entities.UserDomain, err error) {
+func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *domain.User) (outDomain domain.User, err error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	// Exclude soft-deleted rows — the schema keeps a deleted_at column
@@ -68,15 +68,15 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *entities.
 	err = r.conn.GetContext(ctx, &userRecord, `SELECT * FROM users WHERE "email" = $1 AND deleted_at IS NULL`, userRecord.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return entities.UserDomain{}, apperror.NotFound("user not found")
+			return domain.User{}, apperror.NotFound("user not found")
 		}
-		return entities.UserDomain{}, err
+		return domain.User{}, err
 	}
 
 	return userRecord.ToV1Domain(), nil
 }
 
-func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) (err error) {
+func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *domain.User) (err error) {
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	_, err = r.conn.NamedQueryContext(ctx, `UPDATE users SET active = :active, updated_at = NOW() WHERE id = :id AND deleted_at IS NULL`, userRecord)
@@ -84,14 +84,14 @@ func (r *postgreUserRepository) ChangeActiveUser(ctx context.Context, inDom *ent
 	return
 }
 
-func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (entities.UserDomain, error) {
+func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
 	var stored records.Users
 	err := r.conn.GetContext(ctx, &stored, `SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return entities.UserDomain{}, apperror.NotFound("user not found")
+			return domain.User{}, apperror.NotFound("user not found")
 		}
-		return entities.UserDomain{}, err
+		return domain.User{}, err
 	}
 	return stored.ToV1Domain(), nil
 }
@@ -101,7 +101,7 @@ func (r *postgreUserRepository) GetByID(ctx context.Context, id string) (entitie
 // to whatever clamping the handler does) is defense in depth.
 const hardLimit = 200
 
-func (r *postgreUserRepository) List(ctx context.Context, filter repointerface.UserListFilter, offset, limit int) ([]entities.UserDomain, error) {
+func (r *postgreUserRepository) List(ctx context.Context, filter repointerface.UserListFilter, offset, limit int) ([]domain.User, error) {
 	if limit <= 0 || limit > hardLimit {
 		limit = hardLimit
 	}
@@ -140,7 +140,7 @@ func (r *postgreUserRepository) List(ctx context.Context, filter repointerface.U
 	if err := r.conn.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
-	out := make([]entities.UserDomain, 0, len(rows))
+	out := make([]domain.User, 0, len(rows))
 	for i := range rows {
 		out = append(out, rows[i].ToV1Domain())
 	}

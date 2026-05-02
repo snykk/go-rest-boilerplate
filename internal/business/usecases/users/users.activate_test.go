@@ -6,30 +6,63 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func TestActivate_FlipsActiveFlag(t *testing.T) {
-	f := newFixture(t)
-	// Verify the repo is called with Active=true and the right ID.
-	f.repo.On("ChangeActiveUser", mock.Anything, mock.MatchedBy(func(u *entities.UserDomain) bool {
-		return u.ID == "user-123" && u.Active == true
-	})).Return(nil).Once()
+func TestActivate(t *testing.T) {
+	tests := []struct {
+		name   string
+		userID string
+		setup  func(f *fixture)
+		// wantErr / wantErrType paired because apperror.ErrTypeInternal
+		// is the iota zero — a single sentinel would collide with that
+		// type and silently pass.
+		wantErr     bool
+		wantErrType apperror.ErrorType
+	}{
+		{
+			name:   "flips active flag with the right ID",
+			userID: "user-123",
+			setup: func(f *fixture) {
+				// MatchedBy enforces that Activate sends the right
+				// ID and Active=true to the repo. A regression that
+				// e.g. forgets to set Active or passes the wrong ID
+				// would not match this predicate.
+				f.repo.On("ChangeActiveUser", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+					return u.ID == "user-123" && u.Active == true
+				})).Return(nil).Once()
+			},
+		},
+		{
+			name:   "raw repo error becomes DomainError Internal",
+			userID: "user-123",
+			setup: func(f *fixture) {
+				f.repo.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*domain.User")).
+					Return(errors.New("deadlock")).Once()
+			},
+			wantErr:     true,
+			wantErrType: apperror.ErrTypeInternal,
+		},
+	}
 
-	require.NoError(t, f.usecase.Activate(context.Background(), "user-123"))
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			tt.setup(f)
 
-func TestActivate_WrapsRepoError(t *testing.T) {
-	f := newFixture(t)
-	f.repo.On("ChangeActiveUser", mock.Anything, mock.AnythingOfType("*entities.UserDomain")).
-		Return(errors.New("deadlock")).Once()
+			err := f.usecase.Activate(context.Background(), tt.userID)
 
-	err := f.usecase.Activate(context.Background(), "user-123")
-	require.Error(t, err)
-	var domErr *apperror.DomainError
-	require.True(t, errors.As(err, &domErr))
-	assert.Equal(t, apperror.ErrTypeInternal, domErr.Type)
+			if !tt.wantErr {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			var domErr *apperror.DomainError
+			require.True(t, errors.As(err, &domErr))
+			assert.Equal(t, tt.wantErrType, domErr.Type)
+		})
+	}
 }

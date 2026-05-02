@@ -1,11 +1,5 @@
 package constants
 
-const (
-	CtxAuthenticatedUserKey = "CtxAuthenticatedUserKey"
-	AdminID                 = 1
-	UserID                  = 2
-)
-
-var (
-	ListGender = []string{"male", "female"}
-)
+// CtxAuthenticatedUserKey is the gin.Context key under which the auth
+// middleware stashes the resolved domain.User for downstream handlers.
+const CtxAuthenticatedUserKey = "CtxAuthenticatedUserKey"

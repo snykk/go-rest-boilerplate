@@ -14,7 +14,7 @@ package _interface
 import (
 	"context"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 )
 
 // UserListFilter narrows down UserRepository.List() results. Each
@@ -34,20 +34,20 @@ type UserRepository interface {
 	// round-trip so callers don't need a follow-up GetByEmail (which
 	// would orphan the INSERT if it failed). Duplicate username/email
 	// surfaces as apperror.Conflict.
-	Store(ctx context.Context, inDom *entities.UserDomain) (entities.UserDomain, error)
+	Store(ctx context.Context, in *domain.User) (domain.User, error)
 	// GetByEmail looks up a user by email, excluding soft-deleted
 	// rows. Returns apperror.NotFound when no row matches.
-	GetByEmail(ctx context.Context, inDom *entities.UserDomain) (outDomain entities.UserDomain, err error)
+	GetByEmail(ctx context.Context, in *domain.User) (out domain.User, err error)
 	// GetByID looks up a user by primary key, excluding soft-deleted
 	// rows. Returns apperror.NotFound when no row matches.
-	GetByID(ctx context.Context, id string) (entities.UserDomain, error)
+	GetByID(ctx context.Context, id string) (domain.User, error)
 	// List returns users matching filter, paginated by offset/limit.
 	// Limit is hard-capped server-side so a misbehaving caller can't
 	// pull the whole table.
-	List(ctx context.Context, filter UserListFilter, offset, limit int) ([]entities.UserDomain, error)
+	List(ctx context.Context, filter UserListFilter, offset, limit int) ([]domain.User, error)
 	// ChangeActiveUser flips the active flag (used by the OTP-verify
 	// flow) and stamps updated_at. No-op on soft-deleted rows.
-	ChangeActiveUser(ctx context.Context, inDom *entities.UserDomain) (err error)
+	ChangeActiveUser(ctx context.Context, in *domain.User) (err error)
 	// SoftDelete sets deleted_at = NOW() so the row stays in the table
 	// for audit/restore but stops matching default queries. Returns
 	// apperror.NotFound if the row doesn't exist or is already deleted.

@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
@@ -42,11 +41,6 @@ func NewUsecase(usersUC users.Usecase, jwtService jwt.JWTService, otpMailer mail
 // takes the same ~100ms a real bcrypt comparison does, preventing
 // user enumeration via response latency.
 const dummyBcryptHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
-
-// normalizeEmail mirrors the same helper in the users package; auth
-// has its own copy so it doesn't have to expose normalization across
-// the bounded-context boundary.
-func normalizeEmail(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
 
 // refreshKey scopes refresh-token jti entries so they don't collide
 // with OTP keys in Redis.

@@ -108,7 +108,9 @@ func NewAuthFixture(t *testing.T) *AuthFixture {
 
 	mailer := &CapturingMailer{}
 	repo := userspostgres.NewUserRepository(db)
-	usersUC := users.NewUsecase(repo, ristretto)
+	usersUC := users.NewUsecase(repo, ristretto, users.Config{
+		BcryptCost: config.AppConfig.BcryptCost,
+	})
 	authUC := auth.NewUsecase(usersUC, jwtSvc, mailer, redis, auth.Config{
 		OTPMaxAttempts: 5,
 		OTPTTL:         5 * time.Minute,

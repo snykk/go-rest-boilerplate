@@ -2,31 +2,39 @@ package users
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
-	"github.com/snykk/go-rest-boilerplate/internal/constants"
-	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 )
 
-// Store hashes the password, normalizes the email, stamps CreatedAt,
-// and inserts the user. The repo's INSERT … RETURNING gives us the
-// persisted row in one round-trip so the caller gets the database-
-// generated ID without a follow-up read.
-func (uc *usecase) Store(ctx context.Context, in *entities.UserDomain) (entities.UserDomain, error) {
-	hashed, err := helpers.GenerateHash(in.Password)
+// Store builds a fresh domain.User (which normalizes email, hashes
+// password, and stamps CreatedAt — all in one place) and inserts it.
+// The repo's INSERT … RETURNING gives us the persisted row in a
+// single round-trip so the caller gets the database-generated ID
+// without a follow-up read.
+//
+// Note that the input *domain.User is treated as a DTO of registration
+// fields; we don't mutate it and we don't trust its hash/CreatedAt —
+// domain.NewUser is the only path that produces a valid User.
+func (uc *usecase) Store(ctx context.Context, in *domain.User) (domain.User, error) {
+	user, err := domain.NewUser(in.Username, in.Email, in.Password, in.RoleID, uc.cfg.BcryptCost)
 	if err != nil {
-		return entities.UserDomain{}, apperror.InternalCause(fmt.Errorf("hash password: %w", err))
+		// Domain validation errors (empty fields) are user-facing —
+		// surface them as BadRequest. Anything else (e.g. bcrypt
+		// failure) is an internal fault.
+		if errors.Is(err, domain.ErrEmptyUsername) ||
+			errors.Is(err, domain.ErrEmptyEmail) ||
+			errors.Is(err, domain.ErrEmptyPassword) {
+			return domain.User{}, apperror.BadRequest(err.Error())
+		}
+		return domain.User{}, apperror.InternalCause(fmt.Errorf("build user: %w", err))
 	}
-	in.Password = hashed
-	in.Email = normalizeEmail(in.Email)
-	in.CreatedAt = time.Now().In(constants.GMT7)
 
-	stored, err := uc.repo.Store(ctx, in)
+	stored, err := uc.repo.Store(ctx, user)
 	if err != nil {
-		return entities.UserDomain{}, mapRepoError(err, "store user")
+		return domain.User{}, mapRepoError(err, "store user")
 	}
 	return stored, nil
 }

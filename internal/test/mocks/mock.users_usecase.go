@@ -10,7 +10,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/entities"
+	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -20,18 +20,18 @@ type UsersUsecase struct {
 }
 
 // Store provides a mock function with given fields: ctx, in
-func (_m *UsersUsecase) Store(ctx context.Context, in *entities.UserDomain) (entities.UserDomain, error) {
+func (_m *UsersUsecase) Store(ctx context.Context, in *domain.User) (domain.User, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, *entities.UserDomain) entities.UserDomain); ok {
+	var r0 domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.User) domain.User); ok {
 		r0 = rf(ctx, in)
 	} else {
-		r0 = ret.Get(0).(entities.UserDomain)
+		r0 = ret.Get(0).(domain.User)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *entities.UserDomain) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *domain.User) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -41,14 +41,14 @@ func (_m *UsersUsecase) Store(ctx context.Context, in *entities.UserDomain) (ent
 }
 
 // GetByEmail provides a mock function with given fields: ctx, email
-func (_m *UsersUsecase) GetByEmail(ctx context.Context, email string) (entities.UserDomain, error) {
+func (_m *UsersUsecase) GetByEmail(ctx context.Context, email string) (domain.User, error) {
 	ret := _m.Called(ctx, email)
 
-	var r0 entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, string) entities.UserDomain); ok {
+	var r0 domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, string) domain.User); ok {
 		r0 = rf(ctx, email)
 	} else {
-		r0 = ret.Get(0).(entities.UserDomain)
+		r0 = ret.Get(0).(domain.User)
 	}
 
 	var r1 error
@@ -62,14 +62,14 @@ func (_m *UsersUsecase) GetByEmail(ctx context.Context, email string) (entities.
 }
 
 // GetByID provides a mock function with given fields: ctx, id
-func (_m *UsersUsecase) GetByID(ctx context.Context, id string) (entities.UserDomain, error) {
+func (_m *UsersUsecase) GetByID(ctx context.Context, id string) (domain.User, error) {
 	ret := _m.Called(ctx, id)
 
-	var r0 entities.UserDomain
-	if rf, ok := ret.Get(0).(func(context.Context, string) entities.UserDomain); ok {
+	var r0 domain.User
+	if rf, ok := ret.Get(0).(func(context.Context, string) domain.User); ok {
 		r0 = rf(ctx, id)
 	} else {
-		r0 = ret.Get(0).(entities.UserDomain)
+		r0 = ret.Get(0).(domain.User)
 	}
 
 	var r1 error
