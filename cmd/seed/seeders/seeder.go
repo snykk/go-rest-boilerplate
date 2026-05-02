@@ -41,7 +41,7 @@ func (s *seeder) UserSeeder(userData []records.Users) (err error) {
 	}()
 
 	for _, user := range userData {
-		user.CreatedAt = time.Now().In(constants.GMT7)
+		user.CreatedAt = time.Now().UTC()
 		if _, err = tx.NamedQuery(`INSERT INTO users(id, username, email, password, active, role_id, created_at) VALUES (uuid_generate_v4(), :username, :email, :password, :active, :role_id, :created_at)`, user); err != nil {
 			return err
 		}
