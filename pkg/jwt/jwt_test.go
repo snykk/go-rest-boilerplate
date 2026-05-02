@@ -49,9 +49,14 @@ func TestParseToken(t *testing.T) {
 }
 
 func TestGenerateTokenPair_RespectsInjectedClock(t *testing.T) {
-	// Freeze time at a known instant so the asserted ExpiresAt and
-	// IssuedAt values are exact — no flake from time.Now() drift.
-	at := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
+	// Freeze time at a known instant in the near future so the asserted
+	// ExpiresAt and IssuedAt values are exact while the issued tokens
+	// are still considered valid by ParseToken (which compares exp
+	// against real time.Now()). Using a hard-coded date here would
+	// silently rot once that date passes; deriving from time.Now()
+	// keeps the test fresh forever without giving up determinism
+	// inside a single run.
+	at := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
 	svc := jwt.WithClock(
 		jwt.NewJWTServiceWithRefresh(testSecret, testIssuer, 5, 7),
 		clock.Frozen(at),
