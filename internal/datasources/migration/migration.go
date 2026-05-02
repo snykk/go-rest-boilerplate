@@ -14,7 +14,6 @@ import (
 	"sort"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
@@ -31,7 +30,7 @@ type Runner struct {
 	dir string
 	// log lets tests swap in a no-op sink; nil falls back to the
 	// project-wide logger.
-	log func(msg string, fields logrus.Fields)
+	log func(msg string, fields logger.Fields)
 }
 
 // New builds a Runner that reads migration files from `dir`.
@@ -41,7 +40,7 @@ func New(db *sqlx.DB, dir string) *Runner {
 
 // SetLogger overrides the default logger sink. Pass a no-op to mute
 // the runner during tests.
-func (r *Runner) SetLogger(fn func(string, logrus.Fields)) { r.log = fn }
+func (r *Runner) SetLogger(fn func(string, logger.Fields)) { r.log = fn }
 
 // DB exposes the underlying handle for callers that need to assert
 // post-migration state (e.g., integration tests querying
@@ -49,7 +48,7 @@ func (r *Runner) SetLogger(fn func(string, logrus.Fields)) { r.log = fn }
 // this — use the Up/Down methods.
 func (r *Runner) DB() *sqlx.DB { return r.db }
 
-func (r *Runner) info(msg string, fields logrus.Fields) {
+func (r *Runner) info(msg string, fields logger.Fields) {
 	if r.log != nil {
 		r.log(msg, fields)
 		return
@@ -62,7 +61,7 @@ func (r *Runner) info(msg string, fields logrus.Fields) {
 // idempotent. Each file commits its statement and the
 // schema_migrations row in a single transaction.
 func (r *Runner) Up(ctx context.Context) error {
-	r.info("running migration [up]", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+	r.info("running migration [up]", logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 
 	if err := r.ensureMigrationsTable(ctx); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
@@ -81,13 +80,13 @@ func (r *Runner) Up(ctx context.Context) error {
 		for _, file := range files {
 			name := filepath.Base(file)
 			if applied[name] {
-				r.info("skipping already-applied migration", logrus.Fields{
+				r.info("skipping already-applied migration", logger.Fields{
 					constants.LoggerCategory: constants.LoggerCategoryMigration,
 					constants.LoggerFile:     name,
 				})
 				continue
 			}
-			r.info("applying migration", logrus.Fields{
+			r.info("applying migration", logger.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryMigration,
 				constants.LoggerFile:     name,
 			})
@@ -95,7 +94,7 @@ func (r *Runner) Up(ctx context.Context) error {
 				return err
 			}
 		}
-		r.info("migration [up] success", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+		r.info("migration [up] success", logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 		return nil
 	})
 }
@@ -104,7 +103,7 @@ func (r *Runner) Up(ctx context.Context) error {
 // (later migrations roll back first). Each successful down deletes the
 // matching schema_migrations row.
 func (r *Runner) Down(ctx context.Context) error {
-	r.info("running migration [down]", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+	r.info("running migration [down]", logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 
 	if err := r.ensureMigrationsTable(ctx); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
@@ -119,7 +118,7 @@ func (r *Runner) Down(ctx context.Context) error {
 
 		for _, file := range files {
 			name := filepath.Base(file)
-			r.info("reverting migration", logrus.Fields{
+			r.info("reverting migration", logger.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryMigration,
 				constants.LoggerFile:     name,
 			})
@@ -127,7 +126,7 @@ func (r *Runner) Down(ctx context.Context) error {
 				return err
 			}
 		}
-		r.info("migration [down] success", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+		r.info("migration [down] success", logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 		return nil
 	})
 }
@@ -150,7 +149,7 @@ func (r *Runner) withAdvisoryLock(ctx context.Context, fn func() error) error {
 	}
 	defer func() {
 		if _, err := r.db.ExecContext(ctx, `SELECT pg_advisory_unlock($1)`, AdvisoryLockID); err != nil {
-			logger.Error("failed to release migration advisory lock", logrus.Fields{
+			logger.Error("failed to release migration advisory lock", logger.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryMigration,
 				"error":                  err.Error(),
 			})

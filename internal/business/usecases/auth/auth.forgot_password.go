@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
@@ -46,7 +45,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, email string) error {
 	}
 	if err := uc.redisCache.Expire(ctx, resetKey(token), uc.cfg.PasswordResetTTL); err != nil {
 		// Non-fatal: token still works, just won't auto-expire.
-		logger.Error("failed to set TTL on reset token", logrus.Fields{
+		logger.Error("failed to set TTL on reset token", logger.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"error":                  err.Error(),
 		})

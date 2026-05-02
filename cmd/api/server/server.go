@@ -13,7 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
@@ -147,8 +146,10 @@ func NewApp() (*App, error) {
 }
 
 func (a *App) Run() (err error) {
+	srvLog := logger.WithFields(logger.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
+
 	go func() {
-		logger.InfoF("success to listen and serve on :%d", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, config.AppConfig.Port)
+		srvLog.Infof("success to listen and serve on :%d", config.AppConfig.Port)
 		if err := a.HttpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to listen and serve: %+v", err)
 		}
@@ -158,7 +159,7 @@ func (a *App) Run() (err error) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	<-quit
-	logger.Info("shutdown server ...", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
+	srvLog.Info("shutdown server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -171,18 +172,18 @@ func (a *App) Run() (err error) {
 	// in-flight OTP emails still get delivered.
 	if a.asyncMailer != nil {
 		if err := a.asyncMailer.Shutdown(ctx); err != nil {
-			logger.InfoF("mailer shutdown incomplete: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+			srvLog.Infof("mailer shutdown incomplete: %v", err)
 		}
 	}
 
 	// close database connection
 	if err := a.db.Close(); err != nil {
-		logger.InfoF("error closing database: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+		srvLog.Infof("error closing database: %v", err)
 	}
 
 	// close redis connection
 	if err := a.redisCache.Close(); err != nil {
-		logger.InfoF("error closing redis: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+		srvLog.Infof("error closing redis: %v", err)
 	}
 
 	// flush any spans the batch exporter is still buffering — must run
@@ -190,11 +191,11 @@ func (a *App) Run() (err error) {
 	// process exits, otherwise the tail end of in-flight traces is lost.
 	if a.tracerShutdown != nil {
 		if err := a.tracerShutdown(ctx); err != nil {
-			logger.InfoF("tracer shutdown incomplete: %v", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer}, err)
+			srvLog.Infof("tracer shutdown incomplete: %v", err)
 		}
 	}
 
-	logger.Info("server exiting", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryServer})
+	srvLog.Info("server exiting")
 	return
 }
 
@@ -220,7 +221,7 @@ func setupRouter() *gin.Engine {
 	router.Use(middlewares.SecurityHeadersMiddleware())
 	router.Use(middlewares.CORSMiddleware())
 	router.Use(middlewares.BodySizeLimitMiddleware(middlewares.DefaultBodyMaxBytes))
-	router.Use(gin.LoggerWithFormatter(logger.HTTPLogger))
+	router.Use(gin.LoggerWithFormatter(middlewares.AccessLogFormatter))
 	router.Use(gin.Recovery())
 
 	return router

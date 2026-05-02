@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
@@ -33,7 +32,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) error {
 	attemptsKey := otpAttemptsKey(email)
 	attempts, err := uc.redisCache.Incr(ctx, attemptsKey)
 	if err != nil {
-		logger.Error("failed to track OTP attempts", logrus.Fields{
+		logger.Error("failed to track OTP attempts", logger.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"email":                  email,
 			"error":                  err.Error(),
@@ -67,7 +66,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) error {
 
 	// cleanup caches
 	if err = uc.redisCache.Del(ctx, otpKey); err != nil {
-		logger.Error("failed to delete OTP cache", logrus.Fields{
+		logger.Error("failed to delete OTP cache", logger.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"email":                  email,
 			"error":                  err.Error(),

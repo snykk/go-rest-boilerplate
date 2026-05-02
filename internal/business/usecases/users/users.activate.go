@@ -18,5 +18,11 @@ func (uc *usecase) Activate(ctx context.Context, userID string) error {
 	if err := uc.repo.ChangeActiveUser(ctx, u); err != nil {
 		return apperror.InternalCause(fmt.Errorf("activate user: %w", err))
 	}
+	// Invalidate the ristretto cache so the next Login doesn't read
+	// the stale (Active=false) entry that GetByEmail populated during
+	// the OTP flow.
+	if existing, err := uc.repo.GetByID(ctx, userID); err == nil && existing.Email != "" {
+		uc.ristrettoCache.Del(fmt.Sprintf("user/%s", existing.Email))
+	}
 	return nil
 }

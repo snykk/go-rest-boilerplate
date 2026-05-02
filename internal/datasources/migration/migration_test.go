@@ -10,7 +10,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/migration"
 	"github.com/snykk/go-rest-boilerplate/internal/test/testenv"
-	"github.com/sirupsen/logrus"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +30,7 @@ func newRunner(t *testing.T) (*migration.Runner, string) {
 	dir := t.TempDir()
 	r := migration.New(db, dir)
 	// Mute the runner's chatter — testing.T already shows what failed.
-	r.SetLogger(func(string, logrus.Fields) {})
+	r.SetLogger(func(string, logger.Fields) {})
 	return r, dir
 }
 

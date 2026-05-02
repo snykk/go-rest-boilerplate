@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
@@ -34,7 +33,7 @@ func (uc *usecase) SendOTP(ctx context.Context, email string) error {
 
 	if err = uc.mailer.SendOTP(code, email); err != nil {
 		observability.ObserveMailerOp("queue_full")
-		logger.Error("failed to enqueue OTP email", logrus.Fields{
+		logger.Error("failed to enqueue OTP email", logger.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"email":                  email,
 			"error":                  err.Error(),
@@ -46,7 +45,7 @@ func (uc *usecase) SendOTP(ctx context.Context, email string) error {
 	otpKey := fmt.Sprintf("user_otp:%s", email)
 	if err = uc.redisCache.Set(ctx, otpKey, code); err != nil {
 		observability.ObserveCacheOp("redis", "set", "error")
-		logger.Error("failed to cache OTP", logrus.Fields{
+		logger.Error("failed to cache OTP", logger.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryCache,
 			"email":                  email,
 			"error":                  err.Error(),

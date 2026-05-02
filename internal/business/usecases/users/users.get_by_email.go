@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -24,7 +23,7 @@ func (uc *usecase) GetByEmail(ctx context.Context, email string) (domain.User, e
 			return cached, nil
 		}
 		observability.ObserveCacheOp("ristretto", "get", "error")
-		logger.Info("cache type assertion failed, fetching from DB", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
+		logger.Info("cache type assertion failed, fetching from DB", logger.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
 	} else {
 		observability.ObserveCacheOp("ristretto", "get", "miss")
 	}

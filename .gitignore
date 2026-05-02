@@ -10,3 +10,5 @@ bin/
 # Coverage
 coverage.out
 coverage.html
+# Logger test artifacts
+*.log

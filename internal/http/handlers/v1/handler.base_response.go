@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -90,7 +89,7 @@ func RespondWithError(c *gin.Context, err error) {
 		// Log the real cause (or the error itself if no cause is
 		// attached) and send back a generic message. Without this,
 		// clients see things like "hash password: bcrypt: …".
-		fields := logrus.Fields{
+		fields := logger.Fields{
 			constants.LoggerCategory: constants.LoggerCategoryHTTP,
 			"path":                   c.FullPath(),
 		}

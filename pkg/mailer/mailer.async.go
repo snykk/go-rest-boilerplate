@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
@@ -162,7 +161,7 @@ func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 			span.SetStatus(codes.Ok, "")
 			span.End()
 			observability.ObserveMailerOp("sent")
-			logger.Info("mail sent", logrus.Fields{
+			logger.Info("mail sent", logger.Fields{
 				constants.LoggerCategory: constants.LoggerCategoryCache,
 				"receiver":               job.receiver,
 				"attempt":                attempt,
@@ -194,7 +193,7 @@ func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 	}
 
 	observability.ObserveMailerOp("failed")
-	logger.Error("otp email failed after retries", logrus.Fields{
+	logger.Error("otp email failed after retries", logger.Fields{
 		constants.LoggerCategory: constants.LoggerCategoryCache,
 		"receiver":               job.receiver,
 		"retries":                a.retries,

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -28,7 +27,7 @@ func (s *seeder) UserSeeder(userData []records.Users) (err error) {
 		return errors.New("users data is empty")
 	}
 
-	logger.Info("inserting users data...", logrus.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
+	logger.Info("inserting users data...", logger.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 
 	tx, err := s.db.Beginx()
 	if err != nil {
@@ -51,6 +50,6 @@ func (s *seeder) UserSeeder(userData []records.Users) (err error) {
 		return err
 	}
 
-	logger.Info("users data inserted successfully", logrus.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
+	logger.Info("users data inserted successfully", logger.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 	return
 }

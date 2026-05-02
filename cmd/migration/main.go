@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/config"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/drivers"
@@ -21,9 +20,9 @@ var (
 
 func init() {
 	if err := config.InitializeAppConfig(); err != nil {
-		logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig})
+		logger.Fatal(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig})
 	}
-	logger.Info("configuration loaded", logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig})
+	logger.Info("configuration loaded", logger.Fields{constants.LoggerCategory: constants.LoggerCategoryConfig})
 }
 
 func main() {
@@ -33,7 +32,7 @@ func main() {
 
 	db, err := drivers.SetupSQLXPostgres()
 	if err != nil {
-		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+		logger.Panic(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 	}
 	defer db.Close()
 
@@ -42,12 +41,12 @@ func main() {
 
 	if up {
 		if err := runner.Up(ctx); err != nil {
-			logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+			logger.Fatal(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 		}
 	}
 	if down {
 		if err := runner.Down(ctx); err != nil {
-			logger.Fatal(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
+			logger.Fatal(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 		}
 	}
 }

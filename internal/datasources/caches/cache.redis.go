@@ -7,7 +7,6 @@ import (
 
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
@@ -60,7 +59,7 @@ func NewRedisCache(host string, db int, password string, expires time.Duration) 
 	// level — log and continue rather than aborting the app.
 	if err := redisotel.InstrumentTracing(client); err != nil {
 		logger.Info("redis tracing instrumentation skipped: "+err.Error(),
-			logrus.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
+			logger.Fields{constants.LoggerCategory: constants.LoggerCategoryCache})
 	}
 	return &redisCache{
 		host:     host,

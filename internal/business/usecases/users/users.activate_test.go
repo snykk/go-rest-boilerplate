@@ -24,16 +24,17 @@ func TestActivate(t *testing.T) {
 		wantErrType apperror.ErrorType
 	}{
 		{
-			name:   "flips active flag with the right ID",
+			name:   "flips active flag with the right ID and invalidates cache by email",
 			userID: "user-123",
 			setup: func(f *fixture) {
-				// MatchedBy enforces that Activate sends the right
-				// ID and Active=true to the repo. A regression that
-				// e.g. forgets to set Active or passes the wrong ID
-				// would not match this predicate.
 				f.repo.On("ChangeActiveUser", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
 					return u.ID == "user-123" && u.Active == true
 				})).Return(nil).Once()
+				// Activate looks up the email so it can evict the
+				// stale "user/<email>" entry the OTP flow populated.
+				f.repo.On("GetByID", mock.Anything, "user-123").
+					Return(domain.User{ID: "user-123", Email: "patrick@example.com"}, nil).Once()
+				f.rc.On("Del", "user/patrick@example.com").Once()
 			},
 		},
 		{
