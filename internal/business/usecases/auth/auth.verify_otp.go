@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -53,7 +54,8 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) error {
 	}
 	observability.ObserveCacheOp("redis", "get", "hit")
 
-	if otpRedis != otpCode {
+	// Constant-time compare to defeat per-byte timing attacks on the OTP keyspace.
+	if subtle.ConstantTimeCompare([]byte(otpRedis), []byte(otpCode)) != 1 {
 		return apperror.BadRequest("invalid otp code")
 	}
 

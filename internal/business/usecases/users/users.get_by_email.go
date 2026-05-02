@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -40,7 +39,8 @@ func (uc *usecase) GetByEmail(ctx context.Context, email string) (domain.User, e
 		return user, nil
 	})
 	if err != nil {
-		return domain.User{}, apperror.NotFound("email not found")
+		// Forward typed errors so infra failures don't masquerade as 404.
+		return domain.User{}, mapRepoError(err, "get user by email")
 	}
 	return v.(domain.User), nil
 }

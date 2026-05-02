@@ -15,6 +15,7 @@ package domain
 
 import (
 	"errors"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ const (
 var (
 	ErrEmptyUsername = errors.New("username cannot be empty")
 	ErrEmptyEmail    = errors.New("email cannot be empty")
+	ErrInvalidEmail  = errors.New("email format is invalid")
 	ErrEmptyPassword = errors.New("password cannot be empty")
 )
 
@@ -73,6 +75,9 @@ func NewUser(username, email, plainPassword string, roleID, bcryptCost int) (*Us
 	email = NormalizeEmail(email)
 	if email == "" {
 		return nil, ErrEmptyEmail
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return nil, ErrInvalidEmail
 	}
 
 	if bcryptCost < bcrypt.MinCost || bcryptCost > bcrypt.MaxCost {

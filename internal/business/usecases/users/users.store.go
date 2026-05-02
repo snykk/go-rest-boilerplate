@@ -26,6 +26,7 @@ func (uc *usecase) Store(ctx context.Context, in *domain.User) (domain.User, err
 		// failure) is an internal fault.
 		if errors.Is(err, domain.ErrEmptyUsername) ||
 			errors.Is(err, domain.ErrEmptyEmail) ||
+			errors.Is(err, domain.ErrInvalidEmail) ||
 			errors.Is(err, domain.ErrEmptyPassword) {
 			return domain.User{}, apperror.BadRequest(err.Error())
 		}

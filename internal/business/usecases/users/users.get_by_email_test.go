@@ -57,6 +57,18 @@ func TestGetByEmail(t *testing.T) {
 			wantErrType: apperror.ErrTypeNotFound,
 		},
 		{
+			// Regression: raw repo errors must not be rewritten to NotFound.
+			name:       "raw repo error surfaces as Internal, not 404",
+			inputEmail: "patrick@example.com",
+			setup: func(f *fixture) {
+				f.rc.On("Get", "user/patrick@example.com").Return(nil).Once()
+				f.repo.On("GetByEmail", mock.Anything, mock.AnythingOfType("*domain.User")).
+					Return(domain.User{}, errors.New("connection refused")).Once()
+			},
+			wantErr:     true,
+			wantErrType: apperror.ErrTypeInternal,
+		},
+		{
 			name:       "input email is normalized (trim + lowercase) before cache + repo lookups",
 			inputEmail: "  Patrick@Example.COM ",
 			setup: func(f *fixture) {

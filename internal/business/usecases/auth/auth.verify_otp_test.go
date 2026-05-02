@@ -55,6 +55,21 @@ func TestVerifyOTP(t *testing.T) {
 			wantErrType: apperror.ErrTypeBadRequest,
 		},
 		{
+			name:  "submitted code with wrong length is rejected (constant-time path)",
+			email: "patrick@example.com",
+			code:  "12",
+			setup: func(f *fixture) {
+				user := activeUser(t)
+				user.Active = false
+				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(user, nil).Once()
+				f.redis.On("Incr", mock.Anything, "otp_attempts:patrick@example.com").Return(int64(1), nil).Once()
+				f.redis.On("Expire", mock.Anything, "otp_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
+				f.redis.On("Get", mock.Anything, "user_otp:patrick@example.com").Return("123456", nil).Once()
+			},
+			wantErr:     true,
+			wantErrType: apperror.ErrTypeBadRequest,
+		},
+		{
 			name:  "lockout after exceeding OTPMaxAttempts surfaces as Forbidden",
 			email: "patrick@example.com",
 			code:  "123456",
