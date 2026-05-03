@@ -1,452 +1,523 @@
-swagger: '2.0'
-info:
-  description: A starting point for building RESTful APIs 
-  version: 1.0.0
-  title: Go Rest Boilerplate
-  
-  contact:
-    email: najibfikri13@gmail.com
-
-  license:
-    name: MIT License
-    url: https://github.com/snykk/go-rest-boilerplate/blob/master/LICENSE
-securityDefinitions:
-  Bearer:
-    type: apiKey
-    name: Authorization
-    in: header
-
-
-tags:
-- name: Auth
-- name: User
-paths:
-  /api/v1/auth/regis:
-    post:
-      tags:
-        - Auth
-      summary: Register a new user
-      description: |
-        Use this endpoint to register a new user with the application.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - name: body
-          in: body
-          description: JSON object containing user registration information
-          required: true
-          schema:
-            type: object
-            properties:
-              username:
-                type: string
-              email:
-                type: string
-              password:
-                type: string
-      responses:
-        '201':
-          description: User registration successful
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: true
-              message:
-                type: string
-                example: registration user success
-              data:
-                type: object
-                properties:
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        example: 0c360f23-d339-499c-a4fe-841daa499aab
-                      username:
-                        type: string
-                        example: patrickstar
-                      email:
-                        type: string
-                        example: patrickstar@gmail.com
-                      password:
-                        type: string
-                        example: $2a$10$PHRsgqe69m069qZe0rprpuhz7T.MjjDadLm.PcVczjgBy7KRjzki6
-                      role_id:
-                        type: integer
-                        example: 2
-                      created_at:
-                        type: string
-                        format: date-time
-                        example: "2023-04-26T11:15:37.642067+07:00"
-                      updated_at:
-                        type: string
-                        format: date-time
-                        example: null
-        '400':
-          description: Bad request (when error happen in user request)
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some messages
-        '500':
-          description: Error from server
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some error messages
-  /api/v1/auth/send-otp:
-    post:
-      tags:
-        - Auth
-      summary: Send otp code to user email
-      description: |
-        Use this endpoint to send otp code to user email using smtp mailer
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - name: body
-          in: body
-          description: JSON object containing send otp payload information
-          required: true
-          schema:
-            type: object
-            properties:
-              email:
-                type: string
-      responses:
-        '200':
-          description: Send otp code success
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: true
-              message:
-                type: string
-                example: otp code has been send to najibfikri13@gmail.com
-        '400':
-          description: Bad request (when error happen in user request)
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some messages
-        '404':
-          description: Email is not registered in application
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: email not found
-        '500':
-          description: Error from server
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some error messages
-  /api/v1/auth/verif-otp:
-    post:
-      tags:
-        - Auth
-      summary: Verif otp code that have been send
-      description: |
-        Use this endpoint to verif otp code that have been send to the user email
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - name: body
-          in: body
-          description: JSON object containing verif otp payload information
-          required: true
-          schema:
-            type: object
-            properties:
-              email:
-                type: string
-              code:
-                type: string
-      responses:
-        '200':
-          description: Success to verify otp code
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: true
-              message:
-                type: string
-                example: otp verification success
-        '400':
-          description: Bad request (when error happen in user request)
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some messages
-        '404':
-          description: Email is not registered in application
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: email not found
-        '500':
-          description: Error from server
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some error messages
-  /api/v1/auth/login:
-    post:
-      tags:
-        - Auth
-      summary: Log in to get the token
-      description: |
-        Use this endpoint to log in to the application and obtain an access token.
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - name: body
-          in: body
-          description: JSON object containing user login information
-          required: true
-          schema:
-            type: object
-            properties:
-              email:
-                type: string
-              password:
-                type: string
-      responses:
-        '200':
-          description: User login successful
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: true
-              message:
-                type: string
-                example: login success
-              data:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    example: 0c360f23-d339-499c-a4fe-841daa499aab
-                  username:
-                    type: string
-                    example: patrickstar
-                  email:
-                    type: string
-                    example: patrickstar@gmail.com
-                  password:
-                    type: string
-                    example: $2a$10$PHRsgqe69m069qZe0rprpuhz7T.MjjDadLm.PcVczjgBy7KRjzki6
-                  role_id:
-                    type: integer
-                    example: 2
-                  token:
-                    type: string
-                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySUQiOiJiYTEyM2EwNS0yYzcwLTQ2MGQtODRkOS1lNmViMzFkODBhNmEiLCJJc0FkbWluIjpmYWxzZSwiRW1haWwiOiJuYWppYmZpa3JpMjZAZ21haWwuY29tIiwiUGFzc3dvcmQiOiIkMmEkMTAkSVd5M0FBaThxUnZWZlcydFgzSHdBdUZEenE5ZGRIVi5WTElhVTVObm5UbVd5LlZ5RmowTEciLCJleHAiOjE2ODI1MDA5NTAsImlhdCI6MTY4MjQ4Mjk1MCwiaXNzIjoiaXRzbWVfc255a2sifQ.F_krVv5LTWLO4VdmzP6BEdALsKWzi2VtWS614Io1fjs
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2023-04-20T22:11:41.266758+07:00"
-                  updated_at:
-                    type: string
-                    format: date-time
-                    example: null
-        '400':
-          description: Bad request (when error happen in user request)
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some messages
-        '401':
-          description: Email or password is not valid
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: invalid email or password
-        '403':
-          description: User account is not activated
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: account is not activated
-        '500':
-          description: Error from server
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some error messages
-  /api/v1/users/me:
-    get:
-      tags:
-        - User
-      summary: "Get information of authenticated user"
-      description: "Retrieve information of authenticated user based on token passed in Authorization header"
-      produces:
-        - "application/json"
-      security:
-        - Bearer: []
-      responses:
-        '200':
-          description: "Success"
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-              message:
-                type: string
-                example: user data fetched successfully
-              data:
-                type: object
-                properties:
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      username:
-                        type: string
-                      email:
-                        type: string
-                      password:
-                        type: string
-                      role_id:
-                        type: integer
-                      created_at:
-                        type: string
-                      updated_at:
-                        type: string
-                    example:
-                      id: "ba123a05-2c70-460d-84d9-e6eb31d80a6a"
-                      username: "najibfikri"
-                      email: "najibfikri26@gmail.com"
-                      password: "$2a$10$IWy3AAi8qRvVfW2tX3HwAuFDzq9ddHV.VLIaU5NnnTmWy.VyFj0LG"
-                      role_id: 2
-                      created_at: "2023-04-20T22:11:41.266758+07:00"
-                      updated_at: null
-        '500':
-          description: Error from server
-          schema:
-            type: object
-            properties:
-              status:
-                type: boolean
-                example: false
-              message:
-                type: string
-                example: some error messages
-
-  
+basePath: /api/v1
 definitions:
-  User:
-    required:
-     - id
-     - role_id
-     - username
-     - email
-     - password
-     - active
-     - created_at
-    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest:
     properties:
-      id:
-        type: integer
-        format: uuid
-      role_id:
-        type: integer
-        format: int64
+      current_password:
+        maxLength: 72
+        minLength: 1
+        type: string
+      new_password:
+        maxLength: 72
+        minLength: 8
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest:
+    properties:
+      email:
+        maxLength: 50
+        type: string
+    required:
+    - email
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.LoginRequest:
+    properties:
+      email:
+        maxLength: 50
+        type: string
+      password:
+        maxLength: 72
+        minLength: 1
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RegisterRequest:
+    properties:
+      email:
+        maxLength: 50
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
       username:
+        maxLength: 25
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest:
+    properties:
+      new_password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.SendOTPRequest:
+    properties:
+      email:
+        maxLength: 50
+        type: string
+    required:
+    - email
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.VerifyOTPRequest:
+    properties:
+      code:
+        type: string
+      email:
+        maxLength: 50
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse:
+    properties:
+      created_at:
         type: string
       email:
         type: string
-        format: email
-      password:
+      id:
         type: string
-        format: password
-      active:
-        type: boolean
-      created_at:
+      refresh_token:
         type: string
-        format: date-time
+      role_id:
+        type: integer
+      token:
+        type: string
       updated_at:
         type: string
-        format: date-time
-      deleted_at:
+      username:
         type: string
-        format: date-time
+    type: object
+  github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      status:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Najib Fikri
+    url: mailto:najibfikri26@gmail.com
+  description: A starting point for building RESTful APIs in Go using the Gin framework,
+    sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture
+    principles as described by Uncle Bob.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://github.com/snykk/go-rest-boilerplate
+  title: Go REST Boilerplate API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Returns an access token (short TTL) and a refresh token (longer
+        TTL). Wrong password and unknown email take the same wall time to prevent
+        user enumeration.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens issued
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse'
+              type: object
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "401":
+          description: Invalid email or password
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "403":
+          description: Account not yet activated
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Authenticate and issue a token pair
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Deletes the refresh-token jti from Redis so /auth/refresh rejects
+        it. Access tokens remain valid until their natural expiry — clients should
+        discard them on logout.
+      parameters:
+      - description: Refresh token to revoke
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logged out
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "401":
+          description: Refresh token invalid
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Revoke the refresh token
+      tags:
+      - auth
+  /auth/password/change:
+    put:
+      consumes:
+      - application/json
+      description: Verifies the current password, swaps it for the new one, and stamps
+        the revocation cutoff so refresh tokens issued before now are rejected.
+      parameters:
+      - description: Current + new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password changed
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "401":
+          description: Current password incorrect
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Change the authenticated user's password
+      tags:
+      - auth
+  /auth/password/forgot:
+    post:
+      consumes:
+      - application/json
+      description: Emails an opaque reset token to the address. Always returns 200
+        even if the email isn't registered, to defeat user enumeration.
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset email queued (or email not registered — same response
+            either way)
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Issue a password-reset token
+      tags:
+      - auth
+  /auth/password/reset:
+    post:
+      consumes:
+      - application/json
+      description: Validates the token issued by ForgotPassword, sets the new password,
+        and advances the revocation cutoff.
+      parameters:
+      - description: Reset token + new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "401":
+          description: Reset token invalid or expired
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Consume a reset token and set a new password
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Verifies the supplied refresh token, mints a new access+refresh
+        pair, and revokes the old jti in Redis. Replaying an already-rotated token
+        returns 401.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New token pair
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse'
+              type: object
+        "401":
+          description: Refresh token invalid, expired, or already revoked
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "403":
+          description: Account no longer active
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Rotate the refresh token, return a new pair
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a user account in inactive state. The caller must follow
+        up with /auth/send-otp + /auth/verify-otp to activate the account before /auth/login
+        will succeed.
+      parameters:
+      - description: Registration payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse'
+              type: object
+        "400":
+          description: Malformed JSON body
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "409":
+          description: Email or username already in use
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error (per-field detail in data.errors)
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /auth/send-otp:
+    post:
+      consumes:
+      - application/json
+      description: Generates a 6-digit OTP, stores it in Redis with a TTL, and enqueues
+        the email via the async mailer. The HTTP response returns on enqueue, not
+        on actual SMTP delivery.
+      parameters:
+      - description: Email to send OTP to
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.SendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OTP enqueued
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Account already activated
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "404":
+          description: Email not registered
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "500":
+          description: Failed to enqueue mail
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Send an OTP code to the user's email
+      tags:
+      - auth
+  /auth/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Validates the supplied code against Redis and flips the user's
+        active flag to true on success. Brute-force-guarded — after OTP_MAX_ATTEMPTS
+        failures (default 5) the email is locked out for the OTP TTL window even with
+        the correct code.
+      parameters:
+      - description: Email + OTP code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account activated
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "400":
+          description: Invalid OTP code
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "403":
+          description: Locked out — too many invalid attempts
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "404":
+          description: Email not registered
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "422":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      summary: Verify an OTP code and activate the account
+      tags:
+      - auth
+  /users/me:
+    get:
+      description: Reads the authenticated user from the JWT in the Authorization
+        header and returns the matching record (in-memory cache first, Postgres on
+        miss).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse'
+              type: object
+        "401":
+          description: Missing or invalid token
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+        "404":
+          description: User no longer exists
+          schema:
+            $ref: '#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Return the current user's profile
+      tags:
+      - users
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Bearer access token issued by /auth/login or /auth/refresh.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

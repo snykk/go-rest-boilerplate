@@ -1,2 +1,14 @@
 vendor/*
 !vendor/modules.txt
+
+# Air hot-reload
+tmp/
+
+# Build output
+bin/
+
+# Coverage
+coverage.out
+coverage.html
+# Logger test artifacts
+*.log

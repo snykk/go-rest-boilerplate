@@ -1,0 +1,775 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "A starting point for building RESTful APIs in Go using the Gin framework, sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture principles as described by Uncle Bob.",
+        "title": "Go REST Boilerplate API",
+        "termsOfService": "https://github.com/snykk/go-rest-boilerplate",
+        "contact": {
+            "name": "Najib Fikri",
+            "url": "mailto:najibfikri26@gmail.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "description": "Returns an access token (short TTL) and a refresh token (longer TTL). Wrong password and unknown email take the same wall time to prevent user enumeration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Authenticate and issue a token pair",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tokens issued",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid email or password",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Account not yet activated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "description": "Deletes the refresh-token jti from Redis so /auth/refresh rejects it. Access tokens remain valid until their natural expiry — clients should discard them on logout.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Revoke the refresh token",
+                "parameters": [
+                    {
+                        "description": "Refresh token to revoke",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logged out",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Refresh token invalid",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/change": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifies the current password, swaps it for the new one, and stamps the revocation cutoff so refresh tokens issued before now are rejected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change the authenticated user's password",
+                "parameters": [
+                    {
+                        "description": "Current + new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password changed",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Current password incorrect",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/forgot": {
+            "post": {
+                "description": "Emails an opaque reset token to the address. Always returns 200 even if the email isn't registered, to defeat user enumeration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Issue a password-reset token",
+                "parameters": [
+                    {
+                        "description": "Email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reset email queued (or email not registered — same response either way)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/reset": {
+            "post": {
+                "description": "Validates the token issued by ForgotPassword, sets the new password, and advances the revocation cutoff.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Consume a reset token and set a new password",
+                "parameters": [
+                    {
+                        "description": "Reset token + new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Reset token invalid or expired",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "description": "Verifies the supplied refresh token, mints a new access+refresh pair, and revokes the old jti in Redis. Replaying an already-rotated token returns 401.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Rotate the refresh token, return a new pair",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New token pair",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Refresh token invalid, expired, or already revoked",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Account no longer active",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Creates a user account in inactive state. The caller must follow up with /auth/send-otp + /auth/verify-otp to activate the account before /auth/login will succeed.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "Registration payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed JSON body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Email or username already in use",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (per-field detail in data.errors)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/send-otp": {
+            "post": {
+                "description": "Generates a 6-digit OTP, stores it in Redis with a TTL, and enqueues the email via the async mailer. The HTTP response returns on enqueue, not on actual SMTP delivery.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Send an OTP code to the user's email",
+                "parameters": [
+                    {
+                        "description": "Email to send OTP to",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.SendOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OTP enqueued",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Account already activated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Email not registered",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to enqueue mail",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verify-otp": {
+            "post": {
+                "description": "Validates the supplied code against Redis and flips the user's active flag to true on success. Brute-force-guarded — after OTP_MAX_ATTEMPTS failures (default 5) the email is locked out for the OTP TTL window even with the correct code.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Verify an OTP code and activate the account",
+                "parameters": [
+                    {
+                        "description": "Email + OTP code",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.VerifyOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account activated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid OTP code",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Locked out — too many invalid attempts",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Email not registered",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reads the authenticated user from the JWT in the Authorization header and returns the matching record (in-memory cache first, Postgres on miss).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Return the current user's profile",
+                "responses": {
+                    "200": {
+                        "description": "User profile",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid token",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User no longer exists",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 1
+                },
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 1
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "token"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.SendOTPRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.VerifyOTPRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "email"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_responses.UserResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "role_id": {
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_handlers_v1.BaseResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "boolean"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer access token issued by /auth/login or /auth/refresh.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

@@ -9,6 +9,7 @@ const (
 	LoggerCategoryMigration = "migration"
 	LoggerCategoryCORS      = "cors"
 	LoggerCategorySeeder    = "seeder"
+	LoggerCategoryCache     = "cache"
 
 	LoggerFile = "file"
 )

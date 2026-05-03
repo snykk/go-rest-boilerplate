@@ -1,7 +1,6 @@
 package seeders
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
@@ -15,7 +14,7 @@ func init() {
 	var err error
 	pass, err = helpers.GenerateHash("12345")
 	if err != nil {
-		logger.Panic(err.Error(), logrus.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
+		logger.Panic(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 	}
 
 	UserData = []records.Users{
