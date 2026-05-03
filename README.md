@@ -110,6 +110,9 @@ http://localhost:8080/swagger/index.html
 | POST | `/api/v1/auth/login` | - | Issue access + refresh token pair |
 | POST | `/api/v1/auth/refresh` | - | Rotate refresh, return new pair |
 | POST | `/api/v1/auth/logout` | - | Revoke refresh token |
+| PUT | `/api/v1/auth/password/change` | Bearer | Change password (requires current); revokes pre-existing refresh tokens |
+| POST | `/api/v1/auth/password/forgot` | - | Email a one-shot reset token (silent on unknown email) |
+| POST | `/api/v1/auth/password/reset` | - | Consume reset token, set new password |
 | GET | `/api/v1/users/me` | Bearer | Current user profile |
 | GET | `/health` | - | Liveness probe |
 | GET | `/ready` | - | Readiness — checks DB + Redis |
