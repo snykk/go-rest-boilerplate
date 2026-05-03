@@ -8,9 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
-	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	httpauth "github.com/snykk/go-rest-boilerplate/internal/http/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
+	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 // Handler serves user-domain endpoints. It calls into users.Usecase
@@ -34,14 +35,32 @@ func NewHandler(usecase users.Usecase) Handler {
 // @Failure      404  {object}  v1.BaseResponse  "User no longer exists"
 // @Router       /users/me [get]
 func (h Handler) GetUserData(ctx *gin.Context) {
+	const (
+		controllerName = "users"
+		funcName       = "GetUserData"
+		fileName       = "users.handler.go"
+	)
 	user, err := httpauth.CurrentUserFromContext(ctx)
 	if err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "GetUserData: not authenticated", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+		})
 		v1.NewErrorResponse(ctx, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	userDom, err := h.usecase.GetByEmail(ctx.Request.Context(), user.Email)
 	if err != nil {
+		logger.ErrorWithContext(ctx.Request.Context(), "GetUserData failed in controller", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"email":      user.Email,
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}

@@ -6,9 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
+	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/audit"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
@@ -18,7 +19,7 @@ import (
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request  body      requests.UserVerifOTPRequest  true  "Email + OTP code"
+// @Param        request  body      requests.VerifyOTPRequest  true  "Email + OTP code"
 // @Success      200      {object}  v1.BaseResponse  "Account activated"
 // @Failure      400      {object}  v1.BaseResponse  "Invalid OTP code"
 // @Failure      403      {object}  v1.BaseResponse  "Locked out — too many invalid attempts"
@@ -26,12 +27,33 @@ import (
 // @Failure      422      {object}  v1.BaseResponse  "Validation error"
 // @Router       /auth/verify-otp [post]
 func (h Handler) VerifyOTP(ctx *gin.Context) {
-	var req requests.UserVerifOTPRequest
+	const (
+		controllerName = "auth"
+		funcName       = "VerifyOTP"
+		fileName       = "auth.verify_otp.go"
+	)
+	var req requests.VerifyOTPRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "VerifyOTP: invalid request body", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+		})
 		v1.NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := validators.ValidatePayloads(req); err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "VerifyOTP: validation error", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"request": logger.Fields{
+				"email":    req.Email,
+				"has_code": req.Code != "",
+			},
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}
@@ -49,6 +71,13 @@ func (h Handler) VerifyOTP(ctx *gin.Context) {
 			ev.Type = audit.EventOTPVerifyFail
 		}
 		audit.Record(ev)
+		logger.ErrorWithContext(ctx.Request.Context(), "VerifyOTP failed in controller", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"email":      req.Email,
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}

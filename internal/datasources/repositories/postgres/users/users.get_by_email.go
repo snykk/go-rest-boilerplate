@@ -8,9 +8,16 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *domain.User) (outDomain domain.User, err error) {
+	const (
+		repositoryName = "users"
+		funcName       = "GetByEmail"
+		queryName      = "selectUserByEmail"
+		fileName       = "users.get_by_email.go"
+	)
 	userRecord := records.FromUsersV1Domain(inDom)
 
 	// Exclude soft-deleted rows — the schema keeps a deleted_at column
@@ -21,6 +28,15 @@ func (r *postgreUserRepository) GetByEmail(ctx context.Context, inDom *domain.Us
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.User{}, apperror.NotFound("user not found")
 		}
+		logger.ErrorWithContext(ctx, "Failed to query user by email", logger.Fields{
+			"repository": repositoryName,
+			"method":     funcName,
+			"query":      queryName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"table":      "users",
+			"email":      userRecord.Email,
+		})
 		return domain.User{}, err
 	}
 

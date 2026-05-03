@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
-	repointerface "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/interface"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/records"
+	repointerface "github.com/snykk/go-rest-boilerplate/internal/datasources/repositories/interface"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 // hardLimit caps List page size so a misbehaving caller can't pull
@@ -16,6 +17,12 @@ import (
 const hardLimit = 200
 
 func (r *postgreUserRepository) List(ctx context.Context, filter repointerface.UserListFilter, offset, limit int) ([]domain.User, error) {
+	const (
+		repositoryName = "users"
+		funcName       = "List"
+		queryName      = "selectUsersList"
+		fileName       = "users.list.go"
+	)
 	if limit <= 0 || limit > hardLimit {
 		limit = hardLimit
 	}
@@ -52,6 +59,16 @@ func (r *postgreUserRepository) List(ctx context.Context, filter repointerface.U
 
 	var rows []records.Users
 	if err := r.conn.SelectContext(ctx, &rows, query, args...); err != nil {
+		logger.ErrorWithContext(ctx, "Failed to list users", logger.Fields{
+			"repository": repositoryName,
+			"method":     funcName,
+			"query":      queryName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"table":      "users",
+			"limit":      limit,
+			"offset":     offset,
+		})
 		return nil, err
 	}
 	out := make([]domain.User, 0, len(rows))

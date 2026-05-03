@@ -5,9 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	httpauth "github.com/snykk/go-rest-boilerplate/internal/http/auth"
-	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
+	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/audit"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
@@ -25,17 +26,45 @@ import (
 // @Failure      422  {object}  v1.BaseResponse  "Validation error"
 // @Router       /auth/password/change [put]
 func (h Handler) ChangePassword(ctx *gin.Context) {
+	const (
+		controllerName = "auth"
+		funcName       = "ChangePassword"
+		fileName       = "auth.change_password.go"
+	)
 	current, err := httpauth.CurrentUserFromContext(ctx)
 	if err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "ChangePassword: not authenticated", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+		})
 		v1.NewErrorResponse(ctx, http.StatusUnauthorized, err.Error())
 		return
 	}
 	var req requests.ChangePasswordRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "ChangePassword: invalid request body", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+		})
 		v1.NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := validators.ValidatePayloads(req); err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "ChangePassword: validation error", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"request": logger.Fields{
+				"user_id":              current.ID,
+				"has_current_password": req.CurrentPassword != "",
+				"has_new_password":     req.NewPassword != "",
+			},
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}
@@ -47,6 +76,13 @@ func (h Handler) ChangePassword(ctx *gin.Context) {
 		ev.Email = current.Email
 		ev.Reason = err.Error()
 		audit.Record(ev)
+		logger.ErrorWithContext(ctx.Request.Context(), "ChangePassword failed in controller", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"user_id":    current.ID,
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}

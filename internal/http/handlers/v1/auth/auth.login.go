@@ -4,10 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
+	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/audit"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 )
 
@@ -17,7 +18,7 @@ import (
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request  body      requests.UserLoginRequest  true  "Login credentials"
+// @Param        request  body      requests.LoginRequest  true  "Login credentials"
 // @Success      200      {object}  v1.BaseResponse{data=responses.UserResponse}  "Tokens issued"
 // @Failure      400      {object}  v1.BaseResponse                                "Malformed JSON body"
 // @Failure      401      {object}  v1.BaseResponse                                "Invalid email or password"
@@ -25,12 +26,33 @@ import (
 // @Failure      422      {object}  v1.BaseResponse                                "Validation error"
 // @Router       /auth/login [post]
 func (h Handler) Login(ctx *gin.Context) {
-	var req requests.UserLoginRequest
+	const (
+		controllerName = "auth"
+		funcName       = "Login"
+		fileName       = "auth.login.go"
+	)
+	var req requests.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "Login: invalid request body", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+		})
 		v1.NewErrorResponse(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := validators.ValidatePayloads(req); err != nil {
+		logger.WarnWithContext(ctx.Request.Context(), "Login: validation error", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"request": logger.Fields{
+				"email":        req.Email,
+				"has_password": req.Password != "",
+			},
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}
@@ -42,6 +64,13 @@ func (h Handler) Login(ctx *gin.Context) {
 		ev.Email = req.Email
 		ev.Reason = err.Error()
 		audit.Record(ev)
+		logger.ErrorWithContext(ctx.Request.Context(), "Login failed in controller", logger.Fields{
+			"controller": controllerName,
+			"method":     funcName,
+			"file":       fileName,
+			"error":      err.Error(),
+			"email":      req.Email,
+		})
 		v1.RespondWithError(ctx, err)
 		return
 	}

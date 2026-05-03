@@ -43,7 +43,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserLoginRequest"
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.LoginRequest"
                         }
                     }
                 ],
@@ -113,7 +113,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserRefreshRequest"
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest"
                         }
                     }
                 ],
@@ -314,7 +314,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserRefreshRequest"
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest"
                         }
                     }
                 ],
@@ -378,7 +378,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserRequest"
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RegisterRequest"
                         }
                     }
                 ],
@@ -448,7 +448,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserSendOTPRequest"
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.SendOTPRequest"
                         }
                     }
                 ],
@@ -506,7 +506,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserVerifOTPRequest"
+                            "$ref": "#/definitions/github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.VerifyOTPRequest"
                         }
                     }
                 ],
@@ -626,24 +626,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest": {
-            "type": "object",
-            "required": [
-                "new_password",
-                "token"
-            ],
-            "properties": {
-                "new_password": {
-                    "type": "string",
-                    "maxLength": 72,
-                    "minLength": 8
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserLoginRequest": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -661,7 +644,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserRefreshRequest": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RefreshRequest": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -672,7 +655,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserRequest": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -696,7 +679,24 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserSendOTPRequest": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "token"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.SendOTPRequest": {
             "type": "object",
             "required": [
                 "email"
@@ -708,7 +708,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.UserVerifOTPRequest": {
+        "github_com_snykk_go-rest-boilerplate_internal_http_datatransfers_requests.VerifyOTPRequest": {
             "type": "object",
             "required": [
                 "code",
