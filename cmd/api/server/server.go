@@ -176,18 +176,18 @@ func (a *App) Run() (err error) {
 	// in-flight OTP emails still get delivered.
 	if a.asyncMailer != nil {
 		if err := a.asyncMailer.Shutdown(ctx); err != nil {
-			srvLog.Infof("mailer shutdown incomplete: %v", err)
+			srvLog.Errorf("mailer shutdown incomplete: %v", err)
 		}
 	}
 
 	// close database connection
 	if err := a.db.Close(); err != nil {
-		srvLog.Infof("error closing database: %v", err)
+		srvLog.Errorf("error closing database: %v", err)
 	}
 
 	// close redis connection
 	if err := a.redisCache.Close(); err != nil {
-		srvLog.Infof("error closing redis: %v", err)
+		srvLog.Errorf("error closing redis: %v", err)
 	}
 
 	// flush any spans the batch exporter is still buffering — must run
@@ -195,7 +195,7 @@ func (a *App) Run() (err error) {
 	// process exits, otherwise the tail end of in-flight traces is lost.
 	if a.tracerShutdown != nil {
 		if err := a.tracerShutdown(ctx); err != nil {
-			srvLog.Infof("tracer shutdown incomplete: %v", err)
+			srvLog.Errorf("tracer shutdown incomplete: %v", err)
 		}
 	}
 
