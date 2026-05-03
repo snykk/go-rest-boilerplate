@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -14,13 +16,9 @@ func TestRegister(t *testing.T) {
 	stored := domain.User{ID: "u-1", Email: "x@y.com"}
 
 	tests := []struct {
-		name  string
-		in    *domain.User
-		setup func(f *fixture)
-		// Register currently has only a single behaviour: pass-through
-		// to users.Store. Kept table-shaped for parity with the rest of
-		// the package — adding new cases (e.g. validation, mapping)
-		// just appends a struct entry instead of growing a new Test*.
+		name    string
+		in      *domain.User
+		setup   func(f *fixture)
 		wantOut domain.User
 	}{
 		{
@@ -29,8 +27,8 @@ func TestRegister(t *testing.T) {
 				Username: "x", Email: "x@y.com", Password: "Pwd_123!", RoleID: 2,
 			},
 			setup: func(f *fixture) {
-				f.users.On("Store", mock.Anything, mock.AnythingOfType("*domain.User")).
-					Return(stored, nil).Once()
+				f.users.On("Store", mock.Anything, mock.AnythingOfType("users.StoreRequest")).
+					Return(users.StoreResponse{User: stored}, nil).Once()
 			},
 			wantOut: stored,
 		},
@@ -41,9 +39,9 @@ func TestRegister(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			out, err := f.usecase.Register(context.Background(), tt.in)
+			out, err := f.usecase.Register(context.Background(), auth.RegisterRequest{User: tt.in})
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantOut, out)
+			assert.Equal(t, tt.wantOut, out.User)
 		})
 	}
 }

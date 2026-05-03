@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -57,7 +58,10 @@ func (h Handler) Login(ctx *gin.Context) {
 		return
 	}
 
-	result, err := h.usecase.Login(ctx.Request.Context(), req.Email, req.Password)
+	result, err := h.usecase.Login(ctx.Request.Context(), authuc.LoginRequest{
+		Email:    req.Email,
+		Password: req.Password,
+	})
 	if err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventLoginFailure
@@ -82,5 +86,5 @@ func (h Handler) Login(ctx *gin.Context) {
 	ev.Email = result.User.Email
 	audit.Record(ev)
 
-	v1.NewSuccessResponse(ctx, http.StatusOK, "login success", responses.FromLoginResult(result))
+	v1.NewSuccessResponse(ctx, http.StatusOK, "login success", responses.FromLoginResponse(result))
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -15,13 +16,16 @@ import (
 // verifying the current one. The new PasswordChangedAt timestamp acts
 // as a revocation cutoff — refresh tokens issued before it are
 // rejected on /refresh.
-func (uc *usecase) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) (err error) {
+func (uc *usecase) ChangePassword(ctx context.Context, req ChangePasswordRequest) (err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "ChangePassword"
 		fileName    = "auth.change_password.go"
 	)
 	startTime := time.Now()
+	userID := req.UserID
+	currentPassword := req.CurrentPassword
+	newPassword := req.NewPassword
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -57,7 +61,7 @@ func (uc *usecase) ChangePassword(ctx context.Context, userID, currentPassword, 
 		})
 		return err
 	}
-	user, lookupErr := uc.users.GetByID(ctx, userID)
+	lookupResp, lookupErr := uc.users.GetByID(ctx, users.GetByIDRequest{ID: userID})
 	if lookupErr != nil {
 		err = lookupErr
 		logger.ErrorWithContext(ctx, "Change password failed: user lookup error", logger.Fields{
@@ -70,6 +74,7 @@ func (uc *usecase) ChangePassword(ctx context.Context, userID, currentPassword, 
 		})
 		return err
 	}
+	user := lookupResp.User
 	if !user.VerifyPassword(currentPassword) {
 		err = apperror.Unauthorized("current password is incorrect")
 		logger.ErrorWithContext(ctx, "Change password failed: invalid current password", logger.Fields{
@@ -98,7 +103,7 @@ func (uc *usecase) ChangePassword(ctx context.Context, userID, currentPassword, 
 		})
 		return err
 	}
-	if updateErr := uc.users.UpdatePassword(ctx, &user); updateErr != nil {
+	if updateErr := uc.users.UpdatePassword(ctx, users.UpdatePasswordRequest{User: &user}); updateErr != nil {
 		err = updateErr
 		logger.ErrorWithContext(ctx, "Change password failed: update error", logger.Fields{
 			"usecase": usecaseName,

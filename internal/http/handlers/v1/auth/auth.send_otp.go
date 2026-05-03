@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/audit"
@@ -56,7 +57,7 @@ func (h Handler) SendOTP(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.usecase.SendOTP(ctx.Request.Context(), req.Email); err != nil {
+	if err := h.usecase.SendOTP(ctx.Request.Context(), authuc.SendOTPRequest{Email: req.Email}); err != nil {
 		logger.ErrorWithContext(ctx.Request.Context(), "SendOTP failed in controller", logger.Fields{
 			"controller": controllerName,
 			"method":     funcName,

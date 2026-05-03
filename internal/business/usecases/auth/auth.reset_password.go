@@ -8,19 +8,22 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 // ResetPassword consumes a one-shot reset token (from ForgotPassword)
 // and replaces the user's password. The token is deleted on success
 // so it can't be replayed.
-func (uc *usecase) ResetPassword(ctx context.Context, token, newPassword string) (err error) {
+func (uc *usecase) ResetPassword(ctx context.Context, req ResetPasswordRequest) (err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "ResetPassword"
 		fileName    = "auth.reset_password.go"
 	)
 	startTime := time.Now()
+	token := req.Token
+	newPassword := req.NewPassword
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -83,7 +86,7 @@ func (uc *usecase) ResetPassword(ctx context.Context, token, newPassword string)
 		return err
 	}
 
-	user, lookupErr := uc.users.GetByID(ctx, userID)
+	lookupResp, lookupErr := uc.users.GetByID(ctx, users.GetByIDRequest{ID: userID})
 	if lookupErr != nil {
 		err = lookupErr
 		logger.ErrorWithContext(ctx, "Reset password failed: user lookup error", logger.Fields{
@@ -96,6 +99,7 @@ func (uc *usecase) ResetPassword(ctx context.Context, token, newPassword string)
 		})
 		return err
 	}
+	user := lookupResp.User
 	if hashErr := user.ChangePassword(newPassword, uc.cfg.BcryptCost); hashErr != nil {
 		if errors.Is(hashErr, domain.ErrEmptyPassword) {
 			err = apperror.BadRequest(hashErr.Error())
@@ -112,7 +116,7 @@ func (uc *usecase) ResetPassword(ctx context.Context, token, newPassword string)
 		})
 		return err
 	}
-	if updateErr := uc.users.UpdatePassword(ctx, &user); updateErr != nil {
+	if updateErr := uc.users.UpdatePassword(ctx, users.UpdatePasswordRequest{User: &user}); updateErr != nil {
 		err = updateErr
 		logger.ErrorWithContext(ctx, "Reset password failed: update error", logger.Fields{
 			"usecase": usecaseName,
@@ -124,9 +128,6 @@ func (uc *usecase) ResetPassword(ctx context.Context, token, newPassword string)
 		})
 		return err
 	}
-	// Best-effort delete; if Redis del fails the token is still
-	// invalid because PasswordChangedAt has advanced (Refresh path
-	// uses that as the revocation cutoff).
 	_ = uc.redisCache.Del(ctx, resetKey(token))
 	return nil
 }

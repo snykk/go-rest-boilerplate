@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -14,7 +13,7 @@ import (
 // timestamp on the supplied user. Caller is expected to invoke
 // domain.User.ChangePassword first to populate Password +
 // PasswordChangedAt + UpdatedAt before calling this.
-func (uc *usecase) UpdatePassword(ctx context.Context, user *domain.User) (err error) {
+func (uc *usecase) UpdatePassword(ctx context.Context, req UpdatePasswordRequest) (err error) {
 	const (
 		usecaseName = "users"
 		funcName    = "UpdatePassword"
@@ -23,8 +22,8 @@ func (uc *usecase) UpdatePassword(ctx context.Context, user *domain.User) (err e
 	startTime := time.Now()
 
 	var userID string
-	if user != nil {
-		userID = user.ID
+	if req.User != nil {
+		userID = req.User.ID
 	}
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -46,7 +45,7 @@ func (uc *usecase) UpdatePassword(ctx context.Context, user *domain.User) (err e
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
-	if user == nil || user.ID == "" {
+	if req.User == nil || req.User.ID == "" {
 		err = apperror.BadRequest("user id required")
 		logger.ErrorWithContext(ctx, "Update password failed: missing user id", logger.Fields{
 			"usecase": usecaseName,
@@ -57,25 +56,23 @@ func (uc *usecase) UpdatePassword(ctx context.Context, user *domain.User) (err e
 		})
 		return err
 	}
-	if repoErr := uc.repo.UpdatePassword(ctx, user); repoErr != nil {
-		err = mapRepoError(repoErr, fmt.Sprintf("update password for %s", user.ID))
+	if repoErr := uc.repo.UpdatePassword(ctx, req.User); repoErr != nil {
+		err = mapRepoError(repoErr, fmt.Sprintf("update password for %s", req.User.ID))
 		logger.ErrorWithContext(ctx, "Update password failed: repository error", logger.Fields{
 			"usecase": usecaseName,
 			"method":  funcName,
 			"file":    fileName,
 			"step":    "repo_update_password",
 			"error":   repoErr.Error(),
-			"user_id": user.ID,
+			"user_id": req.User.ID,
 		})
 		return err
 	}
 	// Invalidate the email-keyed ristretto entry so the next Login
-	// doesn't read the stale (old-hash) cached user. We need the
-	// email; if the caller didn't populate it on the User struct
-	// (just userID + new password), fetch it from the repo.
-	email := user.Email
+	// doesn't read the stale (old-hash) cached user.
+	email := req.User.Email
 	if email == "" {
-		if existing, getErr := uc.repo.GetByID(ctx, user.ID); getErr == nil {
+		if existing, getErr := uc.repo.GetByID(ctx, req.User.ID); getErr == nil {
 			email = existing.Email
 		}
 	}

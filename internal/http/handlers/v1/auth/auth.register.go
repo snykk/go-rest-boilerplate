@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -58,7 +59,8 @@ func (h Handler) Register(ctx *gin.Context) {
 		return
 	}
 
-	user, err := h.usecase.Register(ctx.Request.Context(), req.ToV1Domain())
+	regResp, err := h.usecase.Register(ctx.Request.Context(), authuc.RegisterRequest{User: req.ToV1Domain()})
+	user := regResp.User
 	if err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventRegister

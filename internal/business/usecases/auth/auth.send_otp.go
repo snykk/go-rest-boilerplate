@@ -7,6 +7,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
@@ -15,14 +16,14 @@ import (
 // SendOTP generates a 6-digit code, stores it in Redis with TTL, and
 // enqueues the email via the async mailer. The HTTP response returns
 // on enqueue, not on actual SMTP delivery.
-func (uc *usecase) SendOTP(ctx context.Context, email string) (err error) {
+func (uc *usecase) SendOTP(ctx context.Context, req SendOTPRequest) (err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "SendOTP"
 		fileName    = "auth.send_otp.go"
 	)
 	startTime := time.Now()
-	email = domain.NormalizeEmail(email)
+	email := domain.NormalizeEmail(req.Email)
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -44,7 +45,7 @@ func (uc *usecase) SendOTP(ctx context.Context, email string) (err error) {
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
-	user, lookupErr := uc.users.GetByEmail(ctx, email)
+	lookupResp, lookupErr := uc.users.GetByEmail(ctx, users.GetByEmailRequest{Email: email})
 	if lookupErr != nil {
 		err = apperror.NotFound("email not found")
 		logger.ErrorWithContext(ctx, "Send OTP failed: user lookup error", logger.Fields{
@@ -57,6 +58,7 @@ func (uc *usecase) SendOTP(ctx context.Context, email string) (err error) {
 		})
 		return err
 	}
+	user := lookupResp.User
 
 	if user.Active {
 		err = apperror.BadRequest("account already activated")
@@ -99,7 +101,6 @@ func (uc *usecase) SendOTP(ctx context.Context, email string) (err error) {
 		return err
 	}
 
-	// store OTP code in Redis and reset failed-attempt counter
 	otpKey := fmt.Sprintf("user_otp:%s", email)
 	if cacheErr := uc.redisCache.Set(ctx, otpKey, code); cacheErr != nil {
 		observability.ObserveCacheOp("redis", "set", "error")

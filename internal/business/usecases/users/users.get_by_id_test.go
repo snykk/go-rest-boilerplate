@@ -7,6 +7,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -63,12 +64,12 @@ func TestGetByID(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			out, err := f.usecase.GetByID(context.Background(), tt.inputID)
+			out, err := f.usecase.GetByID(context.Background(), users.GetByIDRequest{ID: tt.inputID})
 
 			if !tt.wantErr {
 				require.NoError(t, err)
 				if tt.wantUser.ID != "" {
-					assert.Equal(t, tt.wantUser, out)
+					assert.Equal(t, tt.wantUser, out.User)
 				}
 				return
 			}

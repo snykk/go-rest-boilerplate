@@ -14,7 +14,7 @@ import (
 // is the auth context's VerifyOTP flow. Lives in the User bounded
 // context (not Auth) because flipping `active` is an operation on the
 // user record, regardless of what triggered it.
-func (uc *usecase) Activate(ctx context.Context, userID string) (err error) {
+func (uc *usecase) Activate(ctx context.Context, req ActivateRequest) (err error) {
 	const (
 		usecaseName = "users"
 		funcName    = "Activate"
@@ -27,7 +27,7 @@ func (uc *usecase) Activate(ctx context.Context, userID string) (err error) {
 		"method":  funcName,
 		"file":    fileName,
 		"request": logger.Fields{
-			"user_id": userID,
+			"user_id": req.UserID,
 		},
 	})
 
@@ -42,8 +42,8 @@ func (uc *usecase) Activate(ctx context.Context, userID string) (err error) {
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
-	u := &domain.User{ID: userID}
-	u.Activate() // domain method: sets Active=true and stamps UpdatedAt
+	u := &domain.User{ID: req.UserID}
+	u.Activate()
 	if changeErr := uc.repo.ChangeActiveUser(ctx, u); changeErr != nil {
 		err = apperror.InternalCause(fmt.Errorf("activate user: %w", changeErr))
 		logger.ErrorWithContext(ctx, "Activate user failed: repository error", logger.Fields{
@@ -52,14 +52,14 @@ func (uc *usecase) Activate(ctx context.Context, userID string) (err error) {
 			"file":    fileName,
 			"step":    "repo_change_active_user",
 			"error":   changeErr.Error(),
-			"user_id": userID,
+			"user_id": req.UserID,
 		})
 		return err
 	}
 	// Invalidate the ristretto cache so the next Login doesn't read
 	// the stale (Active=false) entry that GetByEmail populated during
 	// the OTP flow.
-	if existing, getErr := uc.repo.GetByID(ctx, userID); getErr == nil && existing.Email != "" {
+	if existing, getErr := uc.repo.GetByID(ctx, req.UserID); getErr == nil && existing.Email != "" {
 		uc.ristrettoCache.Del(fmt.Sprintf("user/%s", existing.Email))
 	}
 	return nil

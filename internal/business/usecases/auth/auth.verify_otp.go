@@ -8,6 +8,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 )
@@ -16,22 +17,23 @@ import (
 // per-email attempt counter, and activates the account on success.
 // Lockout fires after Config.OTPMaxAttempts failures — even with the
 // correct code, to defeat brute force on the 1M-combination keyspace.
-func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err error) {
+func (uc *usecase) VerifyOTP(ctx context.Context, req VerifyOTPRequest) (err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "VerifyOTP"
 		fileName    = "auth.verify_otp.go"
 	)
 	startTime := time.Now()
-	email = domain.NormalizeEmail(email)
+	email := domain.NormalizeEmail(req.Email)
+	otpCode := req.OTPCode
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
 		"method":  funcName,
 		"file":    fileName,
 		"request": logger.Fields{
-			"email":         email,
-			"has_otp_code":  otpCode != "",
+			"email":        email,
+			"has_otp_code": otpCode != "",
 		},
 	})
 
@@ -46,7 +48,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err er
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
-	user, lookupErr := uc.users.GetByEmail(ctx, email)
+	lookupResp, lookupErr := uc.users.GetByEmail(ctx, users.GetByEmailRequest{Email: email})
 	if lookupErr != nil {
 		err = apperror.NotFound("email not found")
 		logger.ErrorWithContext(ctx, "Verify OTP failed: user lookup error", logger.Fields{
@@ -59,6 +61,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err er
 		})
 		return err
 	}
+	user := lookupResp.User
 
 	if user.Active {
 		err = apperror.BadRequest("account already activated")
@@ -73,8 +76,6 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err er
 		return err
 	}
 
-	// Brute-force guard. The counter shares the OTP TTL so it
-	// resets cleanly on a new SendOTP cycle.
 	attemptsKey := otpAttemptsKey(email)
 	attempts, incrErr := uc.redisCache.Incr(ctx, attemptsKey)
 	if incrErr != nil {
@@ -87,7 +88,6 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err er
 			"email":   email,
 		})
 	} else if attempts == 1 {
-		// First attempt in this window — set expiry to match OTP TTL.
 		_ = uc.redisCache.Expire(ctx, attemptsKey, uc.cfg.OTPTTL)
 	}
 	if attempts > int64(uc.cfg.OTPMaxAttempts) {
@@ -135,9 +135,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err er
 		return err
 	}
 
-	// Activate via the User bounded context — auth doesn't touch
-	// the user repository directly.
-	if activateErr := uc.users.Activate(ctx, user.ID); activateErr != nil {
+	if activateErr := uc.users.Activate(ctx, users.ActivateRequest{UserID: user.ID}); activateErr != nil {
 		err = activateErr
 		logger.ErrorWithContext(ctx, "Verify OTP failed: activate error", logger.Fields{
 			"usecase": usecaseName,
@@ -150,7 +148,6 @@ func (uc *usecase) VerifyOTP(ctx context.Context, email, otpCode string) (err er
 		return err
 	}
 
-	// cleanup caches
 	if delErr := uc.redisCache.Del(ctx, otpKey); delErr != nil {
 		logger.ErrorWithContext(ctx, "Verify OTP: failed to delete OTP cache (non-fatal)", logger.Fields{
 			"usecase": usecaseName,

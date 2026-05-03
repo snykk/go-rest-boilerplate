@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	httpauth "github.com/snykk/go-rest-boilerplate/internal/http/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -69,7 +70,11 @@ func (h Handler) ChangePassword(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.usecase.ChangePassword(ctx.Request.Context(), current.ID, req.CurrentPassword, req.NewPassword); err != nil {
+	if err := h.usecase.ChangePassword(ctx.Request.Context(), authuc.ChangePasswordRequest{
+		UserID:          current.ID,
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+	}); err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventPasswordChangeFail
 		ev.UserID = current.ID

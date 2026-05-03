@@ -10,6 +10,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -22,14 +23,14 @@ func resetKey(token string) string { return fmt.Sprintf("pwd_reset:%s", token) }
 // ForgotPassword issues a one-shot reset token, persists it in Redis
 // with TTL, and emails it to the user. To defeat email enumeration
 // the response is identical whether the email exists or not.
-func (uc *usecase) ForgotPassword(ctx context.Context, email string) (err error) {
+func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest) (err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "ForgotPassword"
 		fileName    = "auth.forgot_password.go"
 	)
 	startTime := time.Now()
-	email = domain.NormalizeEmail(email)
+	email := domain.NormalizeEmail(req.Email)
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -51,10 +52,6 @@ func (uc *usecase) ForgotPassword(ctx context.Context, email string) (err error)
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
-	// Per-email rate limit. Counter increments before lookup so even
-	// unknown emails count toward the cap — otherwise an attacker can
-	// pin a single registered email forever by alternating with
-	// junk addresses.
 	if uc.cfg.ForgotMaxAttempts > 0 {
 		key := forgotAttemptsKey(email)
 		attempts, incrErr := uc.redisCache.Incr(ctx, key)
@@ -85,10 +82,8 @@ func (uc *usecase) ForgotPassword(ctx context.Context, email string) (err error)
 		}
 	}
 
-	user, lookupErr := uc.users.GetByEmail(ctx, email)
+	lookupResp, lookupErr := uc.users.GetByEmail(ctx, users.GetByEmailRequest{Email: email})
 	if lookupErr != nil {
-		// Swallow NotFound silently to avoid leaking which emails
-		// have accounts. Real infra failures still bubble up.
 		var domErr *apperror.DomainError
 		if errors.As(lookupErr, &domErr) && domErr.Type == apperror.ErrTypeNotFound {
 			return nil
@@ -104,6 +99,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, email string) (err error)
 		})
 		return err
 	}
+	user := lookupResp.User
 
 	token, tokenErr := generateResetToken()
 	if tokenErr != nil {
@@ -132,7 +128,6 @@ func (uc *usecase) ForgotPassword(ctx context.Context, email string) (err error)
 		return err
 	}
 	if expireErr := uc.redisCache.Expire(ctx, resetKey(token), uc.cfg.PasswordResetTTL); expireErr != nil {
-		// Non-fatal: token still works, just won't auto-expire.
 		logger.ErrorWithContext(ctx, "Forgot password: failed to set TTL on reset token (non-fatal)", logger.Fields{
 			"usecase": usecaseName,
 			"method":  funcName,

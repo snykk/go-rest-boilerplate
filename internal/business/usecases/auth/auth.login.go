@@ -7,6 +7,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/helpers"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
@@ -20,14 +21,15 @@ import (
 // Config.LoginMaxAttempts within Config.LoginLockoutTTL the email is
 // locked out — defeats slow distributed brute-force that per-IP rate
 // limiting can't detect.
-func (uc *usecase) Login(ctx context.Context, email, password string) (out LoginResult, err error) {
+func (uc *usecase) Login(ctx context.Context, req LoginRequest) (resp LoginResponse, err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "Login"
 		fileName    = "auth.login.go"
 	)
 	startTime := time.Now()
-	email = domain.NormalizeEmail(email)
+	email := domain.NormalizeEmail(req.Email)
+	password := req.Password
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -47,7 +49,7 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 			"duration": duration.Milliseconds(),
 		}
 		if err == nil {
-			fields["response"] = logger.Fields{"user_id": out.User.ID}
+			fields["response"] = logger.Fields{"user_id": resp.User.ID}
 		}
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
@@ -82,11 +84,11 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 				"email":    email,
 				"attempts": attempts,
 			})
-			return LoginResult{}, err
+			return LoginResponse{}, err
 		}
 	}
 
-	user, lookupErr := uc.users.GetByEmail(ctx, email)
+	lookupResp, lookupErr := uc.users.GetByEmail(ctx, users.GetByEmailRequest{Email: email})
 	if lookupErr != nil {
 		// Run a dummy bcrypt comparison so this path takes roughly
 		// the same wall-clock time as a real password check.
@@ -100,8 +102,9 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 			"error":   lookupErr.Error(),
 			"email":   email,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
+	user := lookupResp.User
 
 	if !user.Active {
 		err = apperror.Forbidden("account is not activated")
@@ -113,7 +116,7 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 			"error":   err.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	if !user.VerifyPassword(password) {
@@ -126,7 +129,7 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 			"error":   err.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	pair, mintErr := uc.jwtService.GenerateTokenPair(user.ID, user.IsAdmin(), user.Email)
@@ -140,7 +143,7 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 			"error":   mintErr.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	if persistErr := uc.rememberRefresh(ctx, pair); persistErr != nil {
@@ -153,17 +156,17 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 			"error":   persistErr.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	// Success — clear the failure counter so the next legitimate
 	// session doesn't start with a stale count.
 	_ = uc.redisCache.Del(ctx, attemptsKey)
 
-	out = LoginResult{
+	resp = LoginResponse{
 		User:         user,
 		AccessToken:  pair.AccessToken,
 		RefreshToken: pair.RefreshToken,
 	}
-	return out, nil
+	return resp, nil
 }

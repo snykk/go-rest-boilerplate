@@ -7,6 +7,7 @@ import (
 
 	golangJWT "github.com/golang-jwt/jwt/v5"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -52,7 +53,7 @@ func TestLogout(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			err := f.usecase.Logout(context.Background(), tt.token)
+			err := f.usecase.Logout(context.Background(), auth.LogoutRequest{RefreshToken: tt.token})
 
 			if !tt.wantErr {
 				require.NoError(t, err)

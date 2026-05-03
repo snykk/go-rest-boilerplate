@@ -43,10 +43,10 @@ func FromV1Domain(u domain.User) UserResponse {
 	}
 }
 
-// FromLoginResult is the /login + /refresh response shape: the user
+// FromLoginResponse is the /login + /refresh response shape: the user
 // fields are the same as FromV1Domain, plus the freshly-minted token
 // pair from the auth flow.
-func FromLoginResult(r auth.LoginResult) UserResponse {
+func FromLoginResponse(r auth.LoginResponse) UserResponse {
 	resp := FromV1Domain(r.User)
 	resp.Token = r.AccessToken
 	resp.RefreshToken = r.RefreshToken

@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func TestForgotPassword(t *testing.T) {
 			setup: func(f *fixture) {
 				f.redis.On("Incr", mock.Anything, "forgot_attempts:patrick@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "forgot_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(activeUser(t), nil).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).Return(users.GetByEmailResponse{User: activeUser(t)}, nil).Once()
 				f.redis.On("Set", mock.Anything, mock.MatchedBy(func(k string) bool {
 					return len(k) > len("pwd_reset:") && k[:len("pwd_reset:")] == "pwd_reset:"
 				}), "user-1").Return(nil).Once()
@@ -43,8 +44,8 @@ func TestForgotPassword(t *testing.T) {
 			setup: func(f *fixture) {
 				f.redis.On("Incr", mock.Anything, "forgot_attempts:ghost@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "forgot_attempts:ghost@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "ghost@example.com").
-					Return(domain.User{}, apperror.NotFound("email not found")).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "ghost@example.com"}).
+					Return(users.GetByEmailResponse{},apperror.NotFound("email not found")).Once()
 			},
 		},
 		{
@@ -63,8 +64,8 @@ func TestForgotPassword(t *testing.T) {
 			setup: func(f *fixture) {
 				f.redis.On("Incr", mock.Anything, "forgot_attempts:patrick@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "forgot_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").
-					Return(domain.User{}, apperror.InternalCause(errors.New("redis down"))).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).
+					Return(users.GetByEmailResponse{},apperror.InternalCause(errors.New("redis down"))).Once()
 			},
 			wantErr: true,
 		},
@@ -74,7 +75,7 @@ func TestForgotPassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
-			err := f.usecase.ForgotPassword(context.Background(), tt.email)
+			err := f.usecase.ForgotPassword(context.Background(), auth.ForgotPasswordRequest{Email: tt.email})
 			if !tt.wantErr {
 				require.NoError(t, err)
 				return

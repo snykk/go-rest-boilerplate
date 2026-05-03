@@ -14,14 +14,14 @@ import (
 // (Ristretto) cache is consulted first; on miss, concurrent goroutines
 // share a single DB round-trip via singleflight to prevent a
 // thundering herd against Postgres.
-func (uc *usecase) GetByEmail(ctx context.Context, email string) (out domain.User, err error) {
+func (uc *usecase) GetByEmail(ctx context.Context, req GetByEmailRequest) (resp GetByEmailResponse, err error) {
 	const (
 		usecaseName = "users"
 		funcName    = "GetByEmail"
 		fileName    = "users.get_by_email.go"
 	)
 	startTime := time.Now()
-	email = domain.NormalizeEmail(email)
+	email := domain.NormalizeEmail(req.Email)
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -41,7 +41,7 @@ func (uc *usecase) GetByEmail(ctx context.Context, email string) (out domain.Use
 			"duration": duration.Milliseconds(),
 		}
 		if err == nil {
-			fields["response"] = logger.Fields{"user_id": out.ID}
+			fields["response"] = logger.Fields{"user_id": resp.User.ID}
 		}
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
@@ -50,8 +50,8 @@ func (uc *usecase) GetByEmail(ctx context.Context, email string) (out domain.Use
 	if val := uc.ristrettoCache.Get(cacheKey); val != nil {
 		if cached, ok := val.(domain.User); ok {
 			observability.ObserveCacheOp("ristretto", "get", "hit")
-			out = cached
-			return out, nil
+			resp = GetByEmailResponse{User: cached}
+			return resp, nil
 		}
 		observability.ObserveCacheOp("ristretto", "get", "error")
 		logger.WarnWithContext(ctx, "Get user by email: cache type assertion failed", logger.Fields{
@@ -85,8 +85,8 @@ func (uc *usecase) GetByEmail(ctx context.Context, email string) (out domain.Use
 			"error":   sfErr.Error(),
 			"email":   email,
 		})
-		return domain.User{}, err
+		return GetByEmailResponse{}, err
 	}
-	out = v.(domain.User)
-	return out, nil
+	resp = GetByEmailResponse{User: v.(domain.User)}
+	return resp, nil
 }

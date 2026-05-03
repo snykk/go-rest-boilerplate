@@ -7,6 +7,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -87,12 +88,12 @@ func TestGetByEmail(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			out, err := f.usecase.GetByEmail(context.Background(), tt.inputEmail)
+			out, err := f.usecase.GetByEmail(context.Background(), users.GetByEmailRequest{Email: tt.inputEmail})
 
 			if !tt.wantErr {
 				require.NoError(t, err)
 				if tt.wantUser.ID != "" {
-					assert.Equal(t, tt.wantUser, out)
+					assert.Equal(t, tt.wantUser, out.User)
 				}
 				return
 			}

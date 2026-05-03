@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -50,7 +51,7 @@ func TestLogin(t *testing.T) {
 				user := activeUser(t)
 				f.redis.On("Incr", mock.Anything, "login_attempts:patrick@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "login_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(user, nil).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).Return(users.GetByEmailResponse{User: user}, nil).Once()
 				f.jwt.On("GenerateTokenPair", user.ID, false, user.Email).Return(samplePair(), nil).Once()
 				f.redis.On("Set", mock.Anything, "refresh:refresh-jti", "refresh-jti").Return(nil).Once()
 				f.redis.On("Expire", mock.Anything, "refresh:refresh-jti", mock.AnythingOfType("time.Duration")).Return(nil).Once()
@@ -64,7 +65,7 @@ func TestLogin(t *testing.T) {
 			setup: func(f *fixture) {
 				f.redis.On("Incr", mock.Anything, "login_attempts:patrick@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "login_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(activeUser(t), nil).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).Return(users.GetByEmailResponse{User: activeUser(t)}, nil).Once()
 			},
 			wantErr:     true,
 			wantErrType: apperror.ErrTypeUnauthorized,
@@ -79,7 +80,7 @@ func TestLogin(t *testing.T) {
 				user.Active = false
 				f.redis.On("Incr", mock.Anything, "login_attempts:patrick@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "login_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(user, nil).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).Return(users.GetByEmailResponse{User: user}, nil).Once()
 			},
 			wantErr:     true,
 			wantErrType: apperror.ErrTypeForbidden,
@@ -91,8 +92,8 @@ func TestLogin(t *testing.T) {
 			setup: func(f *fixture) {
 				f.redis.On("Incr", mock.Anything, "login_attempts:ghost@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "login_attempts:ghost@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.users.On("GetByEmail", mock.Anything, "ghost@example.com").
-					Return(domain.User{}, apperror.NotFound("email not found")).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "ghost@example.com"}).
+					Return(users.GetByEmailResponse{}, apperror.NotFound("email not found")).Once()
 			},
 			wantErr:     true,
 			wantErrType: apperror.ErrTypeUnauthorized,
@@ -118,7 +119,7 @@ func TestLogin(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			out, err := f.usecase.Login(context.Background(), tt.email, tt.password)
+			out, err := f.usecase.Login(context.Background(), auth.LoginRequest{Email: tt.email, Password: tt.password})
 
 			if !tt.wantErr {
 				require.NoError(t, err)

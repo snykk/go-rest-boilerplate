@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/responses"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -55,7 +56,7 @@ func (h Handler) Refresh(ctx *gin.Context) {
 		return
 	}
 
-	result, err := h.usecase.Refresh(ctx.Request.Context(), req.RefreshToken)
+	result, err := h.usecase.Refresh(ctx.Request.Context(), authuc.RefreshRequest{RefreshToken: req.RefreshToken})
 	if err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventRefreshFail
@@ -78,5 +79,5 @@ func (h Handler) Refresh(ctx *gin.Context) {
 	ev.Email = result.User.Email
 	audit.Record(ev)
 
-	v1.NewSuccessResponse(ctx, http.StatusOK, "token refreshed", responses.FromLoginResult(result))
+	v1.NewSuccessResponse(ctx, http.StatusOK, "token refreshed", responses.FromLoginResponse(result))
 }

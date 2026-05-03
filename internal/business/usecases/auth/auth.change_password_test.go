@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
-	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,8 +29,9 @@ func TestChangePassword(t *testing.T) {
 			current:     "Pwd_123!",
 			newPassword: "Newpwd_999!",
 			setup: func(f *fixture) {
-				f.users.On("GetByID", mock.Anything, "user-1").Return(activeUser(t), nil).Once()
-				f.users.On("UpdatePassword", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+				f.users.On("GetByID", mock.Anything, users.GetByIDRequest{ID: "user-1"}).Return(users.GetByIDResponse{User: activeUser(t)}, nil).Once()
+				f.users.On("UpdatePassword", mock.Anything, mock.MatchedBy(func(req users.UpdatePasswordRequest) bool {
+					u := req.User
 					return u.ID == "user-1" && u.Password != "Newpwd_999!" && u.PasswordChangedAt != nil
 				})).Return(nil).Once()
 			},
@@ -40,7 +42,7 @@ func TestChangePassword(t *testing.T) {
 			current:     "wrong",
 			newPassword: "Newpwd_999!",
 			setup: func(f *fixture) {
-				f.users.On("GetByID", mock.Anything, "user-1").Return(activeUser(t), nil).Once()
+				f.users.On("GetByID", mock.Anything, users.GetByIDRequest{ID: "user-1"}).Return(users.GetByIDResponse{User: activeUser(t)}, nil).Once()
 			},
 			wantErr:     true,
 			wantErrType: apperror.ErrTypeUnauthorized,
@@ -60,7 +62,11 @@ func TestChangePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
-			err := f.usecase.ChangePassword(context.Background(), tt.userID, tt.current, tt.newPassword)
+			err := f.usecase.ChangePassword(context.Background(), auth.ChangePasswordRequest{
+				UserID:          tt.userID,
+				CurrentPassword: tt.current,
+				NewPassword:     tt.newPassword,
+			})
 			if !tt.wantErr {
 				require.NoError(t, err)
 				return

@@ -17,16 +17,17 @@ import (
 // single round-trip so the caller gets the database-generated ID
 // without a follow-up read.
 //
-// Note that the input *domain.User is treated as a DTO of registration
-// fields; we don't mutate it and we don't trust its hash/CreatedAt —
-// domain.NewUser is the only path that produces a valid User.
-func (uc *usecase) Store(ctx context.Context, in *domain.User) (out domain.User, err error) {
+// Note that req.User is treated as a DTO of registration fields; we
+// don't mutate it and we don't trust its hash/CreatedAt — domain.NewUser
+// is the only path that produces a valid User.
+func (uc *usecase) Store(ctx context.Context, req StoreRequest) (resp StoreResponse, err error) {
 	const (
 		usecaseName = "users"
 		funcName    = "Store"
 		fileName    = "users.store.go"
 	)
 	startTime := time.Now()
+	in := req.User
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -48,7 +49,7 @@ func (uc *usecase) Store(ctx context.Context, in *domain.User) (out domain.User,
 			"duration": duration.Milliseconds(),
 		}
 		if err == nil {
-			fields["response"] = logger.Fields{"user_id": out.ID, "email": out.Email}
+			fields["response"] = logger.Fields{"user_id": resp.User.ID, "email": resp.User.Email}
 		}
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
@@ -74,7 +75,7 @@ func (uc *usecase) Store(ctx context.Context, in *domain.User) (out domain.User,
 			"error":   buildErr.Error(),
 			"email":   in.Email,
 		})
-		return domain.User{}, err
+		return StoreResponse{}, err
 	}
 
 	stored, repoErr := uc.repo.Store(ctx, user)
@@ -88,8 +89,8 @@ func (uc *usecase) Store(ctx context.Context, in *domain.User) (out domain.User,
 			"error":   repoErr.Error(),
 			"email":   user.Email,
 		})
-		return domain.User{}, err
+		return StoreResponse{}, err
 	}
-	out = stored
-	return out, nil
+	resp = StoreResponse{User: stored}
+	return resp, nil
 }

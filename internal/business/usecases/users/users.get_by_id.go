@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -13,7 +12,7 @@ import (
 // don't go through the email-keyed cache — they're rare enough that
 // a direct DB read is fine, and caching by ID would just duplicate
 // state without a measurable hit rate.
-func (uc *usecase) GetByID(ctx context.Context, id string) (out domain.User, err error) {
+func (uc *usecase) GetByID(ctx context.Context, req GetByIDRequest) (resp GetByIDResponse, err error) {
 	const (
 		usecaseName = "users"
 		funcName    = "GetByID"
@@ -26,7 +25,7 @@ func (uc *usecase) GetByID(ctx context.Context, id string) (out domain.User, err
 		"method":  funcName,
 		"file":    fileName,
 		"request": logger.Fields{
-			"user_id": id,
+			"user_id": req.ID,
 		},
 	})
 
@@ -39,12 +38,12 @@ func (uc *usecase) GetByID(ctx context.Context, id string) (out domain.User, err
 			"duration": duration.Milliseconds(),
 		}
 		if err == nil {
-			fields["response"] = logger.Fields{"user_id": out.ID, "email": out.Email}
+			fields["response"] = logger.Fields{"user_id": resp.User.ID, "email": resp.User.Email}
 		}
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
-	user, repoErr := uc.repo.GetByID(ctx, id)
+	user, repoErr := uc.repo.GetByID(ctx, req.ID)
 	if repoErr != nil {
 		err = mapRepoError(repoErr, "get user by id")
 		logger.ErrorWithContext(ctx, "Get user by id failed: repository error", logger.Fields{
@@ -53,10 +52,10 @@ func (uc *usecase) GetByID(ctx context.Context, id string) (out domain.User, err
 			"file":    fileName,
 			"step":    "repo_get_by_id",
 			"error":   repoErr.Error(),
-			"user_id": id,
+			"user_id": req.ID,
 		})
-		return domain.User{}, err
+		return GetByIDResponse{}, err
 	}
-	out = user
-	return out, nil
+	resp = GetByIDResponse{User: user}
+	return resp, nil
 }

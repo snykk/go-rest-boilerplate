@@ -52,7 +52,7 @@ func (h Handler) GetUserData(ctx *gin.Context) {
 		return
 	}
 
-	userDom, err := h.usecase.GetByEmail(ctx.Request.Context(), user.Email)
+	resp, err := h.usecase.GetByEmail(ctx.Request.Context(), users.GetByEmailRequest{Email: user.Email})
 	if err != nil {
 		logger.ErrorWithContext(ctx.Request.Context(), "GetUserData failed in controller", logger.Fields{
 			"controller": controllerName,
@@ -66,6 +66,6 @@ func (h Handler) GetUserData(ctx *gin.Context) {
 	}
 
 	v1.NewSuccessResponse(ctx, http.StatusOK, "user data fetched successfully", map[string]interface{}{
-		"user": responses.FromV1Domain(userDom),
+		"user": responses.FromV1Domain(resp.User),
 	})
 }

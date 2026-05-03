@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
@@ -13,13 +14,14 @@ import (
 // access+refresh pair, and revokes the old jti in Redis. Replay of
 // an already-used refresh token fails because rememberRefresh → Del
 // makes the old jti unknown.
-func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginResult, err error) {
+func (uc *usecase) Refresh(ctx context.Context, req RefreshRequest) (resp LoginResponse, err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "Refresh"
 		fileName    = "auth.refresh.go"
 	)
 	startTime := time.Now()
+	refreshToken := req.RefreshToken
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,
@@ -39,7 +41,7 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"duration": duration.Milliseconds(),
 		}
 		if err == nil {
-			fields["response"] = logger.Fields{"user_id": out.User.ID}
+			fields["response"] = logger.Fields{"user_id": resp.User.ID}
 		}
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
@@ -54,7 +56,7 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"step":    "parse_refresh_token",
 			"error":   parseErr.Error(),
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	// Verify the jti is still live server-side; logout / previous
@@ -69,12 +71,12 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"error":   getErr.Error(),
 			"jti":     claims.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	// Fresh identity lookup so revoked / deactivated accounts stop
 	// getting new access tokens even while their refresh is live.
-	user, lookupErr := uc.users.GetByEmail(ctx, claims.Email)
+	lookupResp, lookupErr := uc.users.GetByEmail(ctx, users.GetByEmailRequest{Email: claims.Email})
 	if lookupErr != nil {
 		err = apperror.Unauthorized("user no longer exists")
 		logger.ErrorWithContext(ctx, "Refresh failed: user lookup error", logger.Fields{
@@ -85,8 +87,9 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"error":   lookupErr.Error(),
 			"email":   claims.Email,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
+	user := lookupResp.User
 	if !user.Active {
 		err = apperror.Forbidden("account is not activated")
 		logger.ErrorWithContext(ctx, "Refresh failed: account not activated", logger.Fields{
@@ -97,7 +100,7 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"error":   err.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	// Reject tokens issued before the most recent password change —
@@ -113,7 +116,7 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"error":   err.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	pair, mintErr := uc.jwtService.GenerateTokenPair(user.ID, user.IsAdmin(), user.Email)
@@ -127,7 +130,7 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"error":   mintErr.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 
 	// Rotate: remove the old jti, record the new one. Do this after
@@ -143,14 +146,14 @@ func (uc *usecase) Refresh(ctx context.Context, refreshToken string) (out LoginR
 			"error":   persistErr.Error(),
 			"user_id": user.ID,
 		})
-		return LoginResult{}, err
+		return LoginResponse{}, err
 	}
 	_ = uc.redisCache.Del(ctx, refreshKey(claims.ID))
 
-	out = LoginResult{
+	resp = LoginResponse{
 		User:         user,
 		AccessToken:  pair.AccessToken,
 		RefreshToken: pair.RefreshToken,
 	}
-	return out, nil
+	return resp, nil
 }

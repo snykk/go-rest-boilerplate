@@ -12,8 +12,8 @@ import (
 	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	authhandler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1/auth"
-	jwtpkg "github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/internal/test/mocks"
+	jwtpkg "github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/validators"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -22,9 +22,6 @@ import (
 
 func init() {
 	gin.SetMode(gin.TestMode)
-	// the validators package registers the strongpassword tag at init —
-	// importing it once here ensures the registration runs in the
-	// handler test binary too.
 	_ = validators.ValidatePayloads(struct{}{})
 }
 
@@ -46,10 +43,6 @@ func newAuthHarness(t *testing.T) authHarness {
 	return authHarness{uc: uc, router: r}
 }
 
-// injectClaims simulates the auth middleware populating the gin
-// context with a parsed JWT claim — handler tests stop at the
-// handler boundary so the real middleware (which would do JWT
-// verification) isn't on the path.
 func injectClaims(userID, email string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set(constants.CtxAuthenticatedUserKey, jwtpkg.JwtCustomClaim{
@@ -76,8 +69,8 @@ func doJSON(t *testing.T, h authHarness, method, path string, body any) *httptes
 func TestLoginHandler(t *testing.T) {
 	t.Run("happy path returns 200 and tokens", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("Login", mock.Anything, "patrick@example.com", "Pwd_123!").
-			Return(authuc.LoginResult{
+		h.uc.On("Login", mock.Anything, authuc.LoginRequest{Email: "patrick@example.com", Password: "Pwd_123!"}).
+			Return(authuc.LoginResponse{
 				AccessToken: "access-tok", RefreshToken: "refresh-tok",
 			}, nil).Once()
 
@@ -107,8 +100,8 @@ func TestLoginHandler(t *testing.T) {
 
 	t.Run("usecase Unauthorized returns 401", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("Login", mock.Anything, "x@y.com", "wrong").
-			Return(authuc.LoginResult{}, apperror.Unauthorized("invalid email or password")).Once()
+		h.uc.On("Login", mock.Anything, authuc.LoginRequest{Email: "x@y.com", Password: "wrong"}).
+			Return(authuc.LoginResponse{}, apperror.Unauthorized("invalid email or password")).Once()
 		w := doJSON(t, h, "POST", "/login", map[string]string{
 			"email": "x@y.com", "password": "wrong",
 		})
@@ -119,14 +112,14 @@ func TestLoginHandler(t *testing.T) {
 func TestForgotPasswordHandler(t *testing.T) {
 	t.Run("happy path returns 200", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ForgotPassword", mock.Anything, "patrick@example.com").Return(nil).Once()
+		h.uc.On("ForgotPassword", mock.Anything, authuc.ForgotPasswordRequest{Email: "patrick@example.com"}).Return(nil).Once()
 		w := doJSON(t, h, "POST", "/password/forgot", map[string]string{"email": "patrick@example.com"})
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("infra error from usecase still returns non-2xx (no enumeration leak via response shape, but error must propagate)", func(t *testing.T) {
+	t.Run("infra error from usecase still returns non-2xx", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ForgotPassword", mock.Anything, "patrick@example.com").
+		h.uc.On("ForgotPassword", mock.Anything, authuc.ForgotPasswordRequest{Email: "patrick@example.com"}).
 			Return(apperror.InternalCause(assertErr("redis down"))).Once()
 		w := doJSON(t, h, "POST", "/password/forgot", map[string]string{"email": "patrick@example.com"})
 		assert.GreaterOrEqual(t, w.Code, 500)
@@ -136,7 +129,7 @@ func TestForgotPasswordHandler(t *testing.T) {
 func TestResetPasswordHandler(t *testing.T) {
 	t.Run("happy path returns 200", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ResetPassword", mock.Anything, "tok-1", "Newpwd_999!").Return(nil).Once()
+		h.uc.On("ResetPassword", mock.Anything, authuc.ResetPasswordRequest{Token: "tok-1", NewPassword: "Newpwd_999!"}).Return(nil).Once()
 		w := doJSON(t, h, "POST", "/password/reset", map[string]string{
 			"token": "tok-1", "new_password": "Newpwd_999!",
 		})
@@ -145,7 +138,7 @@ func TestResetPasswordHandler(t *testing.T) {
 
 	t.Run("invalid token returns 401", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ResetPassword", mock.Anything, "stale", "Newpwd_999!").
+		h.uc.On("ResetPassword", mock.Anything, authuc.ResetPasswordRequest{Token: "stale", NewPassword: "Newpwd_999!"}).
 			Return(apperror.Unauthorized("reset token is invalid or expired")).Once()
 		w := doJSON(t, h, "POST", "/password/reset", map[string]string{
 			"token": "stale", "new_password": "Newpwd_999!",
@@ -157,7 +150,11 @@ func TestResetPasswordHandler(t *testing.T) {
 func TestChangePasswordHandler(t *testing.T) {
 	t.Run("happy path returns 200 with claims injected", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ChangePassword", mock.Anything, "user-1", "Pwd_123!", "Newpwd_999!").Return(nil).Once()
+		h.uc.On("ChangePassword", mock.Anything, authuc.ChangePasswordRequest{
+			UserID:          "user-1",
+			CurrentPassword: "Pwd_123!",
+			NewPassword:     "Newpwd_999!",
+		}).Return(nil).Once()
 		w := doJSON(t, h, "PUT", "/password/change", map[string]string{
 			"current_password": "Pwd_123!", "new_password": "Newpwd_999!",
 		})
@@ -166,8 +163,11 @@ func TestChangePasswordHandler(t *testing.T) {
 
 	t.Run("usecase Unauthorized when current password wrong", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ChangePassword", mock.Anything, "user-1", "wrong", "Newpwd_999!").
-			Return(apperror.Unauthorized("current password is incorrect")).Once()
+		h.uc.On("ChangePassword", mock.Anything, authuc.ChangePasswordRequest{
+			UserID:          "user-1",
+			CurrentPassword: "wrong",
+			NewPassword:     "Newpwd_999!",
+		}).Return(apperror.Unauthorized("current password is incorrect")).Once()
 		w := doJSON(t, h, "PUT", "/password/change", map[string]string{
 			"current_password": "wrong", "new_password": "Newpwd_999!",
 		})
@@ -175,8 +175,6 @@ func TestChangePasswordHandler(t *testing.T) {
 	})
 }
 
-// assertErr is a tiny helper so the table doesn't depend on the
-// errors package directly — keeps the imports tight.
 func assertErr(s string) error { return &simpleErr{msg: s} }
 
 type simpleErr struct{ msg string }

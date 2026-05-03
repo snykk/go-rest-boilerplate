@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/audit"
@@ -58,7 +59,7 @@ func (h Handler) VerifyOTP(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.usecase.VerifyOTP(ctx.Request.Context(), req.Email, req.Code); err != nil {
+	if err := h.usecase.VerifyOTP(ctx.Request.Context(), authuc.VerifyOTPRequest{Email: req.Email, OTPCode: req.Code}); err != nil {
 		ev := auditFromGin(ctx)
 		ev.Email = req.Email
 		ev.Reason = err.Error()

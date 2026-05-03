@@ -7,6 +7,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -54,7 +55,7 @@ func TestActivate(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			err := f.usecase.Activate(context.Background(), tt.userID)
+			err := f.usecase.Activate(context.Background(), users.ActivateRequest{UserID: tt.userID})
 
 			if !tt.wantErr {
 				require.NoError(t, err)

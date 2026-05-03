@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	authuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/datatransfers/requests"
 	v1 "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/audit"
@@ -53,7 +54,7 @@ func (h Handler) ForgotPassword(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.usecase.ForgotPassword(ctx.Request.Context(), req.Email); err != nil {
+	if err := h.usecase.ForgotPassword(ctx.Request.Context(), authuc.ForgotPasswordRequest{Email: req.Email}); err != nil {
 		ev := auditFromGin(ctx)
 		ev.Type = audit.EventPasswordForgotFail
 		ev.Email = req.Email

@@ -14,13 +14,14 @@ import (
 // should discard them on logout. (A full access-token blacklist
 // would cost a Redis hop per request and is deliberately out of
 // scope for this boilerplate.)
-func (uc *usecase) Logout(ctx context.Context, refreshToken string) (err error) {
+func (uc *usecase) Logout(ctx context.Context, req LogoutRequest) (err error) {
 	const (
 		usecaseName = "auth"
 		funcName    = "Logout"
 		fileName    = "auth.logout.go"
 	)
 	startTime := time.Now()
+	refreshToken := req.RefreshToken
 
 	logger.InfoWithContext(ctx, fmt.Sprintf("Upper %s", funcName), logger.Fields{
 		"usecase": usecaseName,

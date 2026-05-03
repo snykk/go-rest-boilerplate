@@ -7,6 +7,7 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -72,12 +73,12 @@ func TestStore(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			out, err := f.usecase.Store(context.Background(), tt.in)
+			out, err := f.usecase.Store(context.Background(), users.StoreRequest{User: tt.in})
 
 			if !tt.wantErr {
 				require.NoError(t, err)
 				if tt.extraAsserts != nil {
-					tt.extraAsserts(t, out)
+					tt.extraAsserts(t, out.User)
 				}
 				return
 			}

@@ -7,6 +7,8 @@ import (
 
 	golangJWT "github.com/golang-jwt/jwt/v5"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -41,7 +43,7 @@ func TestRefresh(t *testing.T) {
 				oldJTI := "old-jti"
 				f.jwt.On("ParseRefreshToken", "old-refresh-tok").Return(refreshClaims(oldJTI, user.Email), nil).Once()
 				f.redis.On("Get", mock.Anything, "refresh:"+oldJTI).Return(oldJTI, nil).Once()
-				f.users.On("GetByEmail", mock.Anything, user.Email).Return(user, nil).Once()
+				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: user.Email}).Return(users.GetByEmailResponse{User: user}, nil).Once()
 				f.jwt.On("GenerateTokenPair", user.ID, false, user.Email).Return(samplePair(), nil).Once()
 				f.redis.On("Set", mock.Anything, "refresh:refresh-jti", "refresh-jti").Return(nil).Once()
 				f.redis.On("Expire", mock.Anything, "refresh:refresh-jti", mock.AnythingOfType("time.Duration")).Return(nil).Once()
@@ -77,7 +79,7 @@ func TestRefresh(t *testing.T) {
 			f := newFixture(t)
 			tt.setup(f)
 
-			out, err := f.usecase.Refresh(context.Background(), tt.token)
+			out, err := f.usecase.Refresh(context.Background(), auth.RefreshRequest{RefreshToken: tt.token})
 
 			if !tt.wantErr {
 				require.NoError(t, err)

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/snykk/go-rest-boilerplate/internal/apperror"
 	"github.com/snykk/go-rest-boilerplate/internal/business/domain"
+	usersuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	usershandler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1/users"
 	jwtpkg "github.com/snykk/go-rest-boilerplate/pkg/jwt"
@@ -34,8 +35,8 @@ func TestGetUserDataHandler(t *testing.T) {
 
 	t.Run("happy path returns user data", func(t *testing.T) {
 		uc, r := build(t)
-		uc.On("GetByEmail", mock.Anything, "patrick@example.com").
-			Return(domain.User{ID: "user-1", Email: "patrick@example.com", Username: "patrick"}, nil).Once()
+		uc.On("GetByEmail", mock.Anything, usersuc.GetByEmailRequest{Email: "patrick@example.com"}).
+			Return(usersuc.GetByEmailResponse{User: domain.User{ID: "user-1", Email: "patrick@example.com", Username: "patrick"}}, nil).Once()
 
 		req := httptest.NewRequest("GET", "/me", nil)
 		w := httptest.NewRecorder()
@@ -47,8 +48,8 @@ func TestGetUserDataHandler(t *testing.T) {
 
 	t.Run("usecase NotFound surfaces as 404", func(t *testing.T) {
 		uc, r := build(t)
-		uc.On("GetByEmail", mock.Anything, "patrick@example.com").
-			Return(domain.User{}, apperror.NotFound("user not found")).Once()
+		uc.On("GetByEmail", mock.Anything, usersuc.GetByEmailRequest{Email: "patrick@example.com"}).
+			Return(usersuc.GetByEmailResponse{}, apperror.NotFound("user not found")).Once()
 
 		req := httptest.NewRequest("GET", "/me", nil)
 		w := httptest.NewRecorder()
