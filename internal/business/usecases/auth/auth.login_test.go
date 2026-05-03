@@ -41,27 +41,29 @@ func TestLogin(t *testing.T) {
 		// "wrong password" and "unknown email", so we pin the message
 		// to catch regressions that leak which path was taken.
 		wantErrMsg string
-		// extraAsserts runs only on the happy path.
-		extraAsserts func(t *testing.T, f *fixture, out any)
 	}{
 		{
-			name:     "happy path issues token pair and persists refresh JTI",
+			name:     "happy path issues token pair, persists refresh JTI, clears attempt counter",
 			email:    "patrick@example.com",
 			password: "Pwd_123!",
 			setup: func(f *fixture) {
 				user := activeUser(t)
+				f.redis.On("Incr", mock.Anything, "login_attempts:patrick@example.com").Return(int64(1), nil).Once()
+				f.redis.On("Expire", mock.Anything, "login_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(user, nil).Once()
 				f.jwt.On("GenerateTokenPair", user.ID, false, user.Email).Return(samplePair(), nil).Once()
 				f.redis.On("Set", mock.Anything, "refresh:refresh-jti", "refresh-jti").Return(nil).Once()
 				f.redis.On("Expire", mock.Anything, "refresh:refresh-jti", mock.AnythingOfType("time.Duration")).Return(nil).Once()
+				f.redis.On("Del", mock.Anything, "login_attempts:patrick@example.com").Return(nil).Once()
 			},
 		},
 		{
-			name:     "wrong password returns Unauthorized with generic message",
+			name:     "wrong password returns Unauthorized; counter is not cleared",
 			email:    "patrick@example.com",
 			password: "wrong-password",
 			setup: func(f *fixture) {
-				// No JWT calls expected — password check fails first.
+				f.redis.On("Incr", mock.Anything, "login_attempts:patrick@example.com").Return(int64(1), nil).Once()
+				f.redis.On("Expire", mock.Anything, "login_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(activeUser(t), nil).Once()
 			},
 			wantErr:     true,
@@ -75,26 +77,39 @@ func TestLogin(t *testing.T) {
 			setup: func(f *fixture) {
 				user := activeUser(t)
 				user.Active = false
+				f.redis.On("Incr", mock.Anything, "login_attempts:patrick@example.com").Return(int64(1), nil).Once()
+				f.redis.On("Expire", mock.Anything, "login_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.users.On("GetByEmail", mock.Anything, "patrick@example.com").Return(user, nil).Once()
 			},
 			wantErr:     true,
 			wantErrType: apperror.ErrTypeForbidden,
 		},
 		{
-			name:     "unknown email surfaces as invalid credentials (not 404)",
+			name:     "unknown email surfaces as invalid credentials (counter still incremented to defeat probing)",
 			email:    "ghost@example.com",
 			password: "anything",
 			setup: func(f *fixture) {
-				// No JWT, no Redis — Unauthorized returns before mint.
-				// Same wantErrMsg as wrong-password to verify the
-				// timing-attack mitigation: an attacker can't enumerate
-				// registered emails by reading the error string.
+				f.redis.On("Incr", mock.Anything, "login_attempts:ghost@example.com").Return(int64(1), nil).Once()
+				f.redis.On("Expire", mock.Anything, "login_attempts:ghost@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.users.On("GetByEmail", mock.Anything, "ghost@example.com").
 					Return(domain.User{}, apperror.NotFound("email not found")).Once()
 			},
 			wantErr:     true,
 			wantErrType: apperror.ErrTypeUnauthorized,
 			wantErrMsg:  "invalid email or password",
+		},
+		{
+			name:     "lockout after exceeding LoginMaxAttempts surfaces as Forbidden, no GetByEmail call",
+			email:    "victim@example.com",
+			password: "Pwd_123!",
+			setup: func(f *fixture) {
+				// 6th attempt — fixture caps at 5. Lockout fires before
+				// the user lookup so the attacker can't even confirm
+				// the email exists.
+				f.redis.On("Incr", mock.Anything, "login_attempts:victim@example.com").Return(int64(6), nil).Once()
+			},
+			wantErr:     true,
+			wantErrType: apperror.ErrTypeForbidden,
 		},
 	}
 
@@ -110,9 +125,6 @@ func TestLogin(t *testing.T) {
 				assert.Equal(t, "access-tok", out.AccessToken)
 				assert.Equal(t, "refresh-tok", out.RefreshToken)
 				assert.Equal(t, "user-1", out.User.ID)
-				if tt.extraAsserts != nil {
-					tt.extraAsserts(t, f, out)
-				}
 				return
 			}
 			require.Error(t, err)

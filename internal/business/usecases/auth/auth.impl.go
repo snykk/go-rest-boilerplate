@@ -52,6 +52,18 @@ func otpAttemptsKey(email string) string {
 	return fmt.Sprintf("otp_attempts:%s", email)
 }
 
+// loginAttemptsKey is the Redis key that tracks failed Login attempts
+// per email for the brute-force lockout window.
+func loginAttemptsKey(email string) string {
+	return fmt.Sprintf("login_attempts:%s", email)
+}
+
+// forgotAttemptsKey rate-limits /password/forgot per email so an
+// attacker can't spam outbound reset emails or churn reset tokens.
+func forgotAttemptsKey(email string) string {
+	return fmt.Sprintf("forgot_attempts:%s", email)
+}
+
 // rememberRefresh stores the refresh jti in Redis with a TTL matching
 // the refresh token's exp. /refresh and /logout treat absence here as
 // "revoked", which is how logout works without an access-token

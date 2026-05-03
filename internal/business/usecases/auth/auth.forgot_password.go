@@ -51,6 +51,40 @@ func (uc *usecase) ForgotPassword(ctx context.Context, email string) (err error)
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
 
+	// Per-email rate limit. Counter increments before lookup so even
+	// unknown emails count toward the cap — otherwise an attacker can
+	// pin a single registered email forever by alternating with
+	// junk addresses.
+	if uc.cfg.ForgotMaxAttempts > 0 {
+		key := forgotAttemptsKey(email)
+		attempts, incrErr := uc.redisCache.Incr(ctx, key)
+		if incrErr != nil {
+			logger.ErrorWithContext(ctx, "ForgotPassword: failed to track attempts (non-fatal)", logger.Fields{
+				"usecase": usecaseName,
+				"method":  funcName,
+				"file":    fileName,
+				"step":    "redis_incr_attempts",
+				"error":   incrErr.Error(),
+				"email":   email,
+			})
+		} else if attempts == 1 {
+			_ = uc.redisCache.Expire(ctx, key, uc.cfg.ForgotLockoutTTL)
+		}
+		if attempts > int64(uc.cfg.ForgotMaxAttempts) {
+			err = apperror.Forbidden("too many password reset requests, please try again later")
+			logger.ErrorWithContext(ctx, "ForgotPassword failed: rate limit exceeded", logger.Fields{
+				"usecase":  usecaseName,
+				"method":   funcName,
+				"file":     fileName,
+				"step":     "check_rate_limit",
+				"error":    err.Error(),
+				"email":    email,
+				"attempts": attempts,
+			})
+			return err
+		}
+	}
+
 	user, lookupErr := uc.users.GetByEmail(ctx, email)
 	if lookupErr != nil {
 		// Swallow NotFound silently to avoid leaking which emails

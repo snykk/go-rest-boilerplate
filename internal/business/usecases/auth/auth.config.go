@@ -21,4 +21,23 @@ type Config struct {
 	// BcryptCost is forwarded to domain.User.ChangePassword on
 	// password change/reset. Caller (DI) injects from app config.
 	BcryptCost int
+	// LoginMaxAttempts is the lockout threshold for /auth/login. After
+	// this many failures (per email, within LoginLockoutTTL) the email
+	// is locked out for the remaining window even on a correct
+	// password — defeats slow brute-force from distributed IPs that
+	// per-IP rate limiting can't see.
+	LoginMaxAttempts int
+	// LoginLockoutTTL is how long the lockout window lasts and how
+	// long the per-email failure counter stays live. 15m is a
+	// reasonable default; long enough to defeat brute force, short
+	// enough that a legitimate user with a typo isn't permanently
+	// blocked.
+	LoginLockoutTTL time.Duration
+	// ForgotMaxAttempts caps how many /password/forgot calls one
+	// email can trigger inside ForgotLockoutTTL. Defends against
+	// abuse of the mailer queue (DOS via outbound email spam) and
+	// against attacker-driven reset-token rotation.
+	ForgotMaxAttempts int
+	// ForgotLockoutTTL is the rate-limit window for /password/forgot.
+	ForgotLockoutTTL time.Duration
 }

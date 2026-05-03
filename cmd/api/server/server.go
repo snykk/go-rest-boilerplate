@@ -117,6 +117,10 @@ func NewApp() (*App, error) {
 		OTPTTL:           time.Duration(config.AppConfig.REDISExpired) * time.Minute,
 		PasswordResetTTL: 30 * time.Minute,
 		BcryptCost:       config.AppConfig.BcryptCost,
+		LoginMaxAttempts:  10,
+		LoginLockoutTTL:   15 * time.Minute,
+		ForgotMaxAttempts: 3,
+		ForgotLockoutTTL:  15 * time.Minute,
 	})
 
 	// API Routes

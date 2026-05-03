@@ -14,6 +14,12 @@ import (
 // Login validates credentials and returns a fresh access+refresh
 // token pair. Wrong password and unknown email take the same wall
 // time to mask user enumeration.
+//
+// Brute-force lockout: a per-email Redis counter is incremented on
+// every login attempt and cleared on success. Once it exceeds
+// Config.LoginMaxAttempts within Config.LoginLockoutTTL the email is
+// locked out — defeats slow distributed brute-force that per-IP rate
+// limiting can't detect.
 func (uc *usecase) Login(ctx context.Context, email, password string) (out LoginResult, err error) {
 	const (
 		usecaseName = "auth"
@@ -45,6 +51,40 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 		}
 		logger.InfoWithContext(ctx, fmt.Sprintf("Lower %s", funcName), fields)
 	}()
+
+	// Brute-force guard. Increment first so even unknown emails count
+	// toward lockout — otherwise an attacker can probe email validity
+	// for free. The counter shares LoginLockoutTTL so it resets after
+	// the window expires.
+	attemptsKey := loginAttemptsKey(email)
+	if uc.cfg.LoginMaxAttempts > 0 {
+		attempts, incrErr := uc.redisCache.Incr(ctx, attemptsKey)
+		if incrErr != nil {
+			logger.ErrorWithContext(ctx, "Login: failed to track attempts (non-fatal)", logger.Fields{
+				"usecase": usecaseName,
+				"method":  funcName,
+				"file":    fileName,
+				"step":    "redis_incr_attempts",
+				"error":   incrErr.Error(),
+				"email":   email,
+			})
+		} else if attempts == 1 {
+			_ = uc.redisCache.Expire(ctx, attemptsKey, uc.cfg.LoginLockoutTTL)
+		}
+		if attempts > int64(uc.cfg.LoginMaxAttempts) {
+			err = apperror.Forbidden("too many failed login attempts, please try again later")
+			logger.ErrorWithContext(ctx, "Login failed: lockout (max attempts exceeded)", logger.Fields{
+				"usecase":  usecaseName,
+				"method":   funcName,
+				"file":     fileName,
+				"step":     "check_lockout",
+				"error":    err.Error(),
+				"email":    email,
+				"attempts": attempts,
+			})
+			return LoginResult{}, err
+		}
+	}
 
 	user, lookupErr := uc.users.GetByEmail(ctx, email)
 	if lookupErr != nil {
@@ -115,6 +155,10 @@ func (uc *usecase) Login(ctx context.Context, email, password string) (out Login
 		})
 		return LoginResult{}, err
 	}
+
+	// Success — clear the failure counter so the next legitimate
+	// session doesn't start with a stale count.
+	_ = uc.redisCache.Del(ctx, attemptsKey)
 
 	out = LoginResult{
 		User:         user,
