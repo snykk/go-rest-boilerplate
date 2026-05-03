@@ -48,6 +48,11 @@ const (
 
 // Event is the on-disk shape. Only fields with values are emitted —
 // JSON omitempty keeps lines compact.
+//
+// RequestID + TraceID are correlation IDs: the same pair appears on
+// every structured log line for the same HTTP request, so an audit
+// entry can be joined back to the application logs (or to spans in
+// the tracing backend via TraceID).
 type Event struct {
 	Time      time.Time `json:"time"`
 	Type      EventType `json:"event"`
@@ -57,6 +62,7 @@ type Event struct {
 	IP        string    `json:"ip,omitempty"`
 	UserAgent string    `json:"user_agent,omitempty"`
 	RequestID string    `json:"request_id,omitempty"`
+	TraceID   string    `json:"trace_id,omitempty"`
 	Reason    string    `json:"reason,omitempty"`
 }
 

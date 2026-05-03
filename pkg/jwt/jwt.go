@@ -8,6 +8,7 @@ import (
 	golangJWT "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/snykk/go-rest-boilerplate/pkg/clock"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 // ErrInvalidToken is returned when a token fails parsing or validation.
@@ -177,6 +178,12 @@ func (j *jwtService) sign(claims *JwtCustomClaim) (string, error) {
 	token := golangJWT.NewWithClaims(golangJWT.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte(j.secretKey))
 	if err != nil {
+		logger.Error("jwt: sign failed", logger.Fields{
+			"package": "jwt",
+			"step":    "signed_string",
+			"kind":    claims.Kind,
+			"error":   err.Error(),
+		})
 		return "", fmt.Errorf("sign jwt: %w", err)
 	}
 	return signed, nil
@@ -211,14 +218,29 @@ func (j *jwtService) parse(tokenString string) (JwtCustomClaim, error) {
 	var claims JwtCustomClaim
 	token, err := golangJWT.ParseWithClaims(tokenString, &claims, func(token *golangJWT.Token) (interface{}, error) {
 		if _, ok := token.Method.(*golangJWT.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			alg := token.Header["alg"]
+			logger.Warn("jwt: unexpected signing method", logger.Fields{
+				"package": "jwt",
+				"step":    "verify_signing_method",
+				"alg":     fmt.Sprintf("%v", alg),
+			})
+			return nil, fmt.Errorf("unexpected signing method: %v", alg)
 		}
 		return []byte(j.secretKey), nil
 	})
 	if err != nil {
+		logger.Warn("jwt: parse failed", logger.Fields{
+			"package": "jwt",
+			"step":    "parse_with_claims",
+			"error":   err.Error(),
+		})
 		return JwtCustomClaim{}, fmt.Errorf("%w: %v", ErrInvalidToken, err)
 	}
 	if !token.Valid {
+		logger.Warn("jwt: token reported invalid by parser", logger.Fields{
+			"package": "jwt",
+			"step":    "validity_check",
+		})
 		return JwtCustomClaim{}, ErrInvalidToken
 	}
 	return claims, nil

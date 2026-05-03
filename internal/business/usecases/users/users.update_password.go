@@ -69,5 +69,18 @@ func (uc *usecase) UpdatePassword(ctx context.Context, user *domain.User) (err e
 		})
 		return err
 	}
+	// Invalidate the email-keyed ristretto entry so the next Login
+	// doesn't read the stale (old-hash) cached user. We need the
+	// email; if the caller didn't populate it on the User struct
+	// (just userID + new password), fetch it from the repo.
+	email := user.Email
+	if email == "" {
+		if existing, getErr := uc.repo.GetByID(ctx, user.ID); getErr == nil {
+			email = existing.Email
+		}
+	}
+	if email != "" {
+		uc.ristrettoCache.Del(fmt.Sprintf("user/%s", email))
+	}
 	return nil
 }
