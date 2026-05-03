@@ -45,7 +45,7 @@ func TestForgotPassword(t *testing.T) {
 				f.redis.On("Incr", mock.Anything, "forgot_attempts:ghost@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "forgot_attempts:ghost@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "ghost@example.com"}).
-					Return(users.GetByEmailResponse{},apperror.NotFound("email not found")).Once()
+					Return(users.GetByEmailResponse{}, apperror.NotFound("email not found")).Once()
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestForgotPassword(t *testing.T) {
 				f.redis.On("Incr", mock.Anything, "forgot_attempts:patrick@example.com").Return(int64(1), nil).Once()
 				f.redis.On("Expire", mock.Anything, "forgot_attempts:patrick@example.com", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).
-					Return(users.GetByEmailResponse{},apperror.InternalCause(errors.New("redis down"))).Once()
+					Return(users.GetByEmailResponse{}, apperror.InternalCause(errors.New("redis down"))).Once()
 			},
 			wantErr: true,
 		},

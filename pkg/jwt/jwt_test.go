@@ -35,9 +35,9 @@ func TestParseToken(t *testing.T) {
 		assert.Equal(t, "asf-asf-asfdasd-asdfsa", claims.UserID)
 		assert.Equal(t, false, claims.IsAdmin)
 		assert.Equal(t, "john.doe@example.com", claims.Email)
-		assert.True(t, claims.ExpiresAt.Time.After(time.Now()) || claims.ExpiresAt.Time.Equal(time.Now()))
+		assert.True(t, claims.ExpiresAt.After(time.Now()) || claims.ExpiresAt.Equal(time.Now()))
 		assert.Equal(t, testIssuer, claims.Issuer)
-		assert.True(t, claims.IssuedAt.Time.Before(time.Now()) || claims.IssuedAt.Time.Equal(time.Now()))
+		assert.True(t, claims.IssuedAt.Before(time.Now()) || claims.IssuedAt.Equal(time.Now()))
 	})
 	t.Run("With Invalid Token", func(t *testing.T) {
 		jwtService := jwt.NewJWTService(testSecret, testIssuer, testExpired)
@@ -68,12 +68,12 @@ func TestGenerateTokenPair_RespectsInjectedClock(t *testing.T) {
 	// Access token: IssuedAt = at, ExpiresAt = at + 5h.
 	accessClaims, err := svc.ParseToken(pair.AccessToken)
 	require.NoError(t, err)
-	assert.Equal(t, at, accessClaims.IssuedAt.Time.UTC())
-	assert.Equal(t, at.Add(5*time.Hour), accessClaims.ExpiresAt.Time.UTC())
+	assert.Equal(t, at, accessClaims.IssuedAt.UTC())
+	assert.Equal(t, at.Add(5*time.Hour), accessClaims.ExpiresAt.UTC())
 
 	// Refresh token: IssuedAt = at, ExpiresAt = at + 7d.
 	refreshClaims, err := svc.ParseRefreshToken(pair.RefreshToken)
 	require.NoError(t, err)
-	assert.Equal(t, at, refreshClaims.IssuedAt.Time.UTC())
-	assert.Equal(t, at.Add(7*24*time.Hour), refreshClaims.ExpiresAt.Time.UTC())
+	assert.Equal(t, at, refreshClaims.IssuedAt.UTC())
+	assert.Equal(t, at.Add(7*24*time.Hour), refreshClaims.ExpiresAt.UTC())
 }

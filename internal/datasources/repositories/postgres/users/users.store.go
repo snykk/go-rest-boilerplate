@@ -54,7 +54,7 @@ func (r *postgreUserRepository) Store(ctx context.Context, inDom *domain.User) (
 		})
 		return domain.User{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		// RETURNING never produces zero rows on a successful INSERT,

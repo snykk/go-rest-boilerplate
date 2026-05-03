@@ -89,15 +89,17 @@ func RegisterDBStatsProvider(provider func() *sqlx.DB) {
 }
 
 // ObserveCacheOp records one cache operation outcome.
-//   layer:  "ristretto" | "redis"
-//   op:     "get" | "set" | "del"
-//   result: "hit" | "miss" | "ok" | "error"
+//
+//	layer:  "ristretto" | "redis"
+//	op:     "get" | "set" | "del"
+//	result: "hit" | "miss" | "ok" | "error"
 func ObserveCacheOp(layer, op, result string) {
 	cacheOpsTotal.WithLabelValues(layer, op, result).Inc()
 }
 
 // ObserveMailerOp records one mailer outcome.
-//   result: "sent" | "failed" | "queue_full"
+//
+//	result: "sent" | "failed" | "queue_full"
 func ObserveMailerOp(result string) {
 	mailerOpsTotal.WithLabelValues(result).Inc()
 }

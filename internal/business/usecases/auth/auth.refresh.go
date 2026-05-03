@@ -106,7 +106,7 @@ func (uc *usecase) Refresh(ctx context.Context, req RefreshRequest) (resp LoginR
 	// Reject tokens issued before the most recent password change —
 	// rotating the password must close pre-existing sessions.
 	if cutoff := user.TokensRevokedBefore(); !cutoff.IsZero() &&
-		claims.IssuedAt != nil && claims.IssuedAt.Time.Before(cutoff) {
+		claims.IssuedAt != nil && claims.IssuedAt.Before(cutoff) {
 		err = apperror.Unauthorized("refresh token has been revoked")
 		logger.ErrorWithContext(ctx, "Refresh failed: token issued before password rotation", logger.Fields{
 			"usecase": usecaseName,

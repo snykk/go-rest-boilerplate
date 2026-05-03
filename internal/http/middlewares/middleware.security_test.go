@@ -24,7 +24,7 @@ func TestSecurityHeaders_DevDefaults(t *testing.T) {
 	config.AppConfig.Environment = constants.EnvironmentDevelopment
 	r := newSecRouter()
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/ping", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/ping", http.NoBody))
 
 	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
@@ -41,7 +41,7 @@ func TestSecurityHeaders_ProductionAddsHSTS(t *testing.T) {
 
 	r := newSecRouter()
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/ping", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/ping", http.NoBody))
 
 	hsts := w.Header().Get("Strict-Transport-Security")
 	assert.Contains(t, hsts, "max-age=")

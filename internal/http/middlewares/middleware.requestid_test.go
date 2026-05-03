@@ -25,7 +25,7 @@ func TestRequestIDMiddleware_BridgesIDsToContext(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest("GET", "/probe", nil)
+	req := httptest.NewRequest("GET", "/probe", http.NoBody)
 	req.Header.Set("X-Request-ID", "abc-from-client")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -48,7 +48,7 @@ func TestRequestIDMiddleware_GeneratesWhenAbsent(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest("GET", "/probe", nil)
+	req := httptest.NewRequest("GET", "/probe", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

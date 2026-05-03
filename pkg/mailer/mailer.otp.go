@@ -62,7 +62,7 @@ func NewOTPMailer(email, password string) OTPMailer {
 	}
 }
 
-func (mailer *otpMailer) SendOTP(otpCode string, receiver string) (err error) {
+func (mailer *otpMailer) SendOTP(otpCode, receiver string) (err error) {
 	body, err := renderOTPBody(otpCode)
 	if err != nil {
 		return fmt.Errorf("render otp template: %w", err)
@@ -80,7 +80,7 @@ func (mailer *otpMailer) SendOTP(otpCode string, receiver string) (err error) {
 	return dialer.DialAndSend(msg)
 }
 
-func (mailer *otpMailer) SendPasswordReset(token string, receiver string) error {
+func (mailer *otpMailer) SendPasswordReset(token, receiver string) error {
 	body := fmt.Sprintf(
 		`<p>Use the following token to reset your password. The token expires in %d minutes.</p><p><b>%s</b></p>`,
 		defaultValidMinutes, template.HTMLEscapeString(token),

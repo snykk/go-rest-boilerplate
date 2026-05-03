@@ -65,7 +65,7 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, adminEndpoint, nil)
+		r := httptest.NewRequest(http.MethodGet, adminEndpoint, http.NoBody)
 
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -85,7 +85,7 @@ func TestAuthMiddleware(t *testing.T) {
 		token := "mwehehe"
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, forEveryone, nil)
+		r := httptest.NewRequest(http.MethodGet, forEveryone, http.NoBody)
 
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -107,7 +107,7 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, forEveryone, nil)
+		r := httptest.NewRequest(http.MethodGet, forEveryone, http.NoBody)
 
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", fmt.Sprintf("Token %s", token))
@@ -129,7 +129,7 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, forEveryone, nil)
+		r := httptest.NewRequest(http.MethodGet, forEveryone, http.NoBody)
 
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", fmt.Sprintf("Bearer token: %s", token))
@@ -151,7 +151,7 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, adminEndpoint, nil)
+		r := httptest.NewRequest(http.MethodGet, adminEndpoint, http.NoBody)
 
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))

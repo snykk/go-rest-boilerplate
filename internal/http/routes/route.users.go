@@ -30,7 +30,5 @@ func (r *usersRoute) Routes() {
 	v1 := r.router.Group("/v1")
 	usersGrp := v1.Group("/users")
 	usersGrp.Use(r.authMiddleware)
-	{
-		usersGrp.GET("/me", r.handler.GetUserData)
-	}
+	usersGrp.GET("/me", r.handler.GetUserData)
 }

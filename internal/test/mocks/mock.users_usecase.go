@@ -48,7 +48,7 @@ type mockConstructorTestingTNewUsersUsecase interface {
 
 func NewUsersUsecase(t mockConstructorTestingTNewUsersUsecase) *UsersUsecase {
 	m := &UsersUsecase{}
-	m.Mock.Test(t)
+	m.Test(t)
 	t.Cleanup(func() { m.AssertExpectations(t) })
 	return m
 }

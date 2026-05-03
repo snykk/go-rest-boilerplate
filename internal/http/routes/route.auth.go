@@ -44,17 +44,15 @@ func (r *authRoute) Routes() {
 	// legitimate request.
 	authGrp.Use(r.rateLimiter)
 	authGrp.Use(middlewares.BodySizeLimitMiddleware(middlewares.AuthBodyMaxBytes))
-	{
-		authGrp.POST("/register", r.handler.Register)
-		authGrp.POST("/login", r.handler.Login)
-		authGrp.POST("/send-otp", r.handler.SendOTP)
-		authGrp.POST("/verify-otp", r.handler.VerifyOTP)
-		authGrp.POST("/refresh", r.handler.Refresh)
-		authGrp.POST("/logout", r.handler.Logout)
-		authGrp.POST("/password/forgot", r.handler.ForgotPassword)
-		authGrp.POST("/password/reset", r.handler.ResetPassword)
-		// /password/change requires the JWT — gets the auth middleware
-		// on top of the same rate limiter / body cap as the rest.
-		authGrp.PUT("/password/change", r.authMiddleware, r.handler.ChangePassword)
-	}
+	authGrp.POST("/register", r.handler.Register)
+	authGrp.POST("/login", r.handler.Login)
+	authGrp.POST("/send-otp", r.handler.SendOTP)
+	authGrp.POST("/verify-otp", r.handler.VerifyOTP)
+	authGrp.POST("/refresh", r.handler.Refresh)
+	authGrp.POST("/logout", r.handler.Logout)
+	authGrp.POST("/password/forgot", r.handler.ForgotPassword)
+	authGrp.POST("/password/reset", r.handler.ResetPassword)
+	// /password/change requires the JWT — gets the auth middleware
+	// on top of the same rate limiter / body cap as the rest.
+	authGrp.PUT("/password/change", r.authMiddleware, r.handler.ChangePassword)
 }

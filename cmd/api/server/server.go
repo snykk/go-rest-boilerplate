@@ -113,10 +113,10 @@ func NewApp() (*App, error) {
 		BcryptCost: config.AppConfig.BcryptCost,
 	})
 	authUC := auth.NewUsecase(usersUC, jwtService, asyncMailer, redisCache, auth.Config{
-		OTPMaxAttempts:   config.AppConfig.OTPMaxAttempts,
-		OTPTTL:           time.Duration(config.AppConfig.REDISExpired) * time.Minute,
-		PasswordResetTTL: 30 * time.Minute,
-		BcryptCost:       config.AppConfig.BcryptCost,
+		OTPMaxAttempts:    config.AppConfig.OTPMaxAttempts,
+		OTPTTL:            time.Duration(config.AppConfig.REDISExpired) * time.Minute,
+		PasswordResetTTL:  30 * time.Minute,
+		BcryptCost:        config.AppConfig.BcryptCost,
 		LoginMaxAttempts:  10,
 		LoginLockoutTTL:   15 * time.Minute,
 		ForgotMaxAttempts: 3,

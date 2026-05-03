@@ -35,7 +35,7 @@ func (s *seeder) UserSeeder(userData []records.Users) (err error) {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -46,7 +46,7 @@ func (s *seeder) UserSeeder(userData []records.Users) (err error) {
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 

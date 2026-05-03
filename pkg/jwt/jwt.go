@@ -43,12 +43,12 @@ type JWTService interface {
 // TokenPair bundles the short-lived access token and the long-lived
 // refresh token issued together at login / refresh.
 type TokenPair struct {
-	AccessToken        string    `json:"access_token"`
-	RefreshToken       string    `json:"refresh_token"`
-	AccessExpiresAt    time.Time `json:"access_expires_at"`
-	RefreshExpiresAt   time.Time `json:"refresh_expires_at"`
-	AccessJTI          string    `json:"-"`
-	RefreshJTI         string    `json:"-"`
+	AccessToken      string    `json:"access_token"`
+	RefreshToken     string    `json:"refresh_token"`
+	AccessExpiresAt  time.Time `json:"access_expires_at"`
+	RefreshExpiresAt time.Time `json:"refresh_expires_at"`
+	AccessJTI        string    `json:"-"`
+	RefreshJTI       string    `json:"-"`
 }
 
 type JwtCustomClaim struct {
@@ -98,9 +98,9 @@ func NewJWTServiceWithRefresh(secretKey, issuer string, expiredHours, refreshExp
 // so they can assert exact ExpiresAt values.
 func WithClock(svc JWTService, c clock.Clock) JWTService {
 	if s, ok := svc.(*jwtService); ok {
-		copy := *s
-		copy.clock = c
-		return &copy
+		clone := *s
+		clone.clock = c
+		return &clone
 	}
 	return svc
 }
@@ -129,10 +129,10 @@ func (j *jwtService) GenerateTokenPair(userID string, isAdmin bool, email string
 	}, nil
 }
 
-func (j *jwtService) signAccess(userID string, isAdmin bool, email string) (string, time.Time, string, error) {
+func (j *jwtService) signAccess(userID string, isAdmin bool, email string) (token string, expiresAt time.Time, jti string, err error) {
 	now := j.clock.Now()
-	exp := now.Add(time.Hour * time.Duration(j.expired))
-	jti := uuid.NewString()
+	expiresAt = now.Add(time.Hour * time.Duration(j.expired))
+	jti = uuid.NewString()
 	claims := &JwtCustomClaim{
 		UserID:  userID,
 		IsAdmin: isAdmin,
@@ -140,38 +140,38 @@ func (j *jwtService) signAccess(userID string, isAdmin bool, email string) (stri
 		Kind:    KindAccess,
 		RegisteredClaims: golangJWT.RegisteredClaims{
 			ID:        jti,
-			ExpiresAt: golangJWT.NewNumericDate(exp),
+			ExpiresAt: golangJWT.NewNumericDate(expiresAt),
 			Issuer:    j.issuer,
 			IssuedAt:  golangJWT.NewNumericDate(now),
 		},
 	}
-	signed, err := j.sign(claims)
+	token, err = j.sign(claims)
 	if err != nil {
 		return "", time.Time{}, "", err
 	}
-	return signed, exp, jti, nil
+	return token, expiresAt, jti, nil
 }
 
-func (j *jwtService) signRefresh(userID, email string) (string, time.Time, string, error) {
+func (j *jwtService) signRefresh(userID, email string) (token string, expiresAt time.Time, jti string, err error) {
 	now := j.clock.Now()
-	exp := now.Add(24 * time.Hour * time.Duration(j.refreshExpired))
-	jti := uuid.NewString()
+	expiresAt = now.Add(24 * time.Hour * time.Duration(j.refreshExpired))
+	jti = uuid.NewString()
 	claims := &JwtCustomClaim{
 		UserID: userID,
 		Email:  email,
 		Kind:   KindRefresh,
 		RegisteredClaims: golangJWT.RegisteredClaims{
 			ID:        jti,
-			ExpiresAt: golangJWT.NewNumericDate(exp),
+			ExpiresAt: golangJWT.NewNumericDate(expiresAt),
 			Issuer:    j.issuer,
 			IssuedAt:  golangJWT.NewNumericDate(now),
 		},
 	}
-	signed, err := j.sign(claims)
+	token, err = j.sign(claims)
 	if err != nil {
 		return "", time.Time{}, "", err
 	}
-	return signed, exp, jti, nil
+	return token, expiresAt, jti, nil
 }
 
 func (j *jwtService) sign(claims *JwtCustomClaim) (string, error) {

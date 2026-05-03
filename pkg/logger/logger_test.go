@@ -2,8 +2,9 @@ package logger_test
 
 import (
 	"context"
-	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"testing"
+
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 )
 
 func TestLoggerUsage(t *testing.T) {
@@ -33,7 +34,7 @@ func TestLoggerUsage(t *testing.T) {
 	})
 
 	// Example 3: Context-aware logging
-	ctx := context.WithValue(context.Background(), logger.TraceIDKey, "trace-123-456") //lint:ignore SA1029 using string key for simplicity in test
+	ctx := context.WithValue(context.Background(), logger.TraceIDKey, "trace-123-456")
 	logger.InfoWithContext(ctx, "Processing request")
 	logger.InfofWithContext(ctx, "Processing request for user: %s", "john")
 
@@ -93,7 +94,7 @@ func TestServiceLogger(t *testing.T) {
 	}
 
 	// Simulate a service method
-	ctx := context.WithValue(context.Background(), logger.TraceIDKey, "req-789") //lint:ignore SA1029 using string key for simplicity in test
+	ctx := context.WithValue(context.Background(), logger.TraceIDKey, "req-789")
 
 	// Service-level logger with common fields
 	serviceLogger := logger.WithFields(logger.Fields{
@@ -137,7 +138,7 @@ func ExampleLogger() {
 	logger.Info("Application started")
 
 	// With context
-	ctx := context.WithValue(context.Background(), logger.TraceIDKey, "trace-001") //lint:ignore SA1029 using string key for simplicity in test
+	ctx := context.WithValue(context.Background(), logger.TraceIDKey, "trace-001")
 	logger.InfoWithContext(ctx, "Request received")
 
 	// With fields
