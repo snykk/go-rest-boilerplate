@@ -23,7 +23,7 @@ func TestGenerateHash(t *testing.T) {
 				t.Errorf("GenerateHash(%q) error = %v, expectedErr %v", test.input, err, test.expectedErr)
 			}
 			if !test.expectedErr {
-				if len(hash) == 0 {
+				if hash == "" {
 					t.Errorf("GenerateHash(%q) = %q, expected non-empty string", test.input, hash)
 				}
 			}

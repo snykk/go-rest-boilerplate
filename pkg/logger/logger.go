@@ -32,13 +32,17 @@ const (
 	// InstanceLogrus
 )
 
+// ctxKey is an unexported type for context keys to avoid collisions
+// with other packages that might use bare strings (staticcheck SA1029).
+type ctxKey string
+
 // Context keys for correlation IDs. TraceIDKey holds the W3C trace
 // ID (auto-populated by OTel for cross-service link); RequestIDKey
 // holds the external X-Request-ID echoed back to the client. Every
 // *WithContext logging method emits both fields when present.
 const (
-	TraceIDKey   = "traceId"
-	RequestIDKey = "request_id"
+	TraceIDKey   ctxKey = "traceId"
+	RequestIDKey ctxKey = "request_id"
 )
 
 // Fields represents structured logging fields

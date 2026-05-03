@@ -172,7 +172,7 @@ func (r *Runner) loadApplied(ctx context.Context) (map[string]bool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load applied migrations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	applied := make(map[string]bool)
 	for rows.Next() {

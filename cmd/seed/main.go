@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		logger.Panic(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	logger.Info("seeding...", logger.Fields{constants.LoggerCategory: constants.LoggerCategorySeeder})
 

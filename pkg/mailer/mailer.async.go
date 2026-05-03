@@ -86,13 +86,13 @@ func NewAsyncOTPMailer(inner OTPMailer, workers, queueSize, retries int, backoff
 
 // SendOTP enqueues the mail job. Returns nil on successful enqueue,
 // ErrQueueFull if the channel is saturated.
-func (a *AsyncOTPMailer) SendOTP(otpCode string, receiver string) error {
+func (a *AsyncOTPMailer) SendOTP(otpCode, receiver string) error {
 	return a.enqueue(otpJob{kind: jobOTP, payload: otpCode, receiver: receiver})
 }
 
 // SendPasswordReset enqueues a password-reset email. Same retry +
 // backoff guarantees as SendOTP.
-func (a *AsyncOTPMailer) SendPasswordReset(token string, receiver string) error {
+func (a *AsyncOTPMailer) SendPasswordReset(token, receiver string) error {
 	return a.enqueue(otpJob{kind: jobPasswordReset, payload: token, receiver: receiver})
 }
 

@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		logger.Panic(err.Error(), logger.Fields{constants.LoggerCategory: constants.LoggerCategoryMigration})
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	runner := migration.New(db, migrationsDir)
 	ctx := context.Background()

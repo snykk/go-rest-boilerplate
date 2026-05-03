@@ -16,4 +16,3 @@ type Users struct {
 	DeletedAt         *time.Time `db:"deleted_at"`
 	PasswordChangedAt *time.Time `db:"password_changed_at"`
 }
-

@@ -80,13 +80,13 @@ func (m *AuthMiddleware) Handle(ctx *gin.Context) {
 
 	if user.IsAdmin != m.isAdmin && !user.IsAdmin {
 		logger.WarnWithContext(logCtx, "Auth: insufficient privilege", logger.Fields{
-			"middleware":      middlewareName,
-			"file":            fileName,
-			"step":            "privilege_check",
-			"path":            ctx.Request.URL.Path,
-			"user_id":         user.UserID,
-			"required_admin":  m.isAdmin,
-			"user_is_admin":   user.IsAdmin,
+			"middleware":     middlewareName,
+			"file":           fileName,
+			"step":           "privilege_check",
+			"path":           ctx.Request.URL.Path,
+			"user_id":        user.UserID,
+			"required_admin": m.isAdmin,
+			"user_is_admin":  user.IsAdmin,
 		})
 		V1Handler.NewAbortResponse(ctx, "you don't have access for this action")
 		return

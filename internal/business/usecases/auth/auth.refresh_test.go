@@ -17,9 +17,9 @@ import (
 
 func refreshClaims(jti, email string) jwt.JwtCustomClaim {
 	return jwt.JwtCustomClaim{
-		UserID: "user-1",
-		Email:  email,
-		Kind:   jwt.KindRefresh,
+		UserID:           "user-1",
+		Email:            email,
+		Kind:             jwt.KindRefresh,
 		RegisteredClaims: golangJWT.RegisteredClaims{ID: jti},
 	}
 }

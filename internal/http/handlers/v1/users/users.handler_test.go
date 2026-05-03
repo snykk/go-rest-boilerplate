@@ -11,8 +11,8 @@ import (
 	usersuc "github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	usershandler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1/users"
-	jwtpkg "github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/internal/test/mocks"
+	jwtpkg "github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -38,7 +38,7 @@ func TestGetUserDataHandler(t *testing.T) {
 		uc.On("GetByEmail", mock.Anything, usersuc.GetByEmailRequest{Email: "patrick@example.com"}).
 			Return(usersuc.GetByEmailResponse{User: domain.User{ID: "user-1", Email: "patrick@example.com", Username: "patrick"}}, nil).Once()
 
-		req := httptest.NewRequest("GET", "/me", nil)
+		req := httptest.NewRequest("GET", "/me", http.NoBody)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -51,7 +51,7 @@ func TestGetUserDataHandler(t *testing.T) {
 		uc.On("GetByEmail", mock.Anything, usersuc.GetByEmailRequest{Email: "patrick@example.com"}).
 			Return(usersuc.GetByEmailResponse{}, apperror.NotFound("user not found")).Once()
 
-		req := httptest.NewRequest("GET", "/me", nil)
+		req := httptest.NewRequest("GET", "/me", http.NoBody)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -64,7 +64,7 @@ func TestGetUserDataHandler(t *testing.T) {
 		r := gin.New()
 		r.GET("/me", h.GetUserData)
 
-		req := httptest.NewRequest("GET", "/me", nil)
+		req := httptest.NewRequest("GET", "/me", http.NoBody)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 

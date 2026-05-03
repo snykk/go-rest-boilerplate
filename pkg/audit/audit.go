@@ -67,10 +67,10 @@ type Event struct {
 }
 
 var (
-	mu     sync.Mutex
-	out    io.Writer = os.Stderr
-	enc    *json.Encoder
-	encMu  sync.Mutex
+	mu    sync.Mutex
+	out   io.Writer = os.Stderr
+	enc   *json.Encoder
+	encMu sync.Mutex
 )
 
 func init() {

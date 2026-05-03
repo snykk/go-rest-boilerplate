@@ -56,7 +56,7 @@ func newZapLogger(config Config) (Logger, error) {
 	}
 
 	if config.EnableFile && config.FileLocation != "" {
-		file, err := os.OpenFile(config.FileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(config.FileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open log file: %w", err)
 		}
