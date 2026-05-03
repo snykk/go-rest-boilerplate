@@ -15,6 +15,19 @@ func GetTraceIDFromContext(ctx context.Context) string {
 	return ""
 }
 
+// GetRequestIDFromContext extracts the external X-Request-ID from
+// context. Empty when the request didn't carry one and the middleware
+// hasn't run yet.
+func GetRequestIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if requestID, ok := ctx.Value(RequestIDKey).(string); ok && requestID != "" {
+		return requestID
+	}
+	return ""
+}
+
 // ConvertMapToFields converts a map to Fields
 func ConvertMapToFields(data map[string]interface{}) Fields {
 	fields := make(Fields, len(data))

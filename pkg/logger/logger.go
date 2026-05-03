@@ -32,9 +32,13 @@ const (
 	// InstanceLogrus
 )
 
-// Context key for trace ID
+// Context keys for correlation IDs. TraceIDKey holds the W3C trace
+// ID (auto-populated by OTel for cross-service link); RequestIDKey
+// holds the external X-Request-ID echoed back to the client. Every
+// *WithContext logging method emits both fields when present.
 const (
-	TraceIDKey = "traceId"
+	TraceIDKey   = "traceId"
+	RequestIDKey = "request_id"
 )
 
 // Fields represents structured logging fields

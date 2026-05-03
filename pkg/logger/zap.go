@@ -148,6 +148,19 @@ func (l *zapLogger) mergeFields(additional ...Fields) []zap.Field {
 	return fields
 }
 
+// appendCorrelation pulls correlation IDs out of ctx and appends them
+// as zap fields. Called by every *WithContext method so log entries
+// share traceId (cross-service link) + request_id (client-facing).
+func appendCorrelation(ctx context.Context, fields []zap.Field) []zap.Field {
+	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
+		fields = append(fields, zap.String("traceId", traceID))
+	}
+	if requestID := GetRequestIDFromContext(ctx); requestID != "" {
+		fields = append(fields, zap.String("request_id", requestID))
+	}
+	return fields
+}
+
 // Basic logging methods
 
 // Debug logs a debug-level message with optional structured fields.
@@ -272,9 +285,7 @@ func (l *zapLogger) Panicf(format string, args ...interface{}) {
 // Automatically extracts and includes traceId from context if available.
 func (l *zapLogger) DebugWithContext(ctx context.Context, msg string, fields ...Fields) {
 	allFields := l.mergeFields(fields...)
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		allFields = append(allFields, zap.String("traceId", traceID))
-	}
+	allFields = appendCorrelation(ctx, allFields)
 	l.contextLogger.Debug(msg, allFields...)
 }
 
@@ -282,9 +293,7 @@ func (l *zapLogger) DebugWithContext(ctx context.Context, msg string, fields ...
 // Automatically extracts and includes traceId from context if available.
 func (l *zapLogger) InfoWithContext(ctx context.Context, msg string, fields ...Fields) {
 	allFields := l.mergeFields(fields...)
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		allFields = append(allFields, zap.String("traceId", traceID))
-	}
+	allFields = appendCorrelation(ctx, allFields)
 	l.contextLogger.Info(msg, allFields...)
 }
 
@@ -292,9 +301,7 @@ func (l *zapLogger) InfoWithContext(ctx context.Context, msg string, fields ...F
 // Automatically extracts and includes traceId from context if available.
 func (l *zapLogger) WarnWithContext(ctx context.Context, msg string, fields ...Fields) {
 	allFields := l.mergeFields(fields...)
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		allFields = append(allFields, zap.String("traceId", traceID))
-	}
+	allFields = appendCorrelation(ctx, allFields)
 	l.contextLogger.Warn(msg, allFields...)
 }
 
@@ -302,9 +309,7 @@ func (l *zapLogger) WarnWithContext(ctx context.Context, msg string, fields ...F
 // Automatically extracts and includes traceId from context if available.
 func (l *zapLogger) ErrorWithContext(ctx context.Context, msg string, fields ...Fields) {
 	allFields := l.mergeFields(fields...)
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		allFields = append(allFields, zap.String("traceId", traceID))
-	}
+	allFields = appendCorrelation(ctx, allFields)
 	l.contextLogger.Error(msg, allFields...)
 }
 
@@ -312,9 +317,7 @@ func (l *zapLogger) ErrorWithContext(ctx context.Context, msg string, fields ...
 // Automatically extracts and includes traceId from context if available.
 func (l *zapLogger) FatalWithContext(ctx context.Context, msg string, fields ...Fields) {
 	allFields := l.mergeFields(fields...)
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		allFields = append(allFields, zap.String("traceId", traceID))
-	}
+	allFields = appendCorrelation(ctx, allFields)
 	l.contextLogger.Fatal(msg, allFields...)
 }
 
@@ -322,9 +325,7 @@ func (l *zapLogger) FatalWithContext(ctx context.Context, msg string, fields ...
 // Automatically extracts and includes traceId from context if available.
 func (l *zapLogger) PanicWithContext(ctx context.Context, msg string, fields ...Fields) {
 	allFields := l.mergeFields(fields...)
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		allFields = append(allFields, zap.String("traceId", traceID))
-	}
+	allFields = appendCorrelation(ctx, allFields)
 	l.contextLogger.Panic(msg, allFields...)
 }
 
@@ -335,10 +336,7 @@ func (l *zapLogger) PanicWithContext(ctx context.Context, msg string, fields ...
 func (l *zapLogger) DebugfWithContext(ctx context.Context, format string, args ...interface{}) {
 	fields := make([]zap.Field, len(l.fields))
 	copy(fields, l.fields)
-
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		fields = append(fields, zap.String("traceId", traceID))
-	}
+	fields = appendCorrelation(ctx, fields)
 
 	l.contextLogger.Debug(fmt.Sprintf(format, args...), fields...)
 }
@@ -348,10 +346,7 @@ func (l *zapLogger) DebugfWithContext(ctx context.Context, format string, args .
 func (l *zapLogger) InfofWithContext(ctx context.Context, format string, args ...interface{}) {
 	fields := make([]zap.Field, len(l.fields))
 	copy(fields, l.fields)
-
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		fields = append(fields, zap.String("traceId", traceID))
-	}
+	fields = appendCorrelation(ctx, fields)
 
 	l.contextLogger.Info(fmt.Sprintf(format, args...), fields...)
 }
@@ -361,10 +356,7 @@ func (l *zapLogger) InfofWithContext(ctx context.Context, format string, args ..
 func (l *zapLogger) WarnfWithContext(ctx context.Context, format string, args ...interface{}) {
 	fields := make([]zap.Field, len(l.fields))
 	copy(fields, l.fields)
-
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		fields = append(fields, zap.String("traceId", traceID))
-	}
+	fields = appendCorrelation(ctx, fields)
 
 	l.contextLogger.Warn(fmt.Sprintf(format, args...), fields...)
 }
@@ -374,10 +366,7 @@ func (l *zapLogger) WarnfWithContext(ctx context.Context, format string, args ..
 func (l *zapLogger) ErrorfWithContext(ctx context.Context, format string, args ...interface{}) {
 	fields := make([]zap.Field, len(l.fields))
 	copy(fields, l.fields)
-
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		fields = append(fields, zap.String("traceId", traceID))
-	}
+	fields = appendCorrelation(ctx, fields)
 
 	l.contextLogger.Error(fmt.Sprintf(format, args...), fields...)
 }
@@ -387,10 +376,7 @@ func (l *zapLogger) ErrorfWithContext(ctx context.Context, format string, args .
 func (l *zapLogger) FatalfWithContext(ctx context.Context, format string, args ...interface{}) {
 	fields := make([]zap.Field, len(l.fields))
 	copy(fields, l.fields)
-
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		fields = append(fields, zap.String("traceId", traceID))
-	}
+	fields = appendCorrelation(ctx, fields)
 
 	l.contextLogger.Fatal(fmt.Sprintf(format, args...), fields...)
 }
@@ -400,10 +386,7 @@ func (l *zapLogger) FatalfWithContext(ctx context.Context, format string, args .
 func (l *zapLogger) PanicfContext(ctx context.Context, format string, args ...interface{}) {
 	fields := make([]zap.Field, len(l.fields))
 	copy(fields, l.fields)
-
-	if traceID := GetTraceIDFromContext(ctx); traceID != "" && traceID != "unknown" {
-		fields = append(fields, zap.String("traceId", traceID))
-	}
+	fields = appendCorrelation(ctx, fields)
 
 	l.contextLogger.Panic(fmt.Sprintf(format, args...), fields...)
 }
@@ -429,16 +412,13 @@ func (l *zapLogger) WithFields(fields Fields) Logger {
 	}
 }
 
-// WithContext returns a new logger instance with the trace ID from the provided context
-// automatically included in all subsequent log entries. Supports method chaining.
+// WithContext returns a new logger instance with both correlation IDs
+// (traceId from OTel and request_id from X-Request-ID) baked in, when
+// present in ctx. Supports method chaining.
 func (l *zapLogger) WithContext(ctx context.Context) Logger {
-	traceID := GetTraceIDFromContext(ctx)
-
-	newFields := make([]zap.Field, 0, len(l.fields)+1)
+	newFields := make([]zap.Field, 0, len(l.fields)+2)
 	newFields = append(newFields, l.fields...)
-	if traceID != "" && traceID != "unknown" {
-		newFields = append(newFields, zap.String("traceId", traceID))
-	}
+	newFields = appendCorrelation(ctx, newFields)
 
 	return &zapLogger{
 		base:          l.base,

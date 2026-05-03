@@ -211,12 +211,12 @@ func setupRouter() *gin.Engine {
 	router := gin.New()
 
 	// set up middlewares
-	router.Use(middlewares.RequestIDMiddleware())
-	// otelgin starts a server span per request and pulls a parent
-	// trace from the W3C traceparent header if present, so every span
-	// emitted further down the stack (DB, Redis, mailer) becomes a
-	// child of the request span automatically.
+	// otelgin first so the OTel span context (trace_id) is established
+	// before RequestIDMiddleware reaches in to bridge it into the
+	// logger context. Spans emitted further down the stack (DB, Redis,
+	// mailer) become children of the server span automatically.
 	router.Use(otelgin.Middleware("go-rest-boilerplate"))
+	router.Use(middlewares.RequestIDMiddleware())
 	router.Use(middlewares.MetricsMiddleware())
 	router.Use(middlewares.SecurityHeadersMiddleware())
 	router.Use(middlewares.CORSMiddleware())
