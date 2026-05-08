@@ -69,7 +69,7 @@ func (uc *usecase) ResetPassword(ctx context.Context, req ResetPasswordRequest) 
 		return err
 	}
 
-	userID, getErr := uc.redisCache.Get(ctx, resetKey(token))
+	userID, getErr := uc.redisCache.Get(ctx, PasswordResetKey(token))
 	if getErr != nil || userID == "" {
 		err = apperror.Unauthorized("reset token is invalid or expired")
 		fields := logger.Fields{
@@ -128,8 +128,8 @@ func (uc *usecase) ResetPassword(ctx context.Context, req ResetPasswordRequest) 
 		})
 		return err
 	}
-	_ = uc.redisCache.Del(ctx, resetKey(token))
-	_ = uc.redisCache.Del(ctx, userResetIndexKey(userID))
+	_ = uc.redisCache.Del(ctx, PasswordResetKey(token))
+	_ = uc.redisCache.Del(ctx, UserResetIndexKey(userID))
 	if user.PasswordChangedAt != nil {
 		uc.recordTokenCutoff(ctx, userID, *user.PasswordChangedAt)
 	}

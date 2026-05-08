@@ -18,9 +18,6 @@ import (
 // bytes (~256 bits) makes brute force on a 30-min window infeasible.
 const resetTokenBytes = 32
 
-func resetKey(token string) string           { return fmt.Sprintf("pwd_reset:%s", token) }
-func userResetIndexKey(userID string) string { return fmt.Sprintf("pwd_reset_user:%s", userID) }
-
 // ForgotPassword issues a one-shot reset token, persists it in Redis
 // with TTL, and emails it to the user. To defeat email enumeration
 // the response is identical whether the email exists or not.
@@ -54,7 +51,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 	}()
 
 	if uc.cfg.ForgotMaxAttempts > 0 {
-		key := forgotAttemptsKey(email)
+		key := ForgotAttemptsKey(email)
 		attempts, incrErr := uc.redisCache.Incr(ctx, key)
 		if incrErr != nil {
 			logger.ErrorWithContext(ctx, "ForgotPassword: failed to track attempts (non-fatal)", logger.Fields{
@@ -106,7 +103,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 		if errors.As(lookupErr, &domErr) && domErr.Type == apperror.ErrTypeNotFound {
 			// Hedge: do a Redis write of equivalent shape so unknown
 			// emails take roughly the same time as known ones.
-			decoyKey := resetKey(token)
+			decoyKey := PasswordResetKey(token)
 			_ = uc.redisCache.Set(ctx, decoyKey, "decoy")
 			_ = uc.redisCache.Expire(ctx, decoyKey, uc.cfg.PasswordResetTTL)
 			_ = uc.redisCache.Del(ctx, decoyKey)
@@ -128,11 +125,11 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 	// Invalidate any token still live for this user so a leaked earlier
 	// link can't race with the new one. Single-active-token is the
 	// expected mental model for "I requested a reset twice".
-	if prior, getErr := uc.redisCache.Get(ctx, userResetIndexKey(user.ID)); getErr == nil && prior != "" {
-		_ = uc.redisCache.Del(ctx, resetKey(prior))
+	if prior, getErr := uc.redisCache.Get(ctx, UserResetIndexKey(user.ID)); getErr == nil && prior != "" {
+		_ = uc.redisCache.Del(ctx, PasswordResetKey(prior))
 	}
 
-	if setErr := uc.redisCache.Set(ctx, resetKey(token), user.ID); setErr != nil {
+	if setErr := uc.redisCache.Set(ctx, PasswordResetKey(token), user.ID); setErr != nil {
 		err = apperror.InternalCause(fmt.Errorf("persist reset token: %w", setErr))
 		logger.ErrorWithContext(ctx, "Forgot password failed: persist token error", logger.Fields{
 			"usecase": usecaseName,
@@ -144,7 +141,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 		})
 		return err
 	}
-	if expireErr := uc.redisCache.Expire(ctx, resetKey(token), uc.cfg.PasswordResetTTL); expireErr != nil {
+	if expireErr := uc.redisCache.Expire(ctx, PasswordResetKey(token), uc.cfg.PasswordResetTTL); expireErr != nil {
 		logger.ErrorWithContext(ctx, "Forgot password: failed to set TTL on reset token (non-fatal)", logger.Fields{
 			"usecase": usecaseName,
 			"method":  funcName,
@@ -153,7 +150,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 			"error":   expireErr.Error(),
 		})
 	}
-	if setIdxErr := uc.redisCache.Set(ctx, userResetIndexKey(user.ID), token); setIdxErr != nil {
+	if setIdxErr := uc.redisCache.Set(ctx, UserResetIndexKey(user.ID), token); setIdxErr != nil {
 		logger.ErrorWithContext(ctx, "Forgot password: failed to update user reset index (non-fatal)", logger.Fields{
 			"usecase": usecaseName,
 			"method":  funcName,
@@ -163,7 +160,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 			"user_id": user.ID,
 		})
 	} else {
-		_ = uc.redisCache.Expire(ctx, userResetIndexKey(user.ID), uc.cfg.PasswordResetTTL)
+		_ = uc.redisCache.Expire(ctx, UserResetIndexKey(user.ID), uc.cfg.PasswordResetTTL)
 	}
 
 	if mailErr := uc.mailer.SendPasswordReset(ctx, token, email); mailErr != nil {

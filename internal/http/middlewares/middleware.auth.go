@@ -1,11 +1,11 @@
 package middlewares
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
@@ -90,7 +90,7 @@ func (m *AuthMiddleware) Handle(ctx *gin.Context) {
 	// already passed signature + expiry, and we don't want a Redis blip
 	// to lock everyone out.
 	if m.redisCache != nil && user.IssuedAt != nil {
-		if cutoffStr, getErr := m.redisCache.Get(logCtx, fmt.Sprintf("pwd_cutoff:%s", user.UserID)); getErr == nil && cutoffStr != "" {
+		if cutoffStr, getErr := m.redisCache.Get(logCtx, auth.TokenCutoffKey(user.UserID)); getErr == nil && cutoffStr != "" {
 			if cutoff, parseErr := strconv.ParseInt(cutoffStr, 10, 64); parseErr == nil && user.IssuedAt.Unix() < cutoff {
 				logger.WarnWithContext(logCtx, "Auth: token revoked by password rotation", logger.Fields{
 					"middleware": middlewareName,

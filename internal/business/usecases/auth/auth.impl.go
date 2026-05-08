@@ -43,36 +43,6 @@ func NewUsecase(usersUC users.Usecase, jwtService jwt.JWTService, otpMailer mail
 // user enumeration via response latency.
 const dummyBcryptHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
 
-// refreshKey scopes refresh-token jti entries so they don't collide
-// with OTP keys in Redis.
-func refreshKey(jti string) string { return fmt.Sprintf("refresh:%s", jti) }
-
-// otpAttemptsKey returns the Redis key that tracks failed VerifyOTP
-// attempts for an email, scoped separately from the OTP code itself.
-func otpAttemptsKey(email string) string {
-	return fmt.Sprintf("otp_attempts:%s", email)
-}
-
-// loginAttemptsKey is the Redis key that tracks failed Login attempts
-// per email for the brute-force lockout window.
-func loginAttemptsKey(email string) string {
-	return fmt.Sprintf("login_attempts:%s", email)
-}
-
-// forgotAttemptsKey rate-limits /password/forgot per email so an
-// attacker can't spam outbound reset emails or churn reset tokens.
-func forgotAttemptsKey(email string) string {
-	return fmt.Sprintf("forgot_attempts:%s", email)
-}
-
-// tokenCutoffKey holds the unix-seconds cutoff after which any access
-// token issued for this user is considered revoked. Auth middleware
-// reads this on every authenticated request; ChangePassword and
-// ResetPassword write it.
-func tokenCutoffKey(userID string) string {
-	return fmt.Sprintf("pwd_cutoff:%s", userID)
-}
-
 // tokenCutoffTTL bounds how long the cutoff signal needs to live.
 // Access tokens expire after at most uc.cfg.JWTExpired hours, so 24h
 // comfortably outlives any in-flight access token. Refresh-token
@@ -85,7 +55,7 @@ const tokenCutoffTTL = 24 * time.Hour
 // so a leaked access token stops working as soon as the user rotates
 // their password instead of lingering until natural expiry.
 func (uc *usecase) recordTokenCutoff(ctx context.Context, userID string, when time.Time) {
-	key := tokenCutoffKey(userID)
+	key := TokenCutoffKey(userID)
 	if err := uc.redisCache.Set(ctx, key, fmt.Sprintf("%d", when.Unix())); err != nil {
 		logger.ErrorWithContext(ctx, "auth: failed to write token cutoff (non-fatal)", logger.Fields{
 			"step":    "redis_set_token_cutoff",
@@ -106,10 +76,10 @@ func (uc *usecase) rememberRefresh(ctx context.Context, pair jwt.TokenPair) erro
 	if ttl <= 0 {
 		return fmt.Errorf("refresh token already expired")
 	}
-	if err := uc.redisCache.Set(ctx, refreshKey(pair.RefreshJTI), pair.RefreshJTI); err != nil {
+	if err := uc.redisCache.Set(ctx, RefreshKey(pair.RefreshJTI), pair.RefreshJTI); err != nil {
 		return err
 	}
 	// Set() applies the cache-wide expires in minutes; override
 	// explicitly so each refresh token has its own TTL.
-	return uc.redisCache.Expire(ctx, refreshKey(pair.RefreshJTI), ttl)
+	return uc.redisCache.Expire(ctx, RefreshKey(pair.RefreshJTI), ttl)
 }

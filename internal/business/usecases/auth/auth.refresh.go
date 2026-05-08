@@ -61,7 +61,7 @@ func (uc *usecase) Refresh(ctx context.Context, req RefreshRequest) (resp LoginR
 
 	// Verify the jti is still live server-side; logout / previous
 	// rotation would have removed it.
-	if _, getErr := uc.redisCache.Get(ctx, refreshKey(claims.ID)); getErr != nil {
+	if _, getErr := uc.redisCache.Get(ctx, RefreshKey(claims.ID)); getErr != nil {
 		err = apperror.Unauthorized("refresh token has been revoked")
 		logger.ErrorWithContext(ctx, "Refresh failed: token revoked", logger.Fields{
 			"usecase": usecaseName,
@@ -148,7 +148,7 @@ func (uc *usecase) Refresh(ctx context.Context, req RefreshRequest) (resp LoginR
 		})
 		return LoginResponse{}, err
 	}
-	_ = uc.redisCache.Del(ctx, refreshKey(claims.ID))
+	_ = uc.redisCache.Del(ctx, RefreshKey(claims.ID))
 
 	resp = LoginResponse{
 		User:         user,
