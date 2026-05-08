@@ -8,6 +8,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
+	"github.com/snykk/go-rest-boilerplate/pkg/logger"
 	"github.com/snykk/go-rest-boilerplate/pkg/mailer"
 )
 
@@ -62,6 +63,38 @@ func loginAttemptsKey(email string) string {
 // attacker can't spam outbound reset emails or churn reset tokens.
 func forgotAttemptsKey(email string) string {
 	return fmt.Sprintf("forgot_attempts:%s", email)
+}
+
+// tokenCutoffKey holds the unix-seconds cutoff after which any access
+// token issued for this user is considered revoked. Auth middleware
+// reads this on every authenticated request; ChangePassword and
+// ResetPassword write it.
+func tokenCutoffKey(userID string) string {
+	return fmt.Sprintf("pwd_cutoff:%s", userID)
+}
+
+// tokenCutoffTTL bounds how long the cutoff signal needs to live.
+// Access tokens expire after at most uc.cfg.JWTExpired hours, so 24h
+// comfortably outlives any in-flight access token. Refresh-token
+// revocation lives in the DB (User.TokensRevokedBefore) and isn't
+// affected by this TTL.
+const tokenCutoffTTL = 24 * time.Hour
+
+// recordTokenCutoff publishes a "tokens issued before this instant
+// are revoked" marker that AuthMiddleware checks on every request,
+// so a leaked access token stops working as soon as the user rotates
+// their password instead of lingering until natural expiry.
+func (uc *usecase) recordTokenCutoff(ctx context.Context, userID string, when time.Time) {
+	key := tokenCutoffKey(userID)
+	if err := uc.redisCache.Set(ctx, key, fmt.Sprintf("%d", when.Unix())); err != nil {
+		logger.ErrorWithContext(ctx, "auth: failed to write token cutoff (non-fatal)", logger.Fields{
+			"step":    "redis_set_token_cutoff",
+			"error":   err.Error(),
+			"user_id": userID,
+		})
+		return
+	}
+	_ = uc.redisCache.Expire(ctx, key, tokenCutoffTTL)
 }
 
 // rememberRefresh stores the refresh jti in Redis with a TTL matching

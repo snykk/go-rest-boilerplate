@@ -166,7 +166,7 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 		_ = uc.redisCache.Expire(ctx, userResetIndexKey(user.ID), uc.cfg.PasswordResetTTL)
 	}
 
-	if mailErr := uc.mailer.SendPasswordReset(token, email); mailErr != nil {
+	if mailErr := uc.mailer.SendPasswordReset(ctx, token, email); mailErr != nil {
 		err = apperror.InternalCause(fmt.Errorf("send reset email: %w", mailErr))
 		logger.ErrorWithContext(ctx, "Forgot password failed: mailer error", logger.Fields{
 			"usecase": usecaseName,

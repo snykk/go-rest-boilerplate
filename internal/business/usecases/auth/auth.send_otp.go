@@ -87,7 +87,7 @@ func (uc *usecase) SendOTP(ctx context.Context, req SendOTPRequest) (err error) 
 		return err
 	}
 
-	if mailErr := uc.mailer.SendOTP(code, email); mailErr != nil {
+	if mailErr := uc.mailer.SendOTP(ctx, code, email); mailErr != nil {
 		observability.ObserveMailerOp("queue_full")
 		err = apperror.InternalCause(fmt.Errorf("send otp: %w", mailErr))
 		logger.ErrorWithContext(ctx, "Send OTP failed: mailer enqueue error", logger.Fields{

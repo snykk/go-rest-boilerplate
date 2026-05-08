@@ -34,6 +34,8 @@ func TestChangePassword(t *testing.T) {
 					u := req.User
 					return u.ID == "user-1" && u.Password != "Newpwd_999!" && u.PasswordChangedAt != nil
 				})).Return(nil).Once()
+				f.redis.On("Set", mock.Anything, "pwd_cutoff:user-1", mock.AnythingOfType("string")).Return(nil).Once()
+				f.redis.On("Expire", mock.Anything, "pwd_cutoff:user-1", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 			},
 		},
 		{

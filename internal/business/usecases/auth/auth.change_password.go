@@ -115,5 +115,8 @@ func (uc *usecase) ChangePassword(ctx context.Context, req ChangePasswordRequest
 		})
 		return err
 	}
+	if user.PasswordChangedAt != nil {
+		uc.recordTokenCutoff(ctx, userID, *user.PasswordChangedAt)
+	}
 	return nil
 }

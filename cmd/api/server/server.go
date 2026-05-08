@@ -92,8 +92,10 @@ func NewApp() (*App, error) {
 		time.Second,
 	)
 
-	// auth middleware — user with valid token can access endpoint
-	authMiddleware := middlewares.NewAuthMiddleware(jwtService, false)
+	// auth middleware — user with valid token can access endpoint.
+	// redisCache is passed in so the middleware can honor the
+	// password-rotation cutoff written by ChangePassword / ResetPassword.
+	authMiddleware := middlewares.NewAuthMiddleware(jwtService, redisCache, false)
 
 	// Infrastructure endpoints (outside /api group)
 	healthHandler := V1Handler.NewHealthHandler(conn, redisCache.Client())

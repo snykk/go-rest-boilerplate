@@ -37,7 +37,7 @@ func TestForgotPassword(t *testing.T) {
 				}), mock.AnythingOfType("time.Duration")).Return(nil).Once()
 				f.redis.On("Set", mock.Anything, "pwd_reset_user:user-1", mock.AnythingOfType("string")).Return(nil).Once()
 				f.redis.On("Expire", mock.Anything, "pwd_reset_user:user-1", mock.AnythingOfType("time.Duration")).Return(nil).Once()
-				f.mailer.On("SendPasswordReset", mock.AnythingOfType("string"), "patrick@example.com").Return(nil).Once()
+				f.mailer.On("SendPasswordReset", mock.Anything, mock.AnythingOfType("string"), "patrick@example.com").Return(nil).Once()
 			},
 		},
 		{

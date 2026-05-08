@@ -130,5 +130,8 @@ func (uc *usecase) ResetPassword(ctx context.Context, req ResetPasswordRequest) 
 	}
 	_ = uc.redisCache.Del(ctx, resetKey(token))
 	_ = uc.redisCache.Del(ctx, userResetIndexKey(userID))
+	if user.PasswordChangedAt != nil {
+		uc.recordTokenCutoff(ctx, userID, *user.PasswordChangedAt)
+	}
 	return nil
 }
