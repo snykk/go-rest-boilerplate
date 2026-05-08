@@ -1,8 +1,5 @@
 // Package auth adapts the JWT claim carried in gin.Context to the
-// opaque CurrentUser value handlers need. Handlers were previously
-// type-asserting jwt.JwtCustomClaim directly, which coupled the HTTP
-// layer to the JWT implementation and crashed (instead of returning
-// 401) when the middleware mis-populated the context key.
+// opaque CurrentUser value handlers need.
 package auth
 
 import (

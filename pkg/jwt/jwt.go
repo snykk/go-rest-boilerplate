@@ -26,8 +26,8 @@ const (
 )
 
 type JWTService interface {
-	// GenerateToken mints a single access token. Kept for legacy call
-	// sites; new code should prefer GenerateTokenPair.
+	// GenerateToken mints a single access token. Prefer GenerateTokenPair
+	// when callers need a refresh token alongside.
 	GenerateToken(userId string, isAdmin bool, email string) (t string, err error)
 	// GenerateTokenPair mints an access+refresh pair, both signed with
 	// the same secret but distinguished by the Kind claim.
@@ -80,9 +80,8 @@ func NewJWTService(secretKey, issuer string, expired int) JWTService {
 	}
 }
 
-// NewJWTServiceWithRefresh is the constructor used by the server wiring
-// once refresh-token support lands; the shorter NewJWTService stays so
-// existing call sites and tests keep compiling.
+// NewJWTServiceWithRefresh constructs a service that mints access +
+// refresh token pairs with separately configurable lifetimes.
 func NewJWTServiceWithRefresh(secretKey, issuer string, expiredHours, refreshExpiredDays int) JWTService {
 	return &jwtService{
 		issuer:         issuer,
@@ -194,9 +193,8 @@ func (j *jwtService) ParseToken(tokenString string) (JwtCustomClaim, error) {
 	if err != nil {
 		return JwtCustomClaim{}, err
 	}
-	// Tokens signed before the Kind field existed serialize with an
-	// empty Kind — treat those as access to preserve backwards compat
-	// during the rollout. New tokens carry KindAccess explicitly.
+	// Empty Kind is accepted as an access token; only an explicit
+	// non-access value (e.g. KindRefresh) is rejected here.
 	if claims.Kind != "" && claims.Kind != KindAccess {
 		return JwtCustomClaim{}, ErrWrongTokenKind
 	}

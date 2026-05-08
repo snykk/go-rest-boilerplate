@@ -2,9 +2,6 @@
 // the business layer hands up to HTTP handlers. The HTTP layer maps
 // each Type to a status code; usecases attach a Cause for logging
 // without leaking internals to clients.
-//
-// This package replaces the previous home in internal/constants —
-// constants should hold actual constants, not domain types.
 package apperror
 
 // ErrorType represents the category of a domain error.
