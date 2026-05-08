@@ -8,7 +8,7 @@ import (
 type RegisterRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=25"`
 	Email    string `json:"email" validate:"required,email,max=50"`
-	Password string `json:"password" validate:"required,min=8,max=72,strongpassword"`
+	Password string `json:"password" validate:"required,min=12,max=72,strongpassword"`
 }
 
 func (r RegisterRequest) ToV1Domain() *domain.User {
@@ -53,7 +53,7 @@ type RefreshRequest struct {
 // ChangePasswordRequest is the body for PUT /auth/password/change.
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required,min=1,max=72"`
-	NewPassword     string `json:"new_password" validate:"required,min=8,max=72,strongpassword"`
+	NewPassword     string `json:"new_password" validate:"required,min=12,max=72,strongpassword"`
 }
 
 // ForgotPasswordRequest is the body for POST /auth/password/forgot.
@@ -64,5 +64,5 @@ type ForgotPasswordRequest struct {
 // ResetPasswordRequest is the body for POST /auth/password/reset.
 type ResetPasswordRequest struct {
 	Token       string `json:"token" validate:"required"`
-	NewPassword string `json:"new_password" validate:"required,min=8,max=72,strongpassword"`
+	NewPassword string `json:"new_password" validate:"required,min=12,max=72,strongpassword"`
 }

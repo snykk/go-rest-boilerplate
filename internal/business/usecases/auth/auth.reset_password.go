@@ -129,5 +129,6 @@ func (uc *usecase) ResetPassword(ctx context.Context, req ResetPasswordRequest) 
 		return err
 	}
 	_ = uc.redisCache.Del(ctx, resetKey(token))
+	_ = uc.redisCache.Del(ctx, userResetIndexKey(userID))
 	return nil
 }

@@ -18,7 +18,8 @@ import (
 // bytes (~256 bits) makes brute force on a 30-min window infeasible.
 const resetTokenBytes = 32
 
-func resetKey(token string) string { return fmt.Sprintf("pwd_reset:%s", token) }
+func resetKey(token string) string           { return fmt.Sprintf("pwd_reset:%s", token) }
+func userResetIndexKey(userID string) string { return fmt.Sprintf("pwd_reset_user:%s", userID) }
 
 // ForgotPassword issues a one-shot reset token, persists it in Redis
 // with TTL, and emails it to the user. To defeat email enumeration
@@ -82,10 +83,33 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 		}
 	}
 
+	// Generate a token unconditionally so the unknown-email path does
+	// the same crypto work as the known-email path. Defeats timing-based
+	// email enumeration, complementing the identical 200-OK response.
+	token, tokenErr := generateResetToken()
+	if tokenErr != nil {
+		err = apperror.InternalCause(fmt.Errorf("generate reset token: %w", tokenErr))
+		logger.ErrorWithContext(ctx, "Forgot password failed: token generation error", logger.Fields{
+			"usecase": usecaseName,
+			"method":  funcName,
+			"file":    fileName,
+			"step":    "generate_reset_token",
+			"error":   tokenErr.Error(),
+			"email":   email,
+		})
+		return err
+	}
+
 	lookupResp, lookupErr := uc.users.GetByEmail(ctx, users.GetByEmailRequest{Email: email})
 	if lookupErr != nil {
 		var domErr *apperror.DomainError
 		if errors.As(lookupErr, &domErr) && domErr.Type == apperror.ErrTypeNotFound {
+			// Hedge: do a Redis write of equivalent shape so unknown
+			// emails take roughly the same time as known ones.
+			decoyKey := resetKey(token)
+			_ = uc.redisCache.Set(ctx, decoyKey, "decoy")
+			_ = uc.redisCache.Expire(ctx, decoyKey, uc.cfg.PasswordResetTTL)
+			_ = uc.redisCache.Del(ctx, decoyKey)
 			return nil
 		}
 		err = lookupErr
@@ -101,18 +125,11 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 	}
 	user := lookupResp.User
 
-	token, tokenErr := generateResetToken()
-	if tokenErr != nil {
-		err = apperror.InternalCause(fmt.Errorf("generate reset token: %w", tokenErr))
-		logger.ErrorWithContext(ctx, "Forgot password failed: token generation error", logger.Fields{
-			"usecase": usecaseName,
-			"method":  funcName,
-			"file":    fileName,
-			"step":    "generate_reset_token",
-			"error":   tokenErr.Error(),
-			"email":   email,
-		})
-		return err
+	// Invalidate any token still live for this user so a leaked earlier
+	// link can't race with the new one. Single-active-token is the
+	// expected mental model for "I requested a reset twice".
+	if prior, getErr := uc.redisCache.Get(ctx, userResetIndexKey(user.ID)); getErr == nil && prior != "" {
+		_ = uc.redisCache.Del(ctx, resetKey(prior))
 	}
 
 	if setErr := uc.redisCache.Set(ctx, resetKey(token), user.ID); setErr != nil {
@@ -135,6 +152,18 @@ func (uc *usecase) ForgotPassword(ctx context.Context, req ForgotPasswordRequest
 			"step":    "redis_expire_reset_token",
 			"error":   expireErr.Error(),
 		})
+	}
+	if setIdxErr := uc.redisCache.Set(ctx, userResetIndexKey(user.ID), token); setIdxErr != nil {
+		logger.ErrorWithContext(ctx, "Forgot password: failed to update user reset index (non-fatal)", logger.Fields{
+			"usecase": usecaseName,
+			"method":  funcName,
+			"file":    fileName,
+			"step":    "redis_set_user_index",
+			"error":   setIdxErr.Error(),
+			"user_id": user.ID,
+		})
+	} else {
+		_ = uc.redisCache.Expire(ctx, userResetIndexKey(user.ID), uc.cfg.PasswordResetTTL)
 	}
 
 	if mailErr := uc.mailer.SendPasswordReset(token, email); mailErr != nil {

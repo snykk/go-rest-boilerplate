@@ -5,7 +5,6 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	authhandler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/http/middlewares"
-	"golang.org/x/time/rate"
 )
 
 // authRoute wires the /auth/* group — register / login / OTP /
@@ -14,22 +13,19 @@ import (
 type authRoute struct {
 	handler        authhandler.Handler
 	router         *gin.RouterGroup
-	rateLimiter    gin.HandlerFunc
+	rateLimiter    *middlewares.RateLimiter
 	authMiddleware gin.HandlerFunc
 }
 
-// NewAuthRoute builds the route module. The rate limiter is built per
-// route module (rather than passed in) because the limit is a
-// property of the auth surface — different groups would carry
-// different limits. The auth middleware is shared with the users
-// route so ChangePassword can reuse the same JWT validation.
-func NewAuthRoute(router *gin.RouterGroup, authUC auth.Usecase, authMiddleware gin.HandlerFunc) *authRoute {
-	// 5 requests per minute per IP for auth endpoints.
-	authRateLimiter := middlewares.NewRateLimiter(rate.Limit(5.0/60.0), 5)
+// NewAuthRoute builds the route module. The rate limiter is owned by
+// the caller so its cleanup goroutine can be Stop()'d during graceful
+// shutdown; the auth middleware is shared with the users route so
+// ChangePassword can reuse the same JWT validation.
+func NewAuthRoute(router *gin.RouterGroup, authUC auth.Usecase, authMiddleware gin.HandlerFunc, rateLimiter *middlewares.RateLimiter) *authRoute {
 	return &authRoute{
 		handler:        authhandler.NewHandler(authUC),
 		router:         router,
-		rateLimiter:    authRateLimiter.Middleware(),
+		rateLimiter:    rateLimiter,
 		authMiddleware: authMiddleware,
 	}
 }
@@ -42,7 +38,7 @@ func (r *authRoute) Routes() {
 	// slow-body / oversized-payload attacks against the only routes
 	// that accept anonymous traffic, without affecting any
 	// legitimate request.
-	authGrp.Use(r.rateLimiter)
+	authGrp.Use(r.rateLimiter.Middleware())
 	authGrp.Use(middlewares.BodySizeLimitMiddleware(middlewares.AuthBodyMaxBytes))
 	authGrp.POST("/register", r.handler.Register)
 	authGrp.POST("/login", r.handler.Login)

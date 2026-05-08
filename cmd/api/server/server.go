@@ -30,14 +30,16 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"golang.org/x/time/rate"
 )
 
 type App struct {
-	HttpServer     *http.Server
-	db             *sqlx.DB
-	redisCache     caches.RedisCache
-	asyncMailer    *mailer.AsyncOTPMailer
-	tracerShutdown observability.Shutdown
+	HttpServer      *http.Server
+	db              *sqlx.DB
+	redisCache      caches.RedisCache
+	asyncMailer     *mailer.AsyncOTPMailer
+	tracerShutdown  observability.Shutdown
+	authRateLimiter *middlewares.RateLimiter
 }
 
 func NewApp() (*App, error) {
@@ -123,10 +125,15 @@ func NewApp() (*App, error) {
 		ForgotLockoutTTL:  15 * time.Minute,
 	})
 
+	// 5 requests per minute per IP for the anonymous /auth surface.
+	// Owned by App so its background cleanup goroutine can be stopped
+	// during graceful shutdown.
+	authRateLimiter := middlewares.NewRateLimiter(rate.Limit(5.0/60.0), 5)
+
 	// API Routes
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
-	routes.NewAuthRoute(api, authUC, authMiddleware).Routes()
+	routes.NewAuthRoute(api, authUC, authMiddleware, authRateLimiter).Routes()
 	routes.NewUsersRoute(api, usersUC, authMiddleware).Routes()
 
 	// setup http server
@@ -141,11 +148,12 @@ func NewApp() (*App, error) {
 	}
 
 	return &App{
-		HttpServer:     server,
-		db:             conn,
-		redisCache:     redisCache,
-		asyncMailer:    asyncMailer,
-		tracerShutdown: shutdownTracer,
+		HttpServer:      server,
+		db:              conn,
+		redisCache:      redisCache,
+		asyncMailer:     asyncMailer,
+		tracerShutdown:  shutdownTracer,
+		authRateLimiter: authRateLimiter,
 	}, nil
 }
 
@@ -170,6 +178,12 @@ func (a *App) Run() (err error) {
 
 	if err := a.HttpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("error when shutdown server: %v", err)
+	}
+
+	// Stop the rate limiter cleanup goroutine. Safe to call after
+	// HttpServer.Shutdown — no new requests will reach the middleware.
+	if a.authRateLimiter != nil {
+		a.authRateLimiter.Stop()
 	}
 
 	// drain the async mailer queue before tearing down dependencies so

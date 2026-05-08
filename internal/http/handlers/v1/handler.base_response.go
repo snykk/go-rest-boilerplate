@@ -12,33 +12,43 @@ import (
 )
 
 type BaseResponse struct {
-	Status  bool        `json:"status"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
+	Status    bool        `json:"status"`
+	Message   string      `json:"message,omitempty"`
+	Data      interface{} `json:"data,omitempty"`
+	RequestID string      `json:"request_id,omitempty"`
+}
+
+// requestID reads the X-Request-ID populated by the request-id
+// middleware. Inlined as a literal to avoid an import cycle with the
+// middlewares package (which imports this one).
+func requestID(c *gin.Context) string {
+	return c.GetString("X-Request-ID")
 }
 
 func NewSuccessResponse(c *gin.Context, statusCode int, message string, data interface{}) {
 	c.JSON(statusCode, BaseResponse{
-		Status:  true,
-		Message: message,
-		Data:    data,
+		Status:    true,
+		Message:   message,
+		Data:      data,
+		RequestID: requestID(c),
 	})
 }
 
 func NewErrorResponse(c *gin.Context, statusCode int, err string) {
 	c.JSON(statusCode, BaseResponse{
-		Status:  false,
-		Message: err,
+		Status:    false,
+		Message:   err,
+		RequestID: requestID(c),
 	})
 }
 
 // NewAbortResponse renders a 401 with the unified BaseResponse envelope
-// and aborts the middleware chain. Kept as a thin wrapper so middlewares
-// and handlers emit identical JSON shapes.
+// and aborts the middleware chain.
 func NewAbortResponse(c *gin.Context, message string) {
 	c.AbortWithStatusJSON(http.StatusUnauthorized, BaseResponse{
-		Status:  false,
-		Message: message,
+		Status:    false,
+		Message:   message,
+		RequestID: requestID(c),
 	})
 }
 
@@ -75,9 +85,10 @@ func RespondWithError(c *gin.Context, err error) {
 	var ve *validators.ValidationErrors
 	if errors.As(err, &ve) {
 		c.JSON(http.StatusUnprocessableEntity, BaseResponse{
-			Status:  false,
-			Message: "validation failed",
-			Data:    map[string]any{"errors": ve.Errors},
+			Status:    false,
+			Message:   "validation failed",
+			Data:      map[string]any{"errors": ve.Errors},
+			RequestID: requestID(c),
 		})
 		return
 	}
