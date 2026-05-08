@@ -76,7 +76,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, req VerifyOTPRequest) (err err
 		return err
 	}
 
-	attemptsKey := otpAttemptsKey(email)
+	attemptsKey := OTPAttemptsKey(email)
 	attempts, incrErr := uc.redisCache.Incr(ctx, attemptsKey)
 	if incrErr != nil {
 		logger.ErrorWithContext(ctx, "Verify OTP: failed to track attempts (non-fatal)", logger.Fields{
@@ -104,7 +104,7 @@ func (uc *usecase) VerifyOTP(ctx context.Context, req VerifyOTPRequest) (err err
 		return err
 	}
 
-	otpKey := fmt.Sprintf("user_otp:%s", email)
+	otpKey := UserOTPKey(email)
 	otpRedis, getErr := uc.redisCache.Get(ctx, otpKey)
 	if getErr != nil {
 		observability.ObserveCacheOp("redis", "get", "miss")

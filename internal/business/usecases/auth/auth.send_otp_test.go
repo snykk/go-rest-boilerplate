@@ -31,7 +31,7 @@ func TestSendOTP(t *testing.T) {
 				user := activeUser(t)
 				user.Active = false // SendOTP only valid for inactive accounts
 				f.users.On("GetByEmail", mock.Anything, users.GetByEmailRequest{Email: "patrick@example.com"}).Return(users.GetByEmailResponse{User: user}, nil).Once()
-				f.mailer.On("SendOTP", mock.AnythingOfType("string"), "patrick@example.com").Return(nil).Once()
+				f.mailer.On("SendOTP", mock.Anything, mock.AnythingOfType("string"), "patrick@example.com").Return(nil).Once()
 				f.redis.On("Set", mock.Anything, "user_otp:patrick@example.com", mock.AnythingOfType("string")).Return(nil).Once()
 				f.redis.On("Del", mock.Anything, "otp_attempts:patrick@example.com").Return(nil).Once()
 			},

@@ -22,7 +22,7 @@ type stubMailer struct {
 	deliveredTo []string
 }
 
-func (s *stubMailer) SendOTP(code, receiver string) error {
+func (s *stubMailer) SendOTP(_ context.Context, code, receiver string) error {
 	n := atomic.AddInt32(&s.calls, 1)
 	if s.forceErr != nil && n <= s.failUntil {
 		return s.forceErr
@@ -33,15 +33,15 @@ func (s *stubMailer) SendOTP(code, receiver string) error {
 	return nil
 }
 
-func (s *stubMailer) SendPasswordReset(token, receiver string) error {
-	return s.SendOTP(token, receiver)
+func (s *stubMailer) SendPasswordReset(ctx context.Context, token, receiver string) error {
+	return s.SendOTP(ctx, token, receiver)
 }
 
 func TestAsyncMailer_Delivers(t *testing.T) {
 	stub := &stubMailer{}
 	async := mailer.NewAsyncOTPMailer(stub, 1, 4, 3, 10*time.Millisecond)
 
-	assert.NoError(t, async.SendOTP("123456", "alice@example.com"))
+	assert.NoError(t, async.SendOTP(context.Background(), "123456", "alice@example.com"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -56,7 +56,7 @@ func TestAsyncMailer_RetriesTransientFailures(t *testing.T) {
 	stub := &stubMailer{forceErr: errors.New("smtp timeout"), failUntil: 2}
 	async := mailer.NewAsyncOTPMailer(stub, 1, 4, 3, 10*time.Millisecond)
 
-	assert.NoError(t, async.SendOTP("123456", "bob@example.com"))
+	assert.NoError(t, async.SendOTP(context.Background(), "123456", "bob@example.com"))
 
 	// Wait until the worker has made all three attempts before shutting
 	// down — Shutdown cancels pending retry backoffs, which would race
@@ -83,12 +83,13 @@ func TestAsyncMailer_ErrQueueFull(t *testing.T) {
 	async := mailer.NewAsyncOTPMailer(stub, 1, 1, 1, time.Millisecond)
 
 	// First send occupies the worker; second fills the queue; third must fail.
-	_ = async.SendOTP("1", "a@a")
-	_ = async.SendOTP("2", "b@b")
+	ctxBg := context.Background()
+	_ = async.SendOTP(ctxBg, "1", "a@a")
+	_ = async.SendOTP(ctxBg, "2", "b@b")
 	// Give the worker a beat to pick up the first job.
 	time.Sleep(20 * time.Millisecond)
-	_ = async.SendOTP("3", "c@c")
-	err := async.SendOTP("4", "d@d")
+	_ = async.SendOTP(ctxBg, "3", "c@c")
+	err := async.SendOTP(ctxBg, "4", "d@d")
 	assert.ErrorIs(t, err, mailer.ErrQueueFull)
 
 	close(blocker)
@@ -101,11 +102,11 @@ type blockingMailer struct {
 	release chan struct{}
 }
 
-func (b *blockingMailer) SendOTP(code, receiver string) error {
+func (b *blockingMailer) SendOTP(_ context.Context, code, receiver string) error {
 	<-b.release
 	return nil
 }
 
-func (b *blockingMailer) SendPasswordReset(token, receiver string) error {
-	return b.SendOTP(token, receiver)
+func (b *blockingMailer) SendPasswordReset(ctx context.Context, token, receiver string) error {
+	return b.SendOTP(ctx, token, receiver)
 }

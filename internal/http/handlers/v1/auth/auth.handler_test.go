@@ -129,19 +129,19 @@ func TestForgotPasswordHandler(t *testing.T) {
 func TestResetPasswordHandler(t *testing.T) {
 	t.Run("happy path returns 200", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ResetPassword", mock.Anything, authuc.ResetPasswordRequest{Token: "tok-1", NewPassword: "Newpwd_999!"}).Return(nil).Once()
+		h.uc.On("ResetPassword", mock.Anything, authuc.ResetPasswordRequest{Token: "tok-1", NewPassword: "Newpwd_9999!"}).Return(nil).Once()
 		w := doJSON(t, h, "POST", "/password/reset", map[string]string{
-			"token": "tok-1", "new_password": "Newpwd_999!",
+			"token": "tok-1", "new_password": "Newpwd_9999!",
 		})
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("invalid token returns 401", func(t *testing.T) {
 		h := newAuthHarness(t)
-		h.uc.On("ResetPassword", mock.Anything, authuc.ResetPasswordRequest{Token: "stale", NewPassword: "Newpwd_999!"}).
+		h.uc.On("ResetPassword", mock.Anything, authuc.ResetPasswordRequest{Token: "stale", NewPassword: "Newpwd_9999!"}).
 			Return(apperror.Unauthorized("reset token is invalid or expired")).Once()
 		w := doJSON(t, h, "POST", "/password/reset", map[string]string{
-			"token": "stale", "new_password": "Newpwd_999!",
+			"token": "stale", "new_password": "Newpwd_9999!",
 		})
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
@@ -153,10 +153,10 @@ func TestChangePasswordHandler(t *testing.T) {
 		h.uc.On("ChangePassword", mock.Anything, authuc.ChangePasswordRequest{
 			UserID:          "user-1",
 			CurrentPassword: "Pwd_123!",
-			NewPassword:     "Newpwd_999!",
+			NewPassword:     "Newpwd_9999!",
 		}).Return(nil).Once()
 		w := doJSON(t, h, "PUT", "/password/change", map[string]string{
-			"current_password": "Pwd_123!", "new_password": "Newpwd_999!",
+			"current_password": "Pwd_123!", "new_password": "Newpwd_9999!",
 		})
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
@@ -166,10 +166,10 @@ func TestChangePasswordHandler(t *testing.T) {
 		h.uc.On("ChangePassword", mock.Anything, authuc.ChangePasswordRequest{
 			UserID:          "user-1",
 			CurrentPassword: "wrong",
-			NewPassword:     "Newpwd_999!",
+			NewPassword:     "Newpwd_9999!",
 		}).Return(apperror.Unauthorized("current password is incorrect")).Once()
 		w := doJSON(t, h, "PUT", "/password/change", map[string]string{
-			"current_password": "wrong", "new_password": "Newpwd_999!",
+			"current_password": "wrong", "new_password": "Newpwd_9999!",
 		})
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})

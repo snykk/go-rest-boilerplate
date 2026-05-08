@@ -87,7 +87,7 @@ func (uc *usecase) SendOTP(ctx context.Context, req SendOTPRequest) (err error) 
 		return err
 	}
 
-	if mailErr := uc.mailer.SendOTP(code, email); mailErr != nil {
+	if mailErr := uc.mailer.SendOTP(ctx, code, email); mailErr != nil {
 		observability.ObserveMailerOp("queue_full")
 		err = apperror.InternalCause(fmt.Errorf("send otp: %w", mailErr))
 		logger.ErrorWithContext(ctx, "Send OTP failed: mailer enqueue error", logger.Fields{
@@ -101,7 +101,7 @@ func (uc *usecase) SendOTP(ctx context.Context, req SendOTPRequest) (err error) 
 		return err
 	}
 
-	otpKey := fmt.Sprintf("user_otp:%s", email)
+	otpKey := UserOTPKey(email)
 	if cacheErr := uc.redisCache.Set(ctx, otpKey, code); cacheErr != nil {
 		observability.ObserveCacheOp("redis", "set", "error")
 		logger.ErrorWithContext(ctx, "Send OTP: failed to cache OTP code (non-fatal)", logger.Fields{
@@ -115,7 +115,7 @@ func (uc *usecase) SendOTP(ctx context.Context, req SendOTPRequest) (err error) 
 	} else {
 		observability.ObserveCacheOp("redis", "set", "ok")
 	}
-	_ = uc.redisCache.Del(ctx, otpAttemptsKey(email))
+	_ = uc.redisCache.Del(ctx, OTPAttemptsKey(email))
 
 	return nil
 }

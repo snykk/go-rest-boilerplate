@@ -1,10 +1,13 @@
 package middlewares
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/snykk/go-rest-boilerplate/internal/business/usecases/auth"
 	"github.com/snykk/go-rest-boilerplate/internal/constants"
+	"github.com/snykk/go-rest-boilerplate/internal/datasources/caches"
 	V1Handler "github.com/snykk/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/snykk/go-rest-boilerplate/pkg/jwt"
 	"github.com/snykk/go-rest-boilerplate/pkg/logger"
@@ -12,12 +15,14 @@ import (
 
 type AuthMiddleware struct {
 	jwtService jwt.JWTService
+	redisCache caches.RedisCache
 	isAdmin    bool
 }
 
-func NewAuthMiddleware(jwtService jwt.JWTService, isAdmin bool) gin.HandlerFunc {
+func NewAuthMiddleware(jwtService jwt.JWTService, redisCache caches.RedisCache, isAdmin bool) gin.HandlerFunc {
 	return (&AuthMiddleware{
 		jwtService: jwtService,
+		redisCache: redisCache,
 		isAdmin:    isAdmin,
 	}).Handle
 }
@@ -76,6 +81,30 @@ func (m *AuthMiddleware) Handle(ctx *gin.Context) {
 		})
 		V1Handler.NewAbortResponse(ctx, "invalid token")
 		return
+	}
+
+	// Reject access tokens issued before the user's most recent password
+	// rotation. The cutoff is published to Redis by ChangePassword /
+	// ResetPassword; absence (Redis miss) means no recent rotation, so
+	// the token is allowed through. Redis errors fail open — the token
+	// already passed signature + expiry, and we don't want a Redis blip
+	// to lock everyone out.
+	if m.redisCache != nil && user.IssuedAt != nil {
+		if cutoffStr, getErr := m.redisCache.Get(logCtx, auth.TokenCutoffKey(user.UserID)); getErr == nil && cutoffStr != "" {
+			if cutoff, parseErr := strconv.ParseInt(cutoffStr, 10, 64); parseErr == nil && user.IssuedAt.Unix() < cutoff {
+				logger.WarnWithContext(logCtx, "Auth: token revoked by password rotation", logger.Fields{
+					"middleware": middlewareName,
+					"file":       fileName,
+					"step":       "check_pwd_cutoff",
+					"path":       ctx.Request.URL.Path,
+					"user_id":    user.UserID,
+					"issued_at":  user.IssuedAt.Unix(),
+					"cutoff":     cutoff,
+				})
+				V1Handler.NewAbortResponse(ctx, "token has been revoked")
+				return
+			}
+		}
 	}
 
 	if user.IsAdmin != m.isAdmin && !user.IsAdmin {

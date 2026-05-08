@@ -55,7 +55,7 @@ func (uc *usecase) Logout(ctx context.Context, req LogoutRequest) (err error) {
 		})
 		return err
 	}
-	if delErr := uc.redisCache.Del(ctx, refreshKey(claims.ID)); delErr != nil {
+	if delErr := uc.redisCache.Del(ctx, RefreshKey(claims.ID)); delErr != nil {
 		err = apperror.InternalCause(fmt.Errorf("revoke refresh: %w", delErr))
 		logger.ErrorWithContext(ctx, "Logout failed: redis del error", logger.Fields{
 			"usecase": usecaseName,

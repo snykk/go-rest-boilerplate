@@ -2,6 +2,7 @@ package mailer
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -40,14 +41,15 @@ const (
 
 type OTPMailer interface {
 	// SendOTP delivers the OTP code to the receiver's inbox via the
-	// configured SMTP relay. The async wrapper (AsyncOTPMailer) makes
-	// this non-blocking from the request path; the inner sync impl
-	// blocks for the SMTP round-trip.
-	SendOTP(otpCode string, receiver string) (err error)
+	// configured SMTP relay. The async wrapper (AsyncOTPMailer) snapshots
+	// the span context from ctx so the worker's send span links back to
+	// the originating request; the sync impl ignores ctx for the SMTP
+	// call (gomail has its own dialer timeout).
+	SendOTP(ctx context.Context, otpCode, receiver string) (err error)
 	// SendPasswordReset delivers an opaque reset token to the receiver.
 	// The receiver is expected to follow a link the email contains
 	// back to /auth/password/reset; this layer just transmits the token.
-	SendPasswordReset(token string, receiver string) error
+	SendPasswordReset(ctx context.Context, token, receiver string) error
 }
 
 type otpMailer struct {
@@ -62,7 +64,7 @@ func NewOTPMailer(email, password string) OTPMailer {
 	}
 }
 
-func (mailer *otpMailer) SendOTP(otpCode, receiver string) (err error) {
+func (mailer *otpMailer) SendOTP(_ context.Context, otpCode, receiver string) (err error) {
 	body, err := renderOTPBody(otpCode)
 	if err != nil {
 		return fmt.Errorf("render otp template: %w", err)
@@ -80,7 +82,7 @@ func (mailer *otpMailer) SendOTP(otpCode, receiver string) (err error) {
 	return dialer.DialAndSend(msg)
 }
 
-func (mailer *otpMailer) SendPasswordReset(token, receiver string) error {
+func (mailer *otpMailer) SendPasswordReset(_ context.Context, token, receiver string) error {
 	body := fmt.Sprintf(
 		`<p>Use the following token to reset your password. The token expires in %d minutes.</p><p><b>%s</b></p>`,
 		defaultValidMinutes, template.HTMLEscapeString(token),

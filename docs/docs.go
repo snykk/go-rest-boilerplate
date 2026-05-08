@@ -610,7 +610,7 @@ const docTemplate = `{
                 "new_password": {
                     "type": "string",
                     "maxLength": 72,
-                    "minLength": 8
+                    "minLength": 12
                 }
             }
         },
@@ -670,7 +670,7 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "maxLength": 72,
-                    "minLength": 8
+                    "minLength": 12
                 },
                 "username": {
                     "type": "string",
@@ -689,7 +689,7 @@ const docTemplate = `{
                 "new_password": {
                     "type": "string",
                     "maxLength": 72,
-                    "minLength": 8
+                    "minLength": 12
                 },
                 "token": {
                     "type": "string"
@@ -758,6 +758,9 @@ const docTemplate = `{
             "properties": {
                 "data": {},
                 "message": {
+                    "type": "string"
+                },
+                "request_id": {
                     "type": "string"
                 },
                 "status": {

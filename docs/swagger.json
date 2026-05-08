@@ -608,7 +608,7 @@
                 "new_password": {
                     "type": "string",
                     "maxLength": 72,
-                    "minLength": 8
+                    "minLength": 12
                 }
             }
         },
@@ -668,7 +668,7 @@
                 "password": {
                     "type": "string",
                     "maxLength": 72,
-                    "minLength": 8
+                    "minLength": 12
                 },
                 "username": {
                     "type": "string",
@@ -687,7 +687,7 @@
                 "new_password": {
                     "type": "string",
                     "maxLength": 72,
-                    "minLength": 8
+                    "minLength": 12
                 },
                 "token": {
                     "type": "string"
@@ -756,6 +756,9 @@
             "properties": {
                 "data": {},
                 "message": {
+                    "type": "string"
+                },
+                "request_id": {
                     "type": "string"
                 },
                 "status": {

@@ -58,7 +58,7 @@ func (uc *usecase) Login(ctx context.Context, req LoginRequest) (resp LoginRespo
 	// toward lockout — otherwise an attacker can probe email validity
 	// for free. The counter shares LoginLockoutTTL so it resets after
 	// the window expires.
-	attemptsKey := loginAttemptsKey(email)
+	attemptsKey := LoginAttemptsKey(email)
 	if uc.cfg.LoginMaxAttempts > 0 {
 		attempts, incrErr := uc.redisCache.Incr(ctx, attemptsKey)
 		if incrErr != nil {

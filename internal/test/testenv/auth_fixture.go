@@ -3,6 +3,7 @@
 package testenv
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -42,15 +43,15 @@ type CapturingMailer struct {
 type otpCapture struct{ Code, Receiver string }
 
 // SendOTP satisfies mailer.OTPMailer. Always succeeds.
-func (m *CapturingMailer) SendOTP(code, receiver string) error {
+func (m *CapturingMailer) SendOTP(_ context.Context, code, receiver string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.captured = append(m.captured, otpCapture{Code: code, Receiver: receiver})
 	return nil
 }
 
-func (m *CapturingMailer) SendPasswordReset(token, receiver string) error {
-	return m.SendOTP(token, receiver)
+func (m *CapturingMailer) SendPasswordReset(ctx context.Context, token, receiver string) error {
+	return m.SendOTP(ctx, token, receiver)
 }
 
 // LastOTP returns the most recently captured OTP for receiver, or

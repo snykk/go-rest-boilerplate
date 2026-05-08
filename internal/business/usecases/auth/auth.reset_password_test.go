@@ -34,6 +34,9 @@ func TestResetPassword(t *testing.T) {
 					return u.ID == "user-1" && u.PasswordChangedAt != nil
 				})).Return(nil).Once()
 				f.redis.On("Del", mock.Anything, "pwd_reset:valid-tok").Return(nil).Once()
+				f.redis.On("Del", mock.Anything, "pwd_reset_user:user-1").Return(nil).Once()
+				f.redis.On("Set", mock.Anything, "pwd_cutoff:user-1", mock.AnythingOfType("string")).Return(nil).Once()
+				f.redis.On("Expire", mock.Anything, "pwd_cutoff:user-1", mock.AnythingOfType("time.Duration")).Return(nil).Once()
 			},
 		},
 		{

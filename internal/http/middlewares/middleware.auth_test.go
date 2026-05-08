@@ -33,8 +33,8 @@ func authenticatedHandler(ctx *gin.Context) {
 
 func setup(t *testing.T) {
 	jwtService = jwt.NewJWTService("test-secret-key", "test-issuer", 5)
-	authBasicMiddleware = middlewares.NewAuthMiddleware(jwtService, false)
-	authAdminMiddleware = middlewares.NewAuthMiddleware(jwtService, true)
+	authBasicMiddleware = middlewares.NewAuthMiddleware(jwtService, nil, false)
+	authAdminMiddleware = middlewares.NewAuthMiddleware(jwtService, nil, true)
 
 	s = gin.New()
 	s.GET(forEveryone, authBasicMiddleware, authenticatedHandler)

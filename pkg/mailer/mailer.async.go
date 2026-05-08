@@ -11,6 +11,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/pkg/observability"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // AsyncOTPMailer wraps an OTPMailer so SendOTP enqueues a job and
@@ -46,6 +47,11 @@ type otpJob struct {
 	kind     jobKind
 	payload  string
 	receiver string
+	// spanCtx carries the originating request's trace identifiers so
+	// the worker's send span links back as a child instead of starting
+	// an orphan trace. Stored as the immutable SpanContext value so
+	// queue dwell time can't trigger context cancellation.
+	spanCtx trace.SpanContext
 }
 
 // ErrQueueFull means the async mailer cannot accept more work without
@@ -86,14 +92,24 @@ func NewAsyncOTPMailer(inner OTPMailer, workers, queueSize, retries int, backoff
 
 // SendOTP enqueues the mail job. Returns nil on successful enqueue,
 // ErrQueueFull if the channel is saturated.
-func (a *AsyncOTPMailer) SendOTP(otpCode, receiver string) error {
-	return a.enqueue(otpJob{kind: jobOTP, payload: otpCode, receiver: receiver})
+func (a *AsyncOTPMailer) SendOTP(ctx context.Context, otpCode, receiver string) error {
+	return a.enqueue(otpJob{
+		kind:     jobOTP,
+		payload:  otpCode,
+		receiver: receiver,
+		spanCtx:  trace.SpanFromContext(ctx).SpanContext(),
+	})
 }
 
 // SendPasswordReset enqueues a password-reset email. Same retry +
 // backoff guarantees as SendOTP.
-func (a *AsyncOTPMailer) SendPasswordReset(token, receiver string) error {
-	return a.enqueue(otpJob{kind: jobPasswordReset, payload: token, receiver: receiver})
+func (a *AsyncOTPMailer) SendPasswordReset(ctx context.Context, token, receiver string) error {
+	return a.enqueue(otpJob{
+		kind:     jobPasswordReset,
+		payload:  token,
+		receiver: receiver,
+		spanCtx:  trace.SpanFromContext(ctx).SpanContext(),
+	})
 }
 
 func (a *AsyncOTPMailer) enqueue(j otpJob) error {
@@ -141,21 +157,29 @@ func (a *AsyncOTPMailer) deliver(workerID int, job otpJob) {
 	if job.kind == jobPasswordReset {
 		spanName = "mailer.SendPasswordReset"
 	}
+	// Re-attach the originating request's trace as a parent for every
+	// retry attempt's span. context.Background as the base avoids
+	// inheriting the request's cancellation deadline (the request
+	// returns long before the worker runs).
+	parentCtx := context.Background()
+	if job.spanCtx.IsValid() {
+		parentCtx = trace.ContextWithSpanContext(parentCtx, job.spanCtx)
+	}
+
 	var lastErr error
 	for attempt := 1; attempt <= a.retries; attempt++ {
-		ctx, span := observability.Tracer().Start(context.Background(), spanName)
+		ctx, span := observability.Tracer().Start(parentCtx, spanName)
 		span.SetAttributes(
 			attribute.String("mail.receiver", job.receiver),
 			attribute.Int("mail.attempt", attempt),
 			attribute.Int("mail.worker", workerID),
 		)
-		_ = ctx
 
 		switch job.kind {
 		case jobPasswordReset:
-			lastErr = a.inner.SendPasswordReset(job.payload, job.receiver)
+			lastErr = a.inner.SendPasswordReset(ctx, job.payload, job.receiver)
 		default:
-			lastErr = a.inner.SendOTP(job.payload, job.receiver)
+			lastErr = a.inner.SendOTP(ctx, job.payload, job.receiver)
 		}
 		if lastErr == nil {
 			span.SetStatus(codes.Ok, "")
