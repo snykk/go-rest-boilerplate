@@ -12,21 +12,21 @@ import (
 	"github.com/go-rest-boilerplate/pkg/logger"
 )
 
-func (r *postgreUserRepository) Store(ctx context.Context, inDom *domain.User) (domain.User, error) {
+func (r *postgreUserRepository) Store(ctx context.Context, inDom *domain.Player) (domain.Player, error) {
 	const (
-		repositoryName = "users"
+		repositoryName = "players"
 		funcName       = "Store"
-		queryName      = "insertUser"
-		fileName       = "users.store.go"
+		queryName      = "insertAnonymousPlayer"
+		fileName       = "players.store.go"
 	)
-	userRecord := records.FromUsersV1Domain(inDom)
+	playerRecord := records.FromUsersV1Domain(inDom)
 
 	// INSERT ... RETURNING * so the caller gets the persisted row in
 	// one round-trip. Previously we did INSERT then GetByEmail; if
 	// GetByEmail failed (network blip, replica lag) the INSERT was
 	// already committed and the user was orphaned in the response.
 	rows, err := r.conn.NamedQueryContext(ctx, `
-		INSERT INTO users(id, username, email, password, active, role_id, created_at)
+		INSERT INTO users(id, installation_id, created_at)
 		VALUES (uuid_generate_v4(), :username, :email, :password, false, :role_id, :created_at)
 		RETURNING id, username, email, password, active, role_id, created_at, updated_at, deleted_at
 	`, userRecord)

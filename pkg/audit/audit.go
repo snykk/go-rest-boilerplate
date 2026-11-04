@@ -54,16 +54,17 @@ const (
 // entry can be joined back to the application logs (or to spans in
 // the tracing backend via TraceID).
 type Event struct {
-	Time      time.Time `json:"time"`
-	Type      EventType `json:"event"`
-	Success   bool      `json:"success"`
-	UserID    string    `json:"user_id,omitempty"`
-	Email     string    `json:"email,omitempty"`
-	IP        string    `json:"ip,omitempty"`
-	UserAgent string    `json:"user_agent,omitempty"`
-	RequestID string    `json:"request_id,omitempty"`
-	TraceID   string    `json:"trace_id,omitempty"`
-	Reason    string    `json:"reason,omitempty"`
+	Time           time.Time `json:"time"`
+	Type           EventType `json:"event"`
+	Success        bool      `json:"success"`
+	InstallationID string    `json:"installation_id,omitempty"`
+	UserID    	   string    `json:"user_id,omitempty"`
+	Email     	   string    `json:"email,omitempty"`
+	IP        	   string    `json:"ip,omitempty"`
+	UserAgent 	   string    `json:"user_agent,omitempty"`
+	RequestID 	   string    `json:"request_id,omitempty"`
+	TraceID   	   string    `json:"trace_id,omitempty"`
+	Reason    	   string    `json:"reason,omitempty"`
 }
 
 var (
