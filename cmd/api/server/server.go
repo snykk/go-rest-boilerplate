@@ -13,14 +13,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/go-rest-boilerplate/internal/business/usecases/auth"
-	"github.com/go-rest-boilerplate/internal/business/usecases/users"
 	"github.com/go-rest-boilerplate/internal/business/usecases/players"
 	"github.com/go-rest-boilerplate/internal/config"
 	"github.com/go-rest-boilerplate/internal/constants"
 	"github.com/go-rest-boilerplate/internal/datasources/caches"
 	"github.com/go-rest-boilerplate/internal/datasources/drivers"
-	userspostgres "github.com/go-rest-boilerplate/internal/datasources/repositories/postgres/users"
+	playerspostgres "github.com/go-rest-boilerplate/internal/datasources/repositories/postgres/players"
 	V1Handler "github.com/go-rest-boilerplate/internal/http/handlers/v1"
 	"github.com/go-rest-boilerplate/internal/http/middlewares"
 	"github.com/go-rest-boilerplate/internal/http/routes"
@@ -113,21 +111,8 @@ func NewApp() (*App, error) {
 	// Compose the bounded contexts. Users owns identity CRUD, Auth
 	// owns credential / session flows; Auth depends on Users for
 	// reads/writes of user records.
-	userRepo := userspostgres.NewUserRepository(conn)
-	usersUC := users.NewUsecase(userRepo, ristrettoCache, users.Config{
-		BcryptCost: config.AppConfig.BcryptCost,
-	})
-	authUC := auth.NewUsecase(usersUC, jwtService, asyncMailer, redisCache, auth.Config{
-		OTPMaxAttempts:    config.AppConfig.OTPMaxAttempts,
-		OTPTTL:            time.Duration(config.AppConfig.REDISExpired) * time.Minute,
-		PasswordResetTTL:  30 * time.Minute,
-		BcryptCost:        config.AppConfig.BcryptCost,
-		LoginMaxAttempts:  10,
-		LoginLockoutTTL:   15 * time.Minute,
-		ForgotMaxAttempts: 3,
-		ForgotLockoutTTL:  15 * time.Minute,
-	})
-	playersUC := players.NewUsecase(userRepo, ristrettoCache, players.Config{
+	playersRepo := playerspostgres.NewPlayersRepository(conn)
+	playersUC := players.NewUsecase(playersRepo, ristrettoCache, jwtService, players.Config{
 		BcryptCost: config.AppConfig.BcryptCost,
 	})
 
@@ -139,8 +124,7 @@ func NewApp() (*App, error) {
 	// API Routes
 	api := router.Group("api")
 	api.GET("/", routes.RootHandler)
-	routes.NewAuthRoute(api, authUC, authMiddleware, authRateLimiter).Routes()
-	routes.NewUsersRoute(api, usersUC, authMiddleware).Routes()
+	
 	routes.NewPlayersRoute(api, playersUC, authMiddleware, authRateLimiter).Routes()
 
 	// setup http server

@@ -12,76 +12,43 @@ import (
 	"github.com/go-rest-boilerplate/pkg/logger"
 )
 
-func (r *postgreUserRepository) Store(ctx context.Context, inDom *domain.Player) (domain.Player, error) {
+func (r *postgresPlayersRepository) Store(ctx context.Context, inDom *domain.Player) (domain.Player, error) {
 	const (
 		repositoryName = "players"
 		funcName       = "Store"
-		queryName      = "insertAnonymousPlayer"
+		queryName      = "insertPlayer"
 		fileName       = "players.store.go"
 	)
-	playerRecord := records.FromUsersV1Domain(inDom)
+	rec := records.FromPlayersV1Domain(inDom)
 
-	// INSERT ... RETURNING * so the caller gets the persisted row in
-	// one round-trip. Previously we did INSERT then GetByEmail; if
-	// GetByEmail failed (network blip, replica lag) the INSERT was
-	// already committed and the user was orphaned in the response.
-	rows, err := r.conn.NamedQueryContext(ctx, `
-		INSERT INTO users(id, installation_id, created_at)
-		VALUES (uuid_generate_v4(), :username, :email, :password, false, :role_id, :created_at)
-		RETURNING id, username, email, password, active, role_id, created_at, updated_at, deleted_at
-	`, userRecord)
+	var stored records.Player
+	err := r.conn.GetContext(ctx, &stored, `
+		INSERT INTO players(id, installation_id, role_id, created_at)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, installation_id, role_id, created_at
+	`, rec.Id, rec.InstallationId, rec.RoleId, rec.CreatedAt)
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			logger.ErrorWithContext(ctx, "Failed to insert user: unique violation", logger.Fields{
+			logger.ErrorWithContext(ctx, "Failed to insert player: unique violation", logger.Fields{
 				"repository": repositoryName,
 				"method":     funcName,
 				"query":      queryName,
 				"file":       fileName,
 				"error":      err.Error(),
-				"table":      "users",
-				"email":      userRecord.Email,
+				"table":      "players",
 			})
-			return domain.User{}, apperror.Conflict("username or email already exists")
+			return domain.Player{}, apperror.Conflict("installation id already registered")
 		}
-		logger.ErrorWithContext(ctx, "Failed to insert user into database", logger.Fields{
+		logger.ErrorWithContext(ctx, "Failed to insert player into database", logger.Fields{
 			"repository": repositoryName,
 			"method":     funcName,
 			"query":      queryName,
 			"file":       fileName,
 			"error":      err.Error(),
-			"table":      "users",
+			"table":      "players",
 		})
-		return domain.User{}, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	if !rows.Next() {
-		// RETURNING never produces zero rows on a successful INSERT,
-		// but check anyway so a future schema change can't silently
-		// hand back an empty struct.
-		err := fmt.Errorf("insert succeeded but RETURNING produced no row")
-		logger.ErrorWithContext(ctx, "Insert returned no row", logger.Fields{
-			"repository": repositoryName,
-			"method":     funcName,
-			"query":      queryName,
-			"file":       fileName,
-			"error":      err.Error(),
-			"table":      "users",
-		})
-		return domain.User{}, err
-	}
-	var stored records.Users
-	if err := rows.StructScan(&stored); err != nil {
-		logger.ErrorWithContext(ctx, "Failed to scan inserted user row", logger.Fields{
-			"repository": repositoryName,
-			"method":     funcName,
-			"query":      queryName,
-			"file":       fileName,
-			"error":      err.Error(),
-			"table":      "users",
-		})
-		return domain.User{}, fmt.Errorf("scan inserted user: %w", err)
+		return domain.Player{}, fmt.Errorf("insert player: %w", err)
 	}
 	return stored.ToV1Domain(), nil
 }

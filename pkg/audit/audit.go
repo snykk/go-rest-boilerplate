@@ -57,7 +57,7 @@ type Event struct {
 	Time           time.Time `json:"time"`
 	Type           EventType `json:"event"`
 	Success        bool      `json:"success"`
-	InstallationID string    `json:"installation_id,omitempty"`
+	InstallationId string    `json:"installation_id,omitempty"`
 	UserID    	   string    `json:"user_id,omitempty"`
 	Email     	   string    `json:"email,omitempty"`
 	IP        	   string    `json:"ip,omitempty"`

@@ -39,6 +39,6 @@ func CurrentUserFromContext(c *gin.Context) (CurrentUser, error) {
 		ID:      claims.UserID,
 		Email:   claims.Email,
 		IsAdmin: claims.IsAdmin,
-		JTI:     claims.ID,
+		JTI:     claims.Id,
 	}, nil
 }

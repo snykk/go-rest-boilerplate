@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-rest-boilerplate/pkg/jwt"
 	"github.com/go-rest-boilerplate/internal/apperror"
 	"github.com/go-rest-boilerplate/internal/datasources/caches"
 	repointerface "github.com/go-rest-boilerplate/internal/datasources/repositories/interface"
@@ -12,15 +13,24 @@ import (
 )
 
 type (
+	StoreRequest struct {
+		InstallationId string
+	}
+	StoreResponse struct {
+		Player domain.Player
+	}
+
 	CreateAnonymousPlayerRequest struct {
-		InstallationID string
+		InstallationId string
 	}
 	CreateAnonymousPlayerResponse struct {
-		Player domain.Player
+		Player      domain.Player
+		AccessToken string
 	}
 )
 
 type Usecase interface {
+	Store(ctx context.Context, req StoreRequest) (StoreResponse, error)
 	CreateAnonymousPlayer(ctx context.Context, req CreateAnonymousPlayerRequest) (CreateAnonymousPlayerResponse, error)
 }
 
@@ -29,17 +39,19 @@ type Config struct {
 }
 
 type usecase struct {
-	repo             repointerface.UserRepository
+	repo             repointerface.PlayerRepository
 	ristrettoCache   caches.RistrettoCache
 	cfg              Config
+	jwtService 		 jwt.JWTService
 	userByEmailGroup singleflight.Group
 }
 
-func NewUsecase(repo repointerface.UserRepository, ristrettoCache caches.RistrettoCache, cfg Config) Usecase {
+func NewUsecase(repo repointerface.PlayerRepository, ristrettoCache caches.RistrettoCache, jwtService jwt.JWTService, cfg Config) Usecase {
 	return &usecase{
 		repo:           repo,
 		ristrettoCache: ristrettoCache,
 		cfg:            cfg,
+		jwtService:     jwtService,
 	}
 }
 

@@ -51,19 +51,19 @@ func (h Handler) CreateAnonymousPlayer(ctx *gin.Context) {
 			"file":       fileName,
 			"error":      err.Error(),
 			"request": logger.Fields{
-				"installation_id": req.InstallationID,
+				"installation_id": req.InstallationId,
 			},
 		})
 		v1.RespondWithError(ctx, err)
 		return
 	}
 
-	resp, err := h.usecase.CreateAnonymousPlayer(ctx, players.CreateAnonymousPlayerRequest{InstallationID: req.InstallationID})
+	resp, err := h.usecase.CreateAnonymousPlayer(ctx, players.CreateAnonymousPlayerRequest{InstallationId: req.InstallationId})
 	anonymous_player := resp.Player
 	if err != nil {
 		ev := httpaudit.FromGin(ctx)
 		ev.Type = auditpkg.EventRegister
-		ev.InstallationID = req.InstallationID
+		ev.InstallationId = req.InstallationId
 		ev.Reason = err.Error()
 		auditpkg.Record(ev)
 		logger.ErrorWithContext(ctx.Request.Context(), "CreateAnonymousPlayer failed in controller", logger.Fields{
@@ -71,7 +71,7 @@ func (h Handler) CreateAnonymousPlayer(ctx *gin.Context) {
 			"method":	       funcName,
 			"file":	           fileName,
 			"error":	       err.Error(),
-			"installation_id": req.InstallationID,
+			"installation_id": req.InstallationId,
 		})
 		v1.RespondWithError(ctx, err)
 		return
@@ -80,11 +80,12 @@ func (h Handler) CreateAnonymousPlayer(ctx *gin.Context) {
 	ev := httpaudit.FromGin(ctx)
 	ev.Type = auditpkg.EventRegister
 	ev.Success = true
-	ev.UserID = anonymous_player.ID
-	ev.InstallationID = anonymous_player.InstallationID
+	ev.UserID = anonymous_player.Id
+	ev.InstallationId = anonymous_player.InstallationId
 	auditpkg.Record(ev)
 
 	v1.NewSuccessResponse(ctx, http.StatusCreated, "creation anonymous player success", map[string]interface{}{
 		"player": responses.PlayerFromV1Domain(anonymous_player),
+		"acessToken": resp.AccessToken,
 	})
 }

@@ -7,5 +7,5 @@ CREATE TABLE IF NOT EXISTS players(
     created_at timestamptz NOT NULL,
     updated_at timestamptz,
     deleted_at timestamptz,
-    password_changed_at timestamptz,
+    password_changed_at timestamptz
 );
