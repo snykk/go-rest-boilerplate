@@ -15,18 +15,16 @@ import (
 
 )
 
-// @Summary      Creates a user from installation ID
-// @Description  Returns an access token and user_id
+// @Summary      Creates an anonymous player
+// @Description  Creates an anonymous player and returns an access token
 // @Tags         players
 // @Accept       json
 // @Produce      json
-// @Param        request  body      requests.LoginRequest  true  "Login credentials"
-// @Success      200      {object}  v1.BaseResponse{data=responses.UserResponse}  "Tokens issued"
-// @Failure      400      {object}  v1.BaseResponse                                "Malformed JSON body"
-// @Failure      401      {object}  v1.BaseResponse                                "Invalid email or password"
-// @Failure      403      {object}  v1.BaseResponse                                "Account not yet activated"
-// @Failure      422      {object}  v1.BaseResponse                                "Validation error"
-// @Router       /players/login [post]
+// @Param        request body requests.CreateAnonymousPlayerRequest true "Installation ID"
+// @Success      201 {object} v1.BaseResponse
+// @Failure      400 {object} v1.BaseResponse
+// @Failure      409 {object} v1.BaseResponse
+// @Router       /players/anonymous [post]
 func (h Handler) CreateAnonymousPlayer(ctx *gin.Context) {
 	const (
 		controllerName = "players"
@@ -59,7 +57,6 @@ func (h Handler) CreateAnonymousPlayer(ctx *gin.Context) {
 	}
 
 	resp, err := h.usecase.CreateAnonymousPlayer(ctx, players.CreateAnonymousPlayerRequest{InstallationId: req.InstallationId})
-	anonymous_player := resp.Player
 	if err != nil {
 		ev := httpaudit.FromGin(ctx)
 		ev.Type = auditpkg.EventRegister
@@ -76,16 +73,17 @@ func (h Handler) CreateAnonymousPlayer(ctx *gin.Context) {
 		v1.RespondWithError(ctx, err)
 		return
 	}
+	anonymousPlayer := resp.Player
 
 	ev := httpaudit.FromGin(ctx)
 	ev.Type = auditpkg.EventRegister
 	ev.Success = true
-	ev.UserID = anonymous_player.Id
-	ev.InstallationId = anonymous_player.InstallationId
+	ev.UserID = anonymousPlayer.Id
+	ev.InstallationId = anonymousPlayer.InstallationId
 	auditpkg.Record(ev)
 
 	v1.NewSuccessResponse(ctx, http.StatusCreated, "creation anonymous player success", map[string]interface{}{
-		"player": responses.PlayerFromV1Domain(anonymous_player),
+		"player": responses.PlayerFromV1Domain(anonymousPlayer),
 		"acessToken": resp.AccessToken,
 	})
 }
