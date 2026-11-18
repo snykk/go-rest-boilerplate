@@ -7,6 +7,7 @@ require github.com/joho/godotenv v1.5.1
 require (
 	github.com/go-playground/validator/v10 v10.30.6
 	github.com/google/uuid v1.6.0
+	github.com/rs/cors v1.11.1
 	go.opentelemetry.io/otel/trace v1.47.0
 )
 
