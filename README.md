@@ -1,213 +1,194 @@
 # go-rest-boilerplate
 
-A starting point for building RESTful APIs in Go using the Gin framework, sqlx for PostgreSQL, and Redis for caching. Implementation follows Clean Architecture principles as described by Uncle Bob.
+A minimal, REST-first starting point for HTTP APIs in Go. Feature modules live under `internal/modules`,
+each with Clean Architecture layers inside: a domain, use cases that own their ports, a REST transport and a
+Postgres gateway. They are served by `net/http` over shared platform packages. The core ships with one
+reference module, `article`, and the seams most services need: units of work and settings per module.
+[docs/extending.md](docs/extending.md) shows where everything else plugs in, such as authentication,
+background jobs, events, caching and rate limits.
 
 ## Features
 
-### Core
-- Clean Architecture layering — `handler → usecase → repository`, no back-imports
-- Gin HTTP router with structured access log + request-ID middleware
-- PostgreSQL via sqlx, Ristretto + Redis two-tier caching
-- Graceful shutdown drains in-flight HTTP, mailer queue, DB, Redis, and tracer in order
+- `net/http` routing with `ServeMux` patterns, graceful shutdown, and health and readiness probes.
+- RFC 9457 problem responses with stable error codes and request IDs.
+- Middleware: request IDs, structured access logs, panic recovery, security headers, CORS, and body limits.
+  Client IPs come from `X-Forwarded-For` only behind trusted proxies.
+- PostgreSQL through pgx, with embedded goose migrations that tolerate versions merged out of order.
+- Clean Architecture kept honest: entities guard their own state, use cases return plain output models,
+  ports belong to the use cases, and a test enforces the import rules.
+- Units of work: repositories that run on a pool or on a transaction, so writes through several of them
+  commit or roll back together; updates hold the entity's row lock.
+- A process lifecycle: components that run and stop together, and resources closed in reverse order.
+- Production logging with `log/slog`, in text or JSON:
+  - the service, version and environment on every record;
+  - the request ID of the request, the trace and span IDs when its context carries an OpenTelemetry span, and
+    the file and line of the logging call;
+  - secrets redacted.
+- Configuration from environment variables, with an optional `.env` file; each module reads its own settings.
+- Validation messages that never repeat the submitted value.
+- OpenAPI generated from handler annotations, served with Swagger UI.
+- Tests: table-driven unit tests with gomock, integration tests on real Postgres in Docker, and the
+  architecture's import rules as a test.
+- Tooling: a distroless container image, a compose stack, golangci-lint, and CI with drift checks for the
+  generated code.
 
-### Authentication
-- JWT access tokens + refresh tokens (rotation on `/auth/refresh`, revocation on `/auth/logout`)
-- HMAC signing-method check + `kind` claim guard against access/refresh confusion
-- bcrypt password hashing (configurable cost, default 12)
-- OTP-verified registration with brute-force lockout (configurable max attempts)
-- Login timing-attack mitigation (dummy bcrypt on user-not-found)
+## Quick start
 
-### Observability
-- Prometheus metrics: HTTP, cache (hit/miss/error per layer), mailer outcomes, DB pool stats
-- OpenTelemetry tracing — HTTP server spans, DB queries (otelsqlx), Redis commands (redisotel), mailer attempts
-- Structured request/audit logs (logrus) with X-Request-ID propagation
-- `/health` (liveness), `/ready` (DB + Redis probe), `/metrics`, `/swagger`
+Requires Docker.
 
-### Security
-- HSTS, CSP, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy headers
-- CORS origins from env (whitelist), wildcard only in dev
-- Per-IP rate limiting on auth endpoints
-- 1MB body size limit, configurable HTTP timeouts (Idle, ReadHeader, Read, Write)
-- Soft-delete-aware queries; partial unique indexes on `(LOWER(email))` and `(LOWER(username))`
-
-### Testing & DevOps
-- Unit tests with mockery-generated mocks
-- Integration tests via testcontainers-go (real Postgres + Redis)
-- CI: lint (golangci-lint), unit + race, integration with Docker, OpenAPI drift detection, build, multi-arch Docker
-- Security scans: govulncheck (deps) + gosec (source) on schedule
-- Distroless multi-arch (amd64/arm64) container image
-- Async OTP mailer with retry & graceful drain
-
-## Getting Started
-
-### Prerequisites
-- Go 1.25+
-- PostgreSQL 16+
-- Redis 7+
-- Docker (only required for integration tests; production runs against managed services)
-
-### Quick start
-```bash
-git clone https://github.com/snykk/go-rest-boilerplate.git
-cd go-rest-boilerplate
-cp internal/config/.env.example internal/config/.env
-# Edit .env — JWT_SECRET must be at least 32 characters
-
-# Option 1: Docker Compose (full stack)
-make docker-up
-
-# Option 2: local dev with hot-reload
-make mig-up   # apply migrations
-make dev      # air-powered hot reload
+```sh
+docker compose -f deployment/compose.yml up --build -d
+curl localhost:8080/ready
+curl -X POST localhost:8080/v1/articles -H 'Content-Type: application/json' \
+  -d '{"slug":"hello-world","title":"Hello, world","body":"The first article."}'
+docker compose -f deployment/compose.yml down -v
 ```
+
+The stack starts Postgres, applies the migrations once, then serves the API on `:8080`. The Swagger UI is at
+<http://localhost:8080/swagger/index.html>.
+
+## Local development
+
+Requires Go 1.26 or newer and a PostgreSQL server.
+
+```sh
+cp .env.example .env      # then point DATABASE_URL at your database
+make migrate-up
+make run
+```
+
+`make help` lists every target. [AGENTS.md](AGENTS.md) holds the rules for changing the code: architecture,
+conventions, and the definition of done.
 
 ## Configuration
 
-All configuration is via environment variables loaded from `internal/config/.env`. See [`.env.example`](internal/config/.env.example) for the full list. Highlights:
+Variables come from the environment and, when present, from `./.env`; the environment wins. An empty value
+counts as unset.
 
 | Variable | Default | Notes |
-| --- | --- | --- |
-| `PORT` | 8080 | |
-| `ENVIRONMENT` | development | `production` enables HSTS and requires `ALLOWED_ORIGINS` |
-| `JWT_SECRET` | _(required, ≥32 chars)_ | HS256 needs 256-bit entropy |
-| `JWT_EXPIRED` | 5 | Access token TTL in hours |
-| `JWT_REFRESH_EXPIRED` | 7 | Refresh token TTL in days |
-| `BCRYPT_COST` | 12 | Range 10–31 |
-| `OTP_MAX_ATTEMPTS` | 5 | Lockout threshold per email |
-| `MAILER_WORKERS` / `_QUEUE_SIZE` / `_RETRIES` | 2 / 64 / 3 | Async mailer pool |
-| `DB_MAX_OPEN_CONNS` / `_IDLE_CONNS` / `_LIFE_MINS` | 25 / 5 / 15 | sqlx pool |
-| `OTEL_EXPORTER` | _(empty = disabled)_ | `stdout` for dev, `otlp` for prod |
-| `ALLOWED_ORIGINS` | _(empty)_ | Comma-separated; required in production |
+|---|---|---|
+| `APP_ENV` | `development` | `development` or `production` |
+| `SERVICE_NAME` | `go-rest-boilerplate` | The service in log records |
+| `HTTP_ADDR` | `:8080` | |
+| `HTTP_READ_HEADER_TIMEOUT` | `5s` | Go duration syntax |
+| `HTTP_READ_TIMEOUT` | `15s` | |
+| `HTTP_WRITE_TIMEOUT` | `15s` | |
+| `HTTP_IDLE_TIMEOUT` | `60s` | |
+| `HTTP_SHUTDOWN_TIMEOUT` | `10s` | How long requests in flight may run after SIGTERM; the components get a second more to stop, then the resources as long again to close, so a container's stop grace period must exceed twice this (`deployment/compose.yml` sets 25s) |
+| `HTTP_BODY_LIMIT_BYTES` | `1048576` | |
+| `HTTP_TRUSTED_PROXIES` | none | Comma-separated CIDRs of reverse proxies whose `X-Forwarded-For` is trusted |
+| `HTTP_CORS_ALLOWED_ORIGINS` | `*` in development | Comma-separated; required in production |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `LOG_FORMAT` | `text` in development, `json` in production | `text` or `json` |
+| `LOG_SOURCE` | `true` | Adds `source`, the file and line of each logging call |
+| `SWAGGER_ENABLED` | `true` in development, `false` in production | |
+| `DATABASE_URL` | required | pgx connection string; pool settings through URL parameters such as `pool_max_conns` |
+| `ARTICLE_DEFAULT_PAGE_SIZE` | `20` | Articles in a list that asks for no `limit` |
+| `ARTICLE_MAX_PAGE_SIZE` | `100` | The most articles a list returns; not below `ARTICLE_DEFAULT_PAGE_SIZE` |
 
-## Make targets
+A setting whose name starts with a module's name, such as `ARTICLE_`, belongs to that module and is read by
+its `config.go`. Every invalid or missing setting is reported at start-up in one error.
 
-```bash
-make serve              # run the API directly
-make dev                # hot reload via air
-make test               # unit tests (mocks only — fast, no Docker)
-make test-integration   # integration tests via testcontainers (requires Docker)
-make test-cover         # coverage.html
-make lint               # golangci-lint
-make swag               # regenerate OpenAPI spec from handler annotations
-make mig-up / mig-down  # apply / revert migrations (idempotent)
-make seed               # seed the database
-make docker-up / -down  # full stack via docker-compose
+## API
+
+| Method | Path | Success |
+|---|---|---|
+| GET | `/health` | 200 while the process serves |
+| GET | `/ready` | 200 when the database answers, 503 otherwise |
+| POST | `/v1/articles` | 201 with `Location` |
+| GET | `/v1/articles?limit=&offset=` | 200, published articles, newest first |
+| GET | `/v1/articles/{id}` | 200 for a published article, 404 for a draft |
+| GET | `/v1/articles/drafts?limit=&offset=` | 200, drafts, newest first |
+| GET | `/v1/articles/drafts/{id}` | 200 for a draft |
+| PATCH | `/v1/articles/{id}` | 200 |
+| POST | `/v1/articles/{id}/publish` | 200 |
+| DELETE | `/v1/articles/{id}` | 204 |
+
+Errors are `application/problem+json`:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "slug is already used by another article",
+  "code": "slug_taken",
+  "request_id": "0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c44"
+}
 ```
 
-## Endpoints
-
-OpenAPI spec is auto-generated from godoc annotations on the handlers. Browse it at:
-
-```
-http://localhost:8080/swagger/index.html
-```
-
-| Method | Path | Auth | Description |
-| --- | --- | --- | --- |
-| POST | `/api/v1/auth/register` | - | Create account (inactive until OTP verified) |
-| POST | `/api/v1/auth/send-otp` | - | Email a 6-digit OTP |
-| POST | `/api/v1/auth/verify-otp` | - | Activate account |
-| POST | `/api/v1/auth/login` | - | Issue access + refresh token pair |
-| POST | `/api/v1/auth/refresh` | - | Rotate refresh, return new pair |
-| POST | `/api/v1/auth/logout` | - | Revoke refresh token |
-| PUT | `/api/v1/auth/password/change` | Bearer | Change password (requires current); revokes pre-existing refresh tokens |
-| POST | `/api/v1/auth/password/forgot` | - | Email a one-shot reset token (silent on unknown email) |
-| POST | `/api/v1/auth/password/reset` | - | Consume reset token, set new password |
-| GET | `/api/v1/users/me` | Bearer | Current user profile |
-| GET | `/health` | - | Liveness probe |
-| GET | `/ready` | - | Readiness — checks DB + Redis |
-| GET | `/metrics` | - | Prometheus scrape endpoint |
-| GET | `/swagger/*` | - | OpenAPI UI |
-
-## Folder structure
-
-```
-.
-├── cmd/
-│   ├── api/                # HTTP server entry point + DI wiring
-│   ├── migration/          # CLI wrapper around internal/datasources/migration
-│   └── seed/
-├── deploy/                 # Dockerfile, docker-compose
-├── docs/                   # OpenAPI spec (generated by `make swag` — do not edit)
-├── internal/
-│   ├── apperror/                  # Typed error envelope (DomainError + Unwrap)
-│   ├── business/
-│   │   ├── domain/                # User entity + behaviour (NewUser, Activate, VerifyPassword, IsAdmin)
-│   │   └── usecases/
-│   │       ├── users/             # User CRUD bounded context (per-method files)
-│   │       └── auth/              # Auth flows bounded context (per-method files)
-│   ├── config/                    # Viper-backed config + .env.example
-│   ├── constants/                 # True constants only (sentinel errors, enum values)
-│   ├── datasources/
-│   │   ├── caches/                # Redis (with OTel hook) + Ristretto
-│   │   ├── drivers/               # sqlx wrapped in otelsqlx
-│   │   ├── migration/             # Idempotent migration runner (lib + tests)
-│   │   ├── records/               # DB row structs
-│   │   └── repositories/
-│   │       ├── interface/         # Centralized gateway interfaces (package _interface)
-│   │       └── postgres/users/    # Engine-first impl: postgres user repository
-│   ├── http/
-│   │   ├── auth/                  # CurrentUserFromContext helper
-│   │   ├── datatransfers/         # Request/Response DTOs
-│   │   ├── handlers/v1/
-│   │   │   ├── users/             # GetUserData
-│   │   │   └── auth/              # Per-method handler files
-│   │   ├── middlewares/           # auth, cors, security headers, rate limit, metrics, ...
-│   │   └── routes/                # route.users.go + route.auth.go
-│   └── test/
-│       ├── mocks/                 # mockery-style test doubles (hand-edited)
-│       └── testenv/               # testcontainers harness (build-tagged: integration)
-├── pkg/
-│   ├── audit/                     # Auth event JSON-line logger
-│   ├── clock/                     # Clock abstraction for deterministic time in tests
-│   ├── helpers/                   # bcrypt, OTP code generator
-│   ├── jwt/                       # Access + refresh token service
-│   ├── logger/                    # logrus wrapper, HTTP access log formatter
-│   ├── mailer/                    # Sync + async OTP mailer (HTML template embedded)
-│   ├── observability/             # Prometheus metrics + OpenTelemetry tracing
-│   └── validators/                # go-playground/validator + structured FieldError
-├── go.mod / go.sum
-├── makefile
-└── README.md
-```
-
-### Bounded contexts
-
-The business layer is split into two bounded contexts that evolve independently:
-
-- **`users/`** owns user identity CRUD (Store, GetByEmail, GetByID, Activate). It depends on the `_interface.UserRepository` gateway and an in-memory cache.
-- **`auth/`** owns credential verification, session lifecycle, and OTP activation. It depends on `users.Usecase` (not on the repository directly), JWT service, Redis, and the OTP mailer.
-
-Each method has its own file (`auth.login.go`, `users.store.go`, etc.) so a PR touching one behavior produces a surgical diff. Repository implementations are organized engine-first (`postgres/users/`) so adding a new engine adds one folder rather than fanning out under every domain.
-
-## Testing
-
-```bash
-make test               # unit tests, mocks only — runs in seconds
-make test-integration   # spins up Postgres + Redis containers; ~30s first run
-```
-
-Unit tests live next to the code they test (`*_test.go`). Integration tests are gated behind the `integration` build tag so they're excluded from the default test run; the harness is in `internal/test/testenv/`.
+A `422 validation_failed` problem adds `"errors": [{"field": "title", "rule": "required", "message": "is
+required"}]`. Every response carries `X-Request-ID`. The error codes of each endpoint are listed in the
+module card, [internal/modules/article/README.md](internal/modules/article/README.md), and in the OpenAPI
+document at `/swagger/doc.json`.
 
 ## Observability
 
-Set `OTEL_EXPORTER=stdout` in dev to print spans, or `OTEL_EXPORTER=otlp` in production with `OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317`. Spans flow:
+- **Logs.**
+  - Every record carries `service`, `version` and `env`. Inside a request it also carries `request_id`, and
+    `trace_id` and `span_id` when the context carries an OpenTelemetry span. With `LOG_SOURCE` it carries
+    `source`, such as `internal/modules/article/transport/rest/errors.go:36`.
+  - The value of a key that names a secret, such as `password`, `token` or `authorization`, is written as
+    `[REDACTED]`.
+  - Probes (`/health`, `/ready`) are logged at `DEBUG`.
+  - A request without a valid `X-Request-ID` gets a new one, or the trace ID of the span its context
+    carries.
+- **Build info.** The image's `VERSION` and `COMMIT` build arguments set the version on logs, for example
+  `docker build --build-arg VERSION=v1.0.0 --build-arg COMMIT=$(git rev-parse HEAD) …`.
+
+## Project structure
 
 ```
-HTTP server (otelgin)
-  ├── DB SELECT/INSERT (otelsqlx) — db.statement, db.system=postgresql
-  ├── Redis GET/SET/INCR/EXPIRE (redisotel)
-  └── (separate root) mailer.SendOTP per attempt
+cmd/server, cmd/migrate     the two binaries
+internal/app                composition root: process lifecycle, modules, route map, middleware
+internal/modules/article    the reference module: domain, usecase, transport/rest, gateway/postgres,
+                            contract, api.go
+internal/platform/*         config, logger, buildinfo, requestid, id, clock, validate, database, migrate,
+                            httpserver, lifecycle
+internal/archtest           the import rules as a test
+internal/testenv            Postgres for integration tests
+migrations/                 SQL migrations, embedded into the migrate binary
+api/openapi                 generated OpenAPI document
+deployment/                 Dockerfile and compose.yml
+docs/extending.md           where each common capability plugs in
 ```
 
-## Contributing
+## Adding a module
 
-PRs welcome. The CI fails when:
-- `go test ./...` fails (race detector enabled)
-- `go test -tags=integration ./...` fails (needs Docker, runs in the runner)
-- `make swag` regeneration produces a diff — run it locally and commit the result
-- govulncheck or gosec flags an issue (security workflow)
+Follow [internal/modules/README.md](internal/modules/README.md): the module anatomy, the steps, and the
+rules for ports and for calls between modules.
+
+## Extending
+
+[docs/extending.md](docs/extending.md) names the place for each capability a growing service adds: units of
+work, module settings, authentication, background jobs, events and the outbox, caching, external APIs,
+OpenTelemetry, rate limits, idempotency keys, multi-tenancy, feature flags and gRPC.
+
+## Testing
+
+```sh
+make test               # unit tests and the architecture test
+make test-integration   # also the tests against Postgres in Docker
+make lint
+```
+
+- **Unit tests** are table-driven, one test function per unit, with gomock mocks generated by `make generate`.
+- **Integration tests** carry the build tag `integration`. Each test binary starts one Postgres container,
+  and each test gets a database of its own in it.
+- **The architecture test** (`internal/archtest`) fails when a package imports across a forbidden boundary.
+
+On Windows with Docker Desktop, run the integration tests with `TESTCONTAINERS_RYUK_DISABLED=true`, and keep
+running the packages one at a time (`make test-integration` does).
+
+## Versions
+
+| Version | Release | Structure |
+|---|---|---|
+| [`v0.1.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.1.0) | go-rest-boilerplate initial release | Gin, layers versioned under `v1`, sqlx, JWT and OTP activation |
+| [`v0.2.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.2.0) | go-rest-boilerplate bounded contexts release | `users` and `auth` bounded contexts, refresh tokens, observability |
+
+`git checkout v0.2.0` shows an earlier structure in full.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)
