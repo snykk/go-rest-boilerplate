@@ -146,15 +146,15 @@ func SecurityHeaders(production bool) Middleware {
 }
 
 // CORS answers preflight requests and adds CORS headers for the listed origins; "*" allows every origin.
-// Browsers may send Content-Type, Authorization and X-Request-ID, and may read X-Request-ID and Location.
-// Credentials are never allowed.
+// Browsers may send Content-Type, Authorization, X-Request-ID and the W3C trace context headers (traceparent,
+// tracestate and baggage), and may read X-Request-ID and Location. Credentials are never allowed.
 func CORS(origins []string) Middleware {
 	policy := cors.New(cors.Options{
 		AllowedOrigins: origins,
 		AllowedMethods: []string{
 			http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions,
 		},
-		AllowedHeaders: []string{"Content-Type", "Authorization", requestid.Header},
+		AllowedHeaders: []string{"Content-Type", "Authorization", requestid.Header, "traceparent", "tracestate", "baggage"},
 		ExposedHeaders: []string{requestid.Header, "Location"},
 		MaxAge:         600,
 	})

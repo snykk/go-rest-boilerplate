@@ -294,8 +294,8 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
-// CORS answers a preflight from a listed origin and gives any other origin no access. A browser may send no
-// header outside the list.
+// CORS answers a preflight from a listed origin and gives any other origin no access. A browser may send the
+// W3C trace context headers, so a frontend can continue its trace in the API, but no header outside the list.
 func TestCORS(t *testing.T) {
 	handler := httpserver.CORS([]string{"https://a.example"})(ok)
 	tCases := []struct {
@@ -305,6 +305,12 @@ func TestCORS(t *testing.T) {
 	}{
 		{name: "a listed origin is allowed", origin: "https://a.example", wantAllow: "https://a.example"},
 		{name: "another origin is not", origin: "https://evil.example", wantAllow: ""},
+		{
+			name:      "the W3C trace context headers may be sent",
+			origin:    "https://a.example",
+			headers:   "baggage,traceparent,tracestate",
+			wantAllow: "https://a.example",
+		},
 		{name: "a header outside the list may not", origin: "https://a.example", headers: "x-internal", wantAllow: ""},
 	}
 

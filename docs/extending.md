@@ -15,8 +15,8 @@ marked *in core* are built and tested; the others are patterns to follow when a 
 | [Queries with a shape of their own](#queries-and-read-models) | a query port and a read model | pattern |
 | [Caching](#caching) | a decorator over a port | pattern |
 | [Calling an external API](#external-apis) | `<module>/gateway/<provider>/` | pattern |
-| [Tracing](#tracing-with-opentelemetry) | `internal/platform/telemetry`, a request middleware, the pool's tracer; spans around use cases and outgoing calls | pattern |
-| [Metrics](#metrics) | `internal/platform/telemetry`; business metrics in a decorator | pattern |
+| [Tracing](#tracing-with-opentelemetry) | `internal/platform/telemetry`; spans around use cases and outgoing calls | in core |
+| [Metrics](#metrics) | `internal/platform/telemetry`; business metrics in a decorator | in core |
 | [Rate limits and idempotency keys](#rate-limits-and-idempotency-keys) | middleware on a route group | pattern |
 | [Multi-tenancy](#multi-tenancy) | `auth.Principal`, use case inputs, gateways | pattern |
 | [Feature flags](#feature-flags) | a port in `usecase/ports.go` | pattern |
@@ -184,9 +184,9 @@ func (a *App) OutboxRelay() lifecycle.ComponentFunc {
   runs it. If it changes shared data (rows, emails, calls to other services), it is a scheduled job and must
   run once: give it a lease or a slot claim.
 - **Consumers and jobs call the use cases**, as handlers do, but no middleware runs around them. Each record or
-  run puts an ID of its own in the context with `requestid.With`, so its logs carry `request_id`. With
-  [tracing](#tracing-with-opentelemetry), it also starts its own span, continuing the trace a record carries,
-  and uses the trace ID as that ID.
+  run starts its own span, continuing the trace a record carries through `Providers.Propagator`, and puts its
+  trace ID in the context with `requestid.With`. Its logs then carry `request_id`, `trace_id` and `span_id`,
+  and its SQL queries are child spans; a metric of its own goes where [Metrics](#metrics) shows.
 - **Jobs and handlers of records are idempotent**: delivering a record or running a job twice has the effect of
   doing it once.
 - **Stopping:** a component returns when its context ends. A consumer finishes the record in hand or leaves it
@@ -216,9 +216,8 @@ func (a *App) OutboxRelay() lifecycle.ComponentFunc {
 
 ## Cross-cutting concerns at the use-case boundary
 
-*Pattern.* HTTP middleware logs requests, and measures and traces them once a project adds
-[tracing](#tracing-with-opentelemetry), but a job or a gRPC call never passes through it. When a module gains a
-second way in, put those concerns around its use cases, once for every transport.
+*Pattern.* HTTP middleware logs, measures and traces requests, but a job or a gRPC call never passes through
+it. When a module gains a second way in, put those concerns around its use cases, once for every transport.
 
 A transport depends on the methods it calls, not on `*usecase.ArticleUsecase` itself, so a decorator with the same
 methods fits in between. It lives in the module root, next to `module.go`, which may import platform
@@ -288,46 +287,50 @@ lookup by primary key in well under a millisecond.
 
 ## Tracing with OpenTelemetry
 
-*Pattern.* The core is ready for tracing without building it in: the logger writes the `trace_id` and
-`span_id` of the span a record's context carries, and `RequestID` takes the trace ID as the request ID when a
-request brings no `X-Request-ID`, so one ID finds a request in the logs and in the traces. A project that
-traces adds:
+*In core.* `internal/platform/telemetry` builds the tracer provider and the W3C propagator, and
+`internal/app` wires them:
 
-- **The providers:** a platform package, `internal/platform/telemetry`, builds the tracer provider and the W3C
-  propagator and exports spans over OTLP/HTTP to a collector. `app.open` builds it from its settings, registers
-  its shutdown as a closer, and installs it as OpenTelemetry's global provider, so `otel.Tracer` works anywhere.
-- **Requests:** a middleware in `internal/platform/httpserver`, ahead of `RequestID` in `NewHandler`, continues
-  the caller's `traceparent` and starts a span per request named after its route (`otelhttp`); the probes get
-  none.
-- **SQL queries:** `database.Open` sets the pool's tracer (`otelpgx`), so each query is a child span named after
-  its operation, without its arguments.
+- every request continues the caller's `traceparent` and gets a span named after its route;
+- every SQL query is a child span named after its operation, without its arguments (`database.WithTelemetry`);
+- every log record carries `trace_id` and `span_id`, and a request without `X-Request-ID` uses the trace ID,
+  so requests that continue one caller's trace share a request ID and differ by span ID;
+- spans are exported over OTLP/HTTP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, and flushed on shutdown.
+
+What a project adds when it needs it:
+
 - **Spans around use cases**, for work that does not start with an HTTP request: a decorator (see
   [Cross-cutting concerns](#cross-cutting-concerns-at-the-use-case-boundary)) that starts a span from
-  `otel.Tracer("<module>")`.
+  `otel.Tracer("<module>")`. `app.New` installs the telemetry as OpenTelemetry's global providers, so
+  `otel.Tracer` and `otel.Meter` work anywhere.
 - **Outgoing calls:** a gateway's HTTP client uses `otelhttp.NewTransport`, so the trace continues in the
   service it calls.
 - **Jobs and consumers:** a job starts a span per item, continuing the trace a message carries in its headers
-  through the propagator.
+  through `Providers.Propagator`.
 
 ## Metrics
 
-*Pattern.* Metrics come from the same OpenTelemetry setup as [tracing](#tracing-with-opentelemetry): a meter
-provider in `internal/platform/telemetry` pushes them over OTLP/HTTP to the collector. Describe the process with
-its service, version, environment and a `service.instance.id` of its own, so the series of two replicas never
-merge.
+*In core.* The meter provider of `internal/platform/telemetry` pushes metrics over OTLP/HTTP to the
+collector at `OTEL_EXPORTER_OTLP_ENDPOINT`, every `METRICS_EXPORT_INTERVAL`. Metrics and traces describe the
+process alike: service, version, environment, host name and a `service.instance.id` of its own, so the series
+of two replicas never merge; `OTEL_RESOURCE_ATTRIBUTES` adds attributes and may set the instance ID. Without
+code in the modules it records:
 
-- **Requests:** the request middleware also records `http.server.request.duration`, labelled with the route
-  pattern, never the raw path. Drop `server.address` and `server.port`, which come from the `Host` header a
-  client sends.
-- **Queries and the pool:** `otelpgx` records `db.client.operation.duration` and the `pgxpool.*` statistics.
+- `http.server.request.duration` and the body sizes, by method, status and `http.route`, the route pattern the
+  `Router` adds, never the raw path. The meter provider drops `server.address` and `server.port`, which come
+  from the `Host` header a client sends;
+- `db.client.operation.duration`, by SQL operation, and the `pgxpool.*` statistics of the pool;
+- the Go runtime's goroutines, memory and garbage collection.
+
+What a project adds when it needs it:
+
 - **Business metrics**, such as articles published, in a decorator around the use cases (see
   [Cross-cutting concerns](#cross-cutting-concerns-at-the-use-case-boundary)), with an instrument from
-  `otel.Meter("<module>")`.
-- **Attributes have few values:** a route pattern, a status, an operation. Never an ID, a path, a user or a
-  submitted value; each new value is a new time series.
-- **A metrics backend.** The collector decides where metrics go: Prometheus (remote write), Grafana Mimir or a
-  vendor. When a platform only scrapes, the collector's `prometheus` exporter serves `/metrics` for it, so the
-  service still only pushes.
+  `otel.Meter("<module>")`. Attributes have few values: a status or an outcome, never an ID.
+- **A metrics backend.** The collector decides where metrics go: point an exporter in
+  `deployment/otel-collector.yaml` at Prometheus (remote write), Grafana Mimir or a vendor. The service does not
+  change.
+- **Scraping instead of pushing**, when a platform only scrapes: the collector's `prometheus` exporter
+  serves `/metrics` for it, so the service still only pushes.
 
 ## Rate limits and idempotency keys
 

@@ -26,11 +26,12 @@ type Source func(key string) (value string, ok bool)
 type Config struct {
 	// Env is "development" or "production".
 	Env string
-	// Service names the service in log records.
-	Service  string
-	HTTP     HTTP
-	Log      Log
-	Database Database
+	// Service names the service in log records and traces.
+	Service   string
+	HTTP      HTTP
+	Log       Log
+	Telemetry Telemetry
+	Database  Database
 	// Swagger serves the Swagger UI and the OpenAPI document under /swagger/.
 	Swagger bool
 }
@@ -58,6 +59,18 @@ type Log struct {
 	Format string
 	// Source adds the file and line of the logging call to every record.
 	Source bool
+}
+
+// Telemetry configures OpenTelemetry traces and metrics.
+type Telemetry struct {
+	// Endpoint is the OTLP/HTTP base URL of the collector that traces and metrics are pushed to, such as
+	// http://collector:4318; empty pushes none, though every request still gets a trace ID.
+	Endpoint string
+	// SampleRatio is the share of new traces that are recorded, from 0 to 1. A request whose caller sampled
+	// its trace follows the caller. Metrics are never sampled.
+	SampleRatio float64
+	// MetricInterval is how often metrics are pushed.
+	MetricInterval time.Duration
 }
 
 // Database configures the Postgres connection.
@@ -106,6 +119,12 @@ func FromEnv(source Source) (Config, error) {
 		Level:  reader.level("LOG_LEVEL", slog.LevelInfo),
 		Format: reader.OneOf("LOG_FORMAT", format, "text", "json"),
 		Source: reader.Bool("LOG_SOURCE", true),
+	}
+
+	config.Telemetry = Telemetry{
+		Endpoint:       reader.URL("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		SampleRatio:    reader.Ratio("TRACING_SAMPLE_RATIO", 1),
+		MetricInterval: reader.Duration("METRICS_EXPORT_INTERVAL", time.Minute),
 	}
 
 	config.Swagger = reader.Bool("SWAGGER_ENABLED", !production)

@@ -23,10 +23,13 @@ func (r *Router) Group(prefix string, middlewares ...Middleware) *Router {
 	return &Router{mux: r.mux, prefix: r.prefix + prefix, mws: append(slices.Clone(r.mws), middlewares...)}
 }
 
-// Handle registers handler as "<method> <prefix><path>", wrapped in r's middleware with the first outermost. It
-// panics when the pattern conflicts with one already registered, as ServeMux.Handle does.
+// Handle registers handler as "<method> <prefix><path>", wrapped in r's middleware with the first outermost. A
+// request it serves has its span (see Instrument) named "<method> <prefix><path>", and its span and metrics
+// carry http.route "<prefix><path>". It panics when the pattern conflicts with one already registered, as
+// ServeMux.Handle does.
 func (r *Router) Handle(method, path string, handler http.Handler) {
-	r.mux.Handle(method+" "+r.prefix+path, Chain(handler, r.mws...))
+	route := r.prefix + path
+	r.mux.Handle(method+" "+route, labelRoute(method, route, Chain(handler, r.mws...)))
 }
 
 // HandleFunc registers handler as Handle does.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -79,6 +80,34 @@ func (r *Reader) PositiveInt(key string, fallback int64) int64 {
 		return fallback
 	}
 	return parsed
+}
+
+// Ratio returns the setting key as a number from 0 to 1, or fallback.
+func (r *Reader) Ratio(key string, fallback float64) float64 {
+	value, ok := r.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || !(parsed >= 0 && parsed <= 1) {
+		r.Fail(key, "must be a number from 0 to 1")
+		return fallback
+	}
+	return parsed
+}
+
+// URL returns the setting key when it is an http or https URL with a host, and "" when it is unset.
+func (r *Reader) URL(key string) string {
+	value, ok := r.lookup(key)
+	if !ok {
+		return ""
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		r.Fail(key, "must be an http or https URL such as http://collector:4318")
+		return ""
+	}
+	return value
 }
 
 // Bool returns the setting key as a boolean (true, false, 1, 0 …), or fallback.

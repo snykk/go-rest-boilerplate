@@ -21,6 +21,10 @@ func TestReader(t *testing.T) {
 		"FLAG":         "true",
 		"MODE":         "c",
 		"LIST":         " a, ,b ",
+		"RATIO":        "0.25",
+		"BAD_RATIO":    "1.5",
+		"ENDPOINT":     "http://collector:4318",
+		"BAD_URL":      "collector:4318",
 	}
 	source := config.Source(func(key string) (string, bool) { value, ok := set[key]; return value, ok })
 	tCases := []struct {
@@ -82,6 +86,33 @@ func TestReader(t *testing.T) {
 			name: "a list drops blank entries and spaces",
 			read: func(reader *config.Reader) any { return reader.List("LIST") },
 			want: []string{"a", "b"},
+		},
+		{
+			name: "a ratio from 0 to 1 is parsed",
+			read: func(reader *config.Reader) any { return reader.Ratio("RATIO", 1) },
+			want: 0.25,
+		},
+		{
+			name:        "a ratio outside 0 to 1 is reported and takes its default",
+			read:        func(reader *config.Reader) any { return reader.Ratio("BAD_RATIO", 1) },
+			want:        1.0,
+			wantProblem: "BAD_RATIO",
+		},
+		{
+			name: "a URL with a scheme and a host is returned",
+			read: func(reader *config.Reader) any { return reader.URL("ENDPOINT") },
+			want: "http://collector:4318",
+		},
+		{
+			name: "an unset URL is empty",
+			read: func(reader *config.Reader) any { return reader.URL("UNSET") },
+			want: "",
+		},
+		{
+			name:        "a URL without an http or https scheme is reported",
+			read:        func(reader *config.Reader) any { return reader.URL("BAD_URL") },
+			want:        "",
+			wantProblem: "BAD_URL",
 		},
 		{
 			name:        "a rule the caller checks is reported",

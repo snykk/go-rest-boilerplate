@@ -1,5 +1,9 @@
 # Local stack: Postgres, then the migrations once, then the API on :8080. Configuration is passed as
 # environment variables only; no .env file is read inside the containers.
+#
+# Telemetry: OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 docker compose -f deployment/compose.yml
+# --profile telemetry up --build also starts an OpenTelemetry Collector, which sends traces to Jaeger (UI at
+# http://localhost:16686) and prints metrics to its log (docker compose -f deployment/compose.yml logs otel-collector).
 services:
   postgres:
     image: postgres:17-alpine
@@ -20,10 +24,21 @@ services:
     environment:
       APP_ENV: development
       DATABASE_URL: "postgres://app:app@postgres:5432/app?sslmode=disable"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+      METRICS_EXPORT_INTERVAL: "${METRICS_EXPORT_INTERVAL:-}"
     ports: ["8080:8080"]
     depends_on: { migrate: { condition: service_completed_successfully } }
     # After SIGTERM, requests get HTTP_SHUTDOWN_TIMEOUT (10s), the components a second more, then the resources
-    # up to 10s to close. Docker's default of 10s would kill the process midway.
+    # up to 10s to close and flush telemetry. Docker's default of 10s would kill the process midway.
     stop_grace_period: 25s
+  otel-collector:
+    image: otel/opentelemetry-collector:0.140.0
+    profiles: [telemetry]
+    volumes: ["./otel-collector.yaml:/etc/otelcol/config.yaml:ro"]
+    depends_on: [jaeger]
+  jaeger:
+    image: jaegertracing/jaeger:2.12.0
+    profiles: [telemetry]
+    ports: ["16686:16686"]
 volumes:
   postgres_data: {}

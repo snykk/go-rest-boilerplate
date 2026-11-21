@@ -17,7 +17,7 @@ change code. The READMEs it links add the details for their folders.
 | `migrations/` | The SQL migrations of every module, embedded into the `migrate` binary. See [migrations/README.md](migrations/README.md). |
 | `api/openapi` | The generated OpenAPI document. Never edit it by hand. |
 | `docs/` | `extending.md`: where each common capability plugs in, such as jobs, events, caching or tracing. |
-| `deployment/` | `Dockerfile` (distroless, nonroot) and `compose.yml` (Postgres, the migrations once, the API). |
+| `deployment/` | `Dockerfile` (distroless, nonroot), `compose.yml` (Postgres, the migrations once, the API; a `telemetry` profile with an OpenTelemetry Collector and Jaeger) and `otel-collector.yaml`. |
 
 The reference module is `article`; its card is [internal/modules/article/README.md](internal/modules/article/README.md).
 A capability the core lacks, such as background jobs, events or caching, goes where
@@ -163,7 +163,7 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
   goroutine that outlives a request belongs to a component
   ([docs/extending.md](docs/extending.md#background-work)).
 
-### Logging
+### Logging, tracing and metrics
 
 - Use `log/slog` through the `…Context` methods (`log.InfoContext(ctx, …)`). The logger adds `request_id`,
   `trace_id` and `span_id` from the context and `source` from the call site, so never add them by hand.
@@ -172,6 +172,11 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
   permission.
 - An error is logged once, as `slog.String("error", err.Error())`, where the response is decided: the
   transport's `errors.go`.
+- HTTP requests and SQL queries get spans and metrics without code in the modules. A span around a use case
+  or an outgoing call, and a business metric, go where
+  [docs/extending.md](docs/extending.md#tracing-with-opentelemetry) shows.
+- A metric's attributes have few values: a route pattern, a status, an operation. Never an ID, a path, a
+  user or a submitted value; each new value is a new time series.
 
 ### Configuration
 

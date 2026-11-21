@@ -10,11 +10,14 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/otel"
+
 	"github.com/snykk/go-rest-boilerplate/internal/platform/buildinfo"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/database"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/httpserver"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/lifecycle"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/logger"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/telemetry"
 )
 
 // stopMargin is the time the components get to stop beyond the HTTP shutdown timeout: the HTTP server spends
@@ -29,9 +32,11 @@ type App struct {
 	closers lifecycle.Closers
 }
 
-// New builds the logger, opens the database pool, and builds the modules and the HTTP handler, registering a
-// closer for each resource as it opens it. When a step fails, New closes what it had opened and returns the
-// error.
+// New builds the logger and the telemetry, opens the database pool, and builds the modules and the HTTP
+// handler, registering a closer for each resource as it opens it. It also installs the telemetry as
+// OpenTelemetry's global tracer provider, meter provider and propagator, for code that asks otel for a tracer or
+// a meter, and logs the errors OpenTelemetry reports, such as failed exports. When a step fails, New closes what
+// it had opened and returns the error.
 func New(ctx context.Context, config Config) (*App, error) {
 	application := &App{cfg: config}
 	if err := application.open(ctx); err != nil {
@@ -58,7 +63,25 @@ func (a *App) open(ctx context.Context) error {
 	a.log = log
 	a.log.InfoContext(ctx, "starting", slog.String("commit", build.Commit))
 
-	pool, err := database.Open(ctx, platform.Database.URL)
+	providers, err := telemetry.New(ctx, telemetry.Config{
+		Service:        platform.Service,
+		Version:        build.Version,
+		Environment:    platform.Env,
+		Endpoint:       platform.Telemetry.Endpoint,
+		SampleRatio:    platform.Telemetry.SampleRatio,
+		MetricInterval: platform.Telemetry.MetricInterval,
+	})
+	if err != nil {
+		return err
+	}
+	a.closers.Add("telemetry", providers.Shutdown)
+	otel.SetTracerProvider(providers.TracerProvider)
+	otel.SetMeterProvider(providers.MeterProvider)
+	otel.SetTextMapPropagator(providers.Propagator)
+	otel.SetErrorHandler(telemetry.ErrorHandler(a.log))
+
+	pool, err := database.Open(ctx, platform.Database.URL,
+		database.WithTelemetry(providers.TracerProvider, providers.MeterProvider))
 	if err != nil {
 		return err
 	}
@@ -68,8 +91,9 @@ func (a *App) open(ctx context.Context) error {
 	})
 
 	a.handler = NewHandler(a.cfg, Deps{
-		Log:  a.log,
-		Pool: pool,
+		Log:       a.log,
+		Pool:      pool,
+		Telemetry: providers,
 	})
 	return nil
 }

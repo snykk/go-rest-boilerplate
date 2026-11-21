@@ -3,10 +3,10 @@
 package app_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -14,12 +14,14 @@ import (
 
 	"github.com/snykk/go-rest-boilerplate/internal/app"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/lifecycle"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/logger"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/telemetry"
 	"github.com/snykk/go-rest-boilerplate/internal/testenv"
 	"github.com/snykk/go-rest-boilerplate/migrations"
 )
 
-// NewHandler serves the article lifecycle end to end on a real database, with request IDs, readiness and a
-// Swagger UI that can load its scripts.
+// NewHandler serves the article lifecycle end to end on a real database, with request IDs that follow the
+// caller's trace, readiness and a Swagger UI that can load its scripts.
 func TestNewHandler(t *testing.T) {
 	pool := testenv.Postgres(t, migrations.FS)
 	config, err := app.LoadConfig(env(map[string]string{
@@ -28,14 +30,36 @@ func TestNewHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadConfig = %v", err)
 	}
-	handler := app.NewHandler(config, app.Deps{
-		Log:  slog.New(slog.DiscardHandler),
-		Pool: pool,
+	providers, err := telemetry.New(t.Context(), telemetry.Config{
+		Service:     "test",
+		SampleRatio: 1,
 	})
-	do := func(method, target, body string) *httptest.ResponseRecorder {
+	if err != nil {
+		t.Fatalf("telemetry.New = %v", err)
+	}
+	var logs bytes.Buffer
+	log, err := logger.New(&logs, logger.Options{
+		Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("logger.New = %v", err)
+	}
+	handler := app.NewHandler(config, app.Deps{
+		Log:       log,
+		Pool:      pool,
+		Telemetry: providers,
+	})
+	doWith := func(method, target, body string, header map[string]string) *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, httptest.NewRequest(method, target, strings.NewReader(body)))
+		request := httptest.NewRequest(method, target, strings.NewReader(body))
+		for key, value := range header {
+			request.Header.Set(key, value)
+		}
+		handler.ServeHTTP(recorder, request)
 		return recorder
+	}
+	do := func(method, target, body string) *httptest.ResponseRecorder {
+		return doWith(method, target, body, nil)
 	}
 	field := func(recorder *httptest.ResponseRecorder, key string) any {
 		var decoded map[string]any
@@ -112,6 +136,17 @@ func TestNewHandler(t *testing.T) {
 		t.Errorf("swagger UI CSP = %q, want scripts allowed from 'self'", csp)
 	}
 	wantStatus(do("GET", "/swagger/doc.json", ""), 200, "swagger spec")
+
+	const callerTrace = "0af7651916cd43dd8448eb211c80319c"
+	logs.Reset()
+	recorder = doWith("GET", "/v1/articles", "", map[string]string{"traceparent": "00-" + callerTrace + "-b7ad6b7169203331-01"})
+	wantStatus(recorder, 200, "list in the caller's trace")
+	if requestID := recorder.Header().Get("X-Request-ID"); requestID != callerTrace {
+		t.Errorf("list in the caller's trace: X-Request-ID = %q, want the trace ID %q", requestID, callerTrace)
+	}
+	if !strings.Contains(logs.String(), `"trace_id":"`+callerTrace+`"`) {
+		t.Errorf("list in the caller's trace: logs %s, want the trace ID in the access log", logs.String())
+	}
 }
 
 // App.Run gives the components the HTTP shutdown timeout and a moment more to stop, so a component that stops on

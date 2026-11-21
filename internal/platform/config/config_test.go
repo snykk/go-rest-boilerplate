@@ -32,9 +32,10 @@ func defaults(change func(*config.Config)) config.Config {
 			BodyLimitBytes:     1 << 20,
 			CORSAllowedOrigins: []string{"*"},
 		},
-		Log:      config.Log{Level: slog.LevelInfo, Format: "text", Source: true},
-		Database: config.Database{URL: "postgres://x"},
-		Swagger:  true,
+		Log:       config.Log{Level: slog.LevelInfo, Format: "text", Source: true},
+		Telemetry: config.Telemetry{SampleRatio: 1, MetricInterval: time.Minute},
+		Database:  config.Database{URL: "postgres://x"},
+		Swagger:   true,
 	}
 	if change != nil {
 		change(&want)
@@ -81,24 +82,36 @@ func TestFromEnv(t *testing.T) {
 			}),
 		},
 		{
-			name: "the service name and caller logging are read",
+			name: "the service name, caller logging and telemetry are read",
 			env: map[string]string{
-				"DATABASE_URL": "postgres://x",
-				"SERVICE_NAME": "articles",
-				"LOG_SOURCE":   "false",
+				"DATABASE_URL":                "postgres://x",
+				"SERVICE_NAME":                "articles",
+				"LOG_SOURCE":                  "false",
+				"OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4318",
+				"TRACING_SAMPLE_RATIO":        "0.1",
+				"METRICS_EXPORT_INTERVAL":     "15s",
 			},
 			want: defaults(func(want *config.Config) {
 				want.Service, want.Log.Source = "articles", false
+				want.Telemetry = config.Telemetry{
+					Endpoint:       "http://collector:4318",
+					SampleRatio:    0.1,
+					MetricInterval: 15 * time.Second,
+				}
 			}),
 		},
 		{
 			name: "every invalid or missing setting is reported at once",
 			env: map[string]string{
-				"APP_ENV":              "staging",
-				"HTTP_READ_TIMEOUT":    "abc",
-				"HTTP_TRUSTED_PROXIES": "foo",
+				"APP_ENV":                     "staging",
+				"HTTP_READ_TIMEOUT":           "abc",
+				"HTTP_TRUSTED_PROXIES":        "foo",
+				"OTEL_EXPORTER_OTLP_ENDPOINT": "collector:4318",
+				"TRACING_SAMPLE_RATIO":        "2",
+				"METRICS_EXPORT_INTERVAL":     "soon",
 			},
-			wantErr: []string{"APP_ENV", "HTTP_READ_TIMEOUT", "HTTP_TRUSTED_PROXIES", "DATABASE_URL"},
+			wantErr: []string{"APP_ENV", "HTTP_READ_TIMEOUT", "HTTP_TRUSTED_PROXIES", "DATABASE_URL",
+				"OTEL_EXPORTER_OTLP_ENDPOINT", "TRACING_SAMPLE_RATIO", "METRICS_EXPORT_INTERVAL"},
 		},
 		{
 			name:    "production refuses to start without CORS origins",
