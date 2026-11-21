@@ -47,8 +47,10 @@ func New(ctx context.Context, config Config) (*App, error) {
 
 func (a *App) open(ctx context.Context) error {
 	platform, build := a.cfg.Platform, buildinfo.Get()
+	level := new(slog.LevelVar)
+	level.Set(platform.Log.Level)
 	log, err := logger.New(os.Stdout, logger.Options{
-		Level:  platform.Log.Level,
+		Level:  level,
 		Format: platform.Log.Format,
 		Source: platform.Log.Source,
 		Attrs: []slog.Attr{
@@ -92,6 +94,7 @@ func (a *App) open(ctx context.Context) error {
 
 	a.handler = NewHandler(a.cfg, Deps{
 		Log:       a.log,
+		Level:     level,
 		Pool:      pool,
 		Telemetry: providers,
 	})

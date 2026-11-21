@@ -12,7 +12,9 @@ import (
 
 // Deps are the shared resources NewHandler builds the application on.
 type Deps struct {
-	Log       *slog.Logger
+	Log *slog.Logger
+	// Level is Log's level, which PUT /admin/log-level changes.
+	Level     *slog.LevelVar
 	Pool      *pgxpool.Pool
 	Telemetry *telemetry.Providers
 }

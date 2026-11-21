@@ -17,6 +17,8 @@ import (
 const (
 	envDevelopment = "development"
 	envProduction  = "production"
+
+	minAdminTokenLen = 32
 )
 
 // Source looks a setting up by name; ok is false when the setting is not set.
@@ -31,6 +33,7 @@ type Config struct {
 	HTTP      HTTP
 	Log       Log
 	Telemetry Telemetry
+	Admin     Admin
 	Database  Database
 	// Swagger serves the Swagger UI and the OpenAPI document under /swagger/.
 	Swagger bool
@@ -71,6 +74,12 @@ type Telemetry struct {
 	SampleRatio float64
 	// MetricInterval is how often metrics are pushed.
 	MetricInterval time.Duration
+}
+
+// Admin configures the operator endpoints under /admin.
+type Admin struct {
+	// Token is the bearer token the operator endpoints require; empty leaves them unmounted.
+	Token string
 }
 
 // Database configures the Postgres connection.
@@ -125,6 +134,11 @@ func FromEnv(source Source) (Config, error) {
 		Endpoint:       reader.URL("OTEL_EXPORTER_OTLP_ENDPOINT"),
 		SampleRatio:    reader.Ratio("TRACING_SAMPLE_RATIO", 1),
 		MetricInterval: reader.Duration("METRICS_EXPORT_INTERVAL", time.Minute),
+	}
+
+	config.Admin = Admin{Token: reader.String("ADMIN_TOKEN", "")}
+	if config.Admin.Token != "" && len(config.Admin.Token) < minAdminTokenLen {
+		reader.Fail("ADMIN_TOKEN", "must be at least 32 characters")
 	}
 
 	config.Swagger = reader.Bool("SWAGGER_ENABLED", !production)

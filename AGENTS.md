@@ -107,13 +107,18 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
   `request_id` and, for validation failures, `errors`. That includes a path no route matches (404
   `not_found`) and a method the route does not take (405 `method_not_allowed`), through `Router.Handler`.
 - Problem codes are stable, lower snake case words: `not_found`, `method_not_allowed`, `slug_taken`,
-  `validation_failed`, `malformed_json`, `body_too_large`, `invalid_query`, `internal`. A module maps its
-  domain errors to codes in its `transport/rest/errors.go`.
+  `validation_failed`, `malformed_json`, `body_too_large`, `invalid_query`, `unauthenticated`, `forbidden`,
+  `invalid_level`, `internal`. A module maps its domain errors to codes in its `transport/rest/errors.go`.
 - An error with no mapping answers 500 `internal`; its cause is logged and never returned.
+- Routes that need a caller sit on a group with `auth.Authenticate`, and `auth.Require` for a role, created in
+  `internal/app/routes.go`. A handler reads the caller with `auth.PrincipalFrom` and passes what the use case
+  needs, such as the caller's ID, in the use case's input.
 - A submitted value never appears in a problem or a log record.
 - A transport's request and response types are unexported. Each one names its OpenAPI schema with swag's
   `// @name` after its closing brace (`} // @name CreateArticleRequest`), and shared types such as
   `httpserver.Problem` do the same, so the API contract never carries a Go package or type name.
+- Operator endpoints live under `/admin`, behind `ADMIN_TOKEN`. They are not part of the public API or of
+  its OpenAPI document.
 - Routes live under `/v1`. Lists take `limit` and `offset` and are ordered newest first. A module's default
   and maximum page sizes are its own settings, 20 and 100 unless configured.
 

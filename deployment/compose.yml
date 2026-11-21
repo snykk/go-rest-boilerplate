@@ -26,6 +26,7 @@ services:
       DATABASE_URL: "postgres://app:app@postgres:5432/app?sslmode=disable"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
       METRICS_EXPORT_INTERVAL: "${METRICS_EXPORT_INTERVAL:-}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
     ports: ["8080:8080"]
     depends_on: { migrate: { condition: service_completed_successfully } }
     # After SIGTERM, requests get HTTP_SHUTDOWN_TIMEOUT (10s), the components a second more, then the resources

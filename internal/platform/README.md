@@ -1,8 +1,8 @@
 # Platform
 
 Technical plumbing that every module may use and none owns: configuration, logging, IDs, time, validation,
-the database pool and units of work, the migrator, the HTTP server with its middleware, tracing and metrics,
-build information, and the process lifecycle.
+the database pool and units of work, the migrator, the HTTP server with its middleware, authentication, tracing
+and metrics, build information, and the process lifecycle.
 
 ## What belongs here
 
@@ -33,5 +33,6 @@ module's `gateway/` or `transport/`.
 | `validate` | `Struct`, `Errors`, `FieldError`: struct validation whose messages never repeat the submitted value |
 | `database` | `Open`: a pgx pool, pinged before use, with `WithTelemetry` for a span and a duration per query and the pool's statistics; `Querier`: a pool or a transaction, which gateways take so the same repository runs alone or in a unit of work |
 | `migrate` | `New`: a goose provider over embedded SQL migrations, out-of-order versions allowed; apart from `database` so the server binary does not carry goose |
-| `httpserver` | `Run`, `Serve`, `Config`: graceful serving; `Chain` and the middleware `Instrument` (a span and metrics per request), `RequestID`, `AccessLog`, `Recover`, `SecurityHeaders`, `CORS`, `BodyLimit`; `ClientIP`; `Problem`, `WriteProblem`, `ValidationProblem`, `WriteJSON`, `DecodeJSON`; `Health`, `Ready`, `Check`; `Router` with `Group`, `Handle` and `Handler`, which names each request's span, and labels its metrics, after its route and answers unknown paths and methods with problems |
+| `httpserver` | `Run`, `Serve`, `Config`: graceful serving; `Chain` and the middleware `Instrument` (a span and metrics per request), `RequestID`, `AccessLog`, `Recover`, `SecurityHeaders`, `CORS`, `BodyLimit`; `ClientIP`; `Problem`, `WriteProblem`, `ValidationProblem`, `WriteJSON`, `DecodeJSON`; `Health`, `Ready`, `Check`; `LogLevel`, the operator handler for a `slog.LevelVar`; `Router` with `Group`, `Handle` and `Handler`, which names each request's span, and labels its metrics, after its route and answers unknown paths and methods with problems |
+| `auth` | `Authenticate`, `Require`, `Role`: middleware that identifies the caller through an `Authenticator` (401 `unauthenticated`) and checks what it may do (403 `forbidden`); `Principal`, `WithPrincipal`, `PrincipalFrom`: the caller in a context. `StaticToken`: a bearer token for operator endpoints. No user credential scheme is built in: a JWT or session verifier implements `Authenticator` |
 | `lifecycle` | `Component`, `ComponentFunc`, `Run`: components that run together and stop together within a timeout; `Closers`: resources closed in reverse order |

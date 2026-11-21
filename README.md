@@ -3,8 +3,8 @@
 A minimal, REST-first starting point for HTTP APIs in Go. Feature modules live under `internal/modules`,
 each with Clean Architecture layers inside: a domain, use cases that own their ports, a REST transport and a
 Postgres gateway. They are served by `net/http` over shared platform packages. The core ships with one
-reference module, `article`, and the seams most services need: units of work and settings per module.
-[docs/extending.md](docs/extending.md) shows where everything else plugs in, such as authentication,
+reference module, `article`, and the seams most services need: units of work, settings per module and
+authentication. [docs/extending.md](docs/extending.md) shows where everything else plugs in, such as
 background jobs, events, caching and rate limits.
 
 ## Features
@@ -18,11 +18,13 @@ background jobs, events, caching and rate limits.
   ports belong to the use cases, and a test enforces the import rules.
 - Units of work: repositories that run on a pool or on a transaction, so writes through several of them
   commit or roll back together; updates hold the entity's row lock.
+- An authentication seam: middleware for any credential scheme, with roles. No scheme is built in.
 - A process lifecycle: components that run and stop together, and resources closed in reverse order.
 - Production logging with `log/slog`, in text or JSON:
   - the service, version and environment on every record;
   - the request, trace and span IDs of the request, and the file and line of the logging call;
-  - secrets redacted.
+  - secrets redacted;
+  - a level that operators change while the service runs.
 - OpenTelemetry traces and metrics:
   - W3C trace context from callers;
   - a span per request named after its route, and one per SQL query;
@@ -91,6 +93,7 @@ counts as unset.
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | none | OTLP/HTTP base URL of the collector traces and metrics are pushed to, such as `http://collector:4318`; the other `OTEL_EXPORTER_OTLP_*` variables of the process environment also apply, and `OTEL_RESOURCE_ATTRIBUTES` adds resource attributes |
 | `TRACING_SAMPLE_RATIO` | `1` | Share of new traces recorded, 0 to 1; a trace the caller sampled is always recorded; metrics are never sampled |
 | `METRICS_EXPORT_INTERVAL` | `60s` | How often metrics are pushed |
+| `ADMIN_TOKEN` | none | Bearer token of the operator endpoints under `/admin`, at least 32 characters; unset, they do not exist |
 | `DATABASE_URL` | required | pgx connection string; pool settings through URL parameters such as `pool_max_conns` |
 | `ARTICLE_DEFAULT_PAGE_SIZE` | `20` | Articles in a list that asks for no `limit` |
 | `ARTICLE_MAX_PAGE_SIZE` | `100` | The most articles a list returns; not below `ARTICLE_DEFAULT_PAGE_SIZE` |
@@ -167,6 +170,12 @@ document at `/swagger/doc.json`.
   Traces are at <http://localhost:16686>. The collector prints the metrics to its log, and
   [deployment/otel-collector.yaml](deployment/otel-collector.yaml) is where a real metrics backend, such as
   Prometheus or Grafana Mimir, would be configured.
+- **Log level at runtime**, when `ADMIN_TOKEN` is set:
+
+  ```sh
+  curl -X PUT localhost:8080/admin/log-level -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"level":"debug"}'
+  ```
+
 - **Build info.** The image's `VERSION` and `COMMIT` build arguments set the version on logs and traces,
   for example `docker build --build-arg VERSION=v1.0.0 --build-arg COMMIT=$(git rev-parse HEAD) …`.
 
@@ -178,7 +187,7 @@ internal/app                composition root: process lifecycle, modules, route 
 internal/modules/article    the reference module: domain, usecase, transport/rest, gateway/postgres,
                             contract, api.go
 internal/platform/*         config, logger, telemetry, buildinfo, requestid, id, clock, validate, database,
-                            migrate, httpserver, lifecycle
+                            migrate, httpserver, auth, lifecycle
 internal/archtest           the import rules as a test
 internal/testenv            Postgres for integration tests
 migrations/                 SQL migrations, embedded into the migrate binary

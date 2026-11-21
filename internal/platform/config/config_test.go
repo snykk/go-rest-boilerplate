@@ -82,7 +82,7 @@ func TestFromEnv(t *testing.T) {
 			}),
 		},
 		{
-			name: "the service name, caller logging and telemetry are read",
+			name: "the service name, caller logging, telemetry and the admin token are read",
 			env: map[string]string{
 				"DATABASE_URL":                "postgres://x",
 				"SERVICE_NAME":                "articles",
@@ -90,6 +90,7 @@ func TestFromEnv(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4318",
 				"TRACING_SAMPLE_RATIO":        "0.1",
 				"METRICS_EXPORT_INTERVAL":     "15s",
+				"ADMIN_TOKEN":                 "tttttttttttttttttttttttttttttttt",
 			},
 			want: defaults(func(want *config.Config) {
 				want.Service, want.Log.Source = "articles", false
@@ -98,6 +99,7 @@ func TestFromEnv(t *testing.T) {
 					SampleRatio:    0.1,
 					MetricInterval: 15 * time.Second,
 				}
+				want.Admin = config.Admin{Token: "tttttttttttttttttttttttttttttttt"}
 			}),
 		},
 		{
@@ -108,10 +110,11 @@ func TestFromEnv(t *testing.T) {
 				"HTTP_TRUSTED_PROXIES":        "foo",
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "collector:4318",
 				"TRACING_SAMPLE_RATIO":        "2",
+				"ADMIN_TOKEN":                 "short",
 				"METRICS_EXPORT_INTERVAL":     "soon",
 			},
 			wantErr: []string{"APP_ENV", "HTTP_READ_TIMEOUT", "HTTP_TRUSTED_PROXIES", "DATABASE_URL",
-				"OTEL_EXPORTER_OTLP_ENDPOINT", "TRACING_SAMPLE_RATIO", "METRICS_EXPORT_INTERVAL"},
+				"OTEL_EXPORTER_OTLP_ENDPOINT", "TRACING_SAMPLE_RATIO", "ADMIN_TOKEN", "METRICS_EXPORT_INTERVAL"},
 		},
 		{
 			name:    "production refuses to start without CORS origins",

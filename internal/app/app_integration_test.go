@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -21,11 +23,14 @@ import (
 )
 
 // NewHandler serves the article lifecycle end to end on a real database, with request IDs that follow the
-// caller's trace, readiness and a Swagger UI that can load its scripts.
+// caller's trace, readiness, a Swagger UI that can load its scripts, and an operator endpoint for the log level
+// that exists only with an admin token and requires it.
 func TestNewHandler(t *testing.T) {
+	const adminToken = "0123456789abcdef0123456789abcdef"
 	pool := testenv.Postgres(t, migrations.FS)
 	config, err := app.LoadConfig(env(map[string]string{
 		"DATABASE_URL": "postgres://unused", // the pool comes from testenv
+		"ADMIN_TOKEN":  adminToken,
 	}))
 	if err != nil {
 		t.Fatalf("LoadConfig = %v", err)
@@ -38,7 +43,9 @@ func TestNewHandler(t *testing.T) {
 		t.Fatalf("telemetry.New = %v", err)
 	}
 	var logs bytes.Buffer
+	level := new(slog.LevelVar)
 	log, err := logger.New(&logs, logger.Options{
+		Level:  level,
 		Format: "json",
 	})
 	if err != nil {
@@ -46,10 +53,11 @@ func TestNewHandler(t *testing.T) {
 	}
 	handler := app.NewHandler(config, app.Deps{
 		Log:       log,
+		Level:     level,
 		Pool:      pool,
 		Telemetry: providers,
 	})
-	doWith := func(method, target, body string, header map[string]string) *httptest.ResponseRecorder {
+	doWith := func(handler http.Handler, method, target, body string, header map[string]string) *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(method, target, strings.NewReader(body))
 		for key, value := range header {
@@ -59,7 +67,7 @@ func TestNewHandler(t *testing.T) {
 		return recorder
 	}
 	do := func(method, target, body string) *httptest.ResponseRecorder {
-		return doWith(method, target, body, nil)
+		return doWith(handler, method, target, body, nil)
 	}
 	field := func(recorder *httptest.ResponseRecorder, key string) any {
 		var decoded map[string]any
@@ -139,7 +147,8 @@ func TestNewHandler(t *testing.T) {
 
 	const callerTrace = "0af7651916cd43dd8448eb211c80319c"
 	logs.Reset()
-	recorder = doWith("GET", "/v1/articles", "", map[string]string{"traceparent": "00-" + callerTrace + "-b7ad6b7169203331-01"})
+	recorder = doWith(handler, "GET", "/v1/articles", "",
+		map[string]string{"traceparent": "00-" + callerTrace + "-b7ad6b7169203331-01"})
 	wantStatus(recorder, 200, "list in the caller's trace")
 	if requestID := recorder.Header().Get("X-Request-ID"); requestID != callerTrace {
 		t.Errorf("list in the caller's trace: X-Request-ID = %q, want the trace ID %q", requestID, callerTrace)
@@ -147,6 +156,23 @@ func TestNewHandler(t *testing.T) {
 	if !strings.Contains(logs.String(), `"trace_id":"`+callerTrace+`"`) {
 		t.Errorf("list in the caller's trace: logs %s, want the trace ID in the access log", logs.String())
 	}
+
+	wantProblem(do("PUT", "/admin/log-level", `{"level":"debug"}`), 401, "unauthenticated", "log level without the token")
+	recorder = doWith(handler, "PUT", "/admin/log-level", `{"level":"debug"}`,
+		map[string]string{"Authorization": "Bearer " + adminToken})
+	wantStatus(recorder, 200, "log level with the token")
+	if level.Level() != slog.LevelDebug {
+		t.Errorf("log level with the token: level = %s, want DEBUG", level.Level())
+	}
+
+	config.Platform.Admin.Token = ""
+	withoutAdmin := app.NewHandler(config, app.Deps{
+		Log:       log,
+		Level:     level,
+		Pool:      pool,
+		Telemetry: providers,
+	})
+	wantStatus(doWith(withoutAdmin, "GET", "/admin/log-level", "", nil), 404, "log level without an admin token configured")
 }
 
 // App.Run gives the components the HTTP shutdown timeout and a moment more to stop, so a component that stops on

@@ -8,7 +8,7 @@ marked *in core* are built and tested; the others are patterns to follow when a 
 |---|---|---|
 | [Writes that succeed or fail together](#units-of-work) | a `UnitOfWork` port, repositories on `database.Querier` | in core |
 | [A module's own settings](#module-settings) | `<module>/config.go`, `internal/app/config.go` | in core |
-| [Authentication and roles](#authentication) | `internal/platform/auth`: an `Authenticator` and middleware; route groups in `internal/app/routes.go` | pattern |
+| [Authentication and roles](#authentication) | an `auth.Authenticator`, route groups in `internal/app/routes.go` | seam in core |
 | [Background work](#background-work): consumers, the outbox relay, scheduled jobs, tickers | components of `cmd/server`, `<module>/transport/event/`, `<module>/transport/cron/` | pattern |
 | [Events between modules](#events-and-the-outbox) | `<module>/contract/`, an outbox table, a relay | pattern |
 | [Cross-cutting concerns for every transport](#cross-cutting-concerns-at-the-use-case-boundary) | a decorator in the module root | pattern |
@@ -93,18 +93,9 @@ A secret, such as an API key, comes from the environment or a secret store, neve
 
 ## Authentication
 
-*Pattern.* Authentication is middleware on route groups, so the modules do not change when it arrives. A
-platform package, `internal/platform/auth`, holds what every scheme shares:
-
-- `Principal`, the caller (an ID and its roles), with `WithPrincipal` and `PrincipalFrom` to carry it in a
-  context;
-- `Authenticator`, the scheme: `Authenticate(r *http.Request) (Principal, error)`, whose error wraps
-  `ErrUnauthenticated` when the request carries no valid credentials;
-- `Authenticate(authenticator, challenge, log)`, middleware that puts the caller in the request's context or answers 401
-  `unauthenticated` with a `WWW-Authenticate` challenge, and `Require(allow)`, which answers 403 `forbidden`
-  when the caller lacks what `allow` checks, such as a role (`Role("editor")`).
-
-The scheme itself, such as a JWT verifier in `internal/platform/auth/jwt`, implements `Authenticator`:
+*Seam in core.* `internal/platform/auth` holds what every scheme shares: the caller (`Principal`), the
+middleware that identifies it (`Authenticate`) and the one that checks its roles (`Require`). The scheme
+itself is an `Authenticator`, such as a JWT verifier in `internal/platform/auth/jwt`:
 
 ```go
 func (v *Verifier) Authenticate(r *http.Request) (auth.Principal, error) {
@@ -133,8 +124,7 @@ featureModules.report.RegisterRoutes(signedIn.Group("/admin", auth.Require(auth.
 ```
 
 A module with both public and protected endpoints takes one group of each in its `RegisterRoutes`, as
-`article` does: with the groups above, anyone reads articles, and only editors change them. The core passes
-`/v1` for both.
+`article` does: anyone reads articles, and only editors change them. The core passes `/v1` for both.
 
 - A handler reads the caller with `auth.PrincipalFrom(r.Context())` and passes what the use case needs in its
   input (`CreateInput{AuthorID: principal.ID, …}`). Use cases never look for the caller in the context, so their
