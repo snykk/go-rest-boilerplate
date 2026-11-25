@@ -7,18 +7,22 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/snykk/go-rest-boilerplate/internal/modules/article/gateway/eventbus"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/article/gateway/postgres"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/article/transport/rest"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/article/usecase"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/clock"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/events"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/httpserver"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/id"
 )
 
 // Deps are what the article module takes from the application.
 type Deps struct {
-	Pool   *pgxpool.Pool
-	Log    *slog.Logger
+	Pool *pgxpool.Pool
+	Log  *slog.Logger
+	// Events is the bus the module announces contract.ArticleDeleted on.
+	Events *events.Bus
 	Config Config
 }
 
@@ -32,6 +36,7 @@ type Module struct {
 func New(deps Deps) *Module {
 	useCases := usecase.NewArticleUsecase(usecase.ArticleDeps{
 		Articles: postgres.NewArticleRepo(deps.Pool),
+		Events:   eventbus.NewArticleEvents(deps.Events),
 		Clock:    clock.Real{},
 		IDs:      id.Generator{},
 		PageSize: usecase.PageSize{Default: deps.Config.DefaultPageSize, Max: deps.Config.MaxPageSize},

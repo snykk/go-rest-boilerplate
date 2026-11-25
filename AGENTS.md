@@ -20,7 +20,7 @@ change code. The READMEs it links add the details for their folders.
 | `deployment/` | `Dockerfile` (distroless, nonroot), `compose.yml` (Postgres, the migrations once, the API; a `telemetry` profile with an OpenTelemetry Collector and Jaeger) and `otel-collector.yaml`. |
 
 The reference module is `article`; its card is [internal/modules/article/README.md](internal/modules/article/README.md).
-A capability the core lacks, such as background jobs, events or caching, goes where
+A capability the core lacks, such as background jobs, an outbox or caching, goes where
 [docs/extending.md](docs/extending.md) places it.
 
 ## Architecture rules
@@ -31,7 +31,7 @@ A capability the core lacks, such as background jobs, events or caching, goes wh
 | `<module>/contract/` | standard library | everything else |
 | `<module>/usecase/` | its own `domain/` and `contract/`, standard library | `transport/`, `gateway/`, `internal/platform/`, `internal/app` |
 | `<module>/transport/` | its own `usecase/` and `domain/`, `internal/platform/*`, another module's `contract/` | any `gateway/` |
-| `<module>/gateway/` | its own `usecase/` (port types) and `domain/`, `internal/platform/*`, another module's `contract/` | any `transport/` |
+| `<module>/gateway/` | its own `usecase/` (port types), `domain/` and `contract/`, `internal/platform/*`, another module's `contract/` | any `transport/` |
 | `<module>/` root: `module.go`, `config.go`, `api.go` | its own subpackages, `internal/platform/*` | other modules |
 | `internal/platform/` | standard library, third-party packages, other platform packages | `internal/modules/`, `internal/app` |
 | `internal/app`, `cmd/` | everything | — |

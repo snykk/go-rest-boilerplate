@@ -29,17 +29,21 @@ type fixedID struct{}
 
 func (fixedID) NewID() string { return articleID }
 
-// fixture is an ArticleUsecase over a mocked repository, fresh for every case.
+// fixture is an ArticleUsecase over a mocked repository and mocked events, fresh for every case. An event
+// a case does not expect fails it.
 type fixture struct {
 	repo    *MockArticleRepository
+	events  *MockArticleEvents
 	useCase *usecase.ArticleUsecase
 }
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	f := &fixture{repo: NewMockArticleRepository(gomock.NewController(t))}
+	controller := gomock.NewController(t)
+	f := &fixture{repo: NewMockArticleRepository(controller), events: NewMockArticleEvents(controller)}
 	f.useCase = usecase.NewArticleUsecase(usecase.ArticleDeps{
 		Articles: f.repo,
+		Events:   f.events,
 		Clock:    fixedClock{},
 		IDs:      fixedID{},
 		PageSize: usecase.PageSize{Default: 20, Max: 100},

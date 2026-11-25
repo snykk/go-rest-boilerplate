@@ -3,9 +3,9 @@
 A minimal, REST-first starting point for HTTP APIs in Go. Feature modules live under `internal/modules`,
 each with Clean Architecture layers inside: a domain, use cases that own their ports, a REST transport and a
 Postgres gateway. They are served by `net/http` over shared platform packages. The core ships with one
-reference module, `article`, and the seams most services need: units of work, settings per module and
-authentication. [docs/extending.md](docs/extending.md) shows where everything else plugs in, such as
-background jobs, events, caching and rate limits.
+reference module, `article`, and the seams most services need: units of work, settings per module,
+authentication and in-process events. [docs/extending.md](docs/extending.md) shows where everything else plugs
+in, such as background jobs, an outbox, caching and rate limits.
 
 ## Features
 
@@ -185,9 +185,9 @@ document at `/swagger/doc.json`.
 cmd/server, cmd/migrate     the two binaries
 internal/app                composition root: process lifecycle, modules, route map, middleware
 internal/modules/article    the reference module: domain, usecase, transport/rest, gateway/postgres,
-                            contract, api.go
+                            gateway/eventbus, contract, api.go
 internal/platform/*         config, logger, telemetry, buildinfo, requestid, id, clock, validate, database,
-                            migrate, httpserver, auth, lifecycle
+                            migrate, httpserver, auth, events, lifecycle
 internal/archtest           the import rules as a test
 internal/testenv            Postgres for integration tests
 migrations/                 SQL migrations, embedded into the migrate binary

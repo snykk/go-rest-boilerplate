@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/snykk/go-rest-boilerplate/internal/modules/article/contract"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/article/domain"
 )
 
@@ -25,6 +26,13 @@ type ArticleRepository interface {
 	Delete(ctx context.Context, id string) error
 	// List returns one page of the articles matching query, newest first, and the number of all matches.
 	List(ctx context.Context, query ArticleQuery) (items []domain.Article, total int, err error)
+}
+
+// ArticleEvents announces what happened to articles to the modules that listen.
+type ArticleEvents interface {
+	// Deleted announces that an article is gone. It never fails: what the listeners do with the event is not the
+	// publisher's concern.
+	Deleted(ctx context.Context, event contract.ArticleDeleted)
 }
 
 // Clock provides the current time.

@@ -10,7 +10,7 @@ marked *in core* are built and tested; the others are patterns to follow when a 
 | [A module's own settings](#module-settings) | `<module>/config.go`, `internal/app/config.go` | in core |
 | [Authentication and roles](#authentication) | an `auth.Authenticator`, route groups in `internal/app/routes.go` | seam in core |
 | [Background work](#background-work): consumers, the outbox relay, scheduled jobs, tickers | components of `cmd/server`, `<module>/transport/event/`, `<module>/transport/cron/` | pattern |
-| [Events between modules](#events-and-the-outbox) | `<module>/contract/`, an outbox table, a relay | pattern |
+| [Events between modules](#events-and-the-outbox) | `<module>/contract/`, `internal/platform/events`; an outbox table and a relay for what must not be lost | in-process bus in core; outbox a pattern |
 | [Cross-cutting concerns for every transport](#cross-cutting-concerns-at-the-use-case-boundary) | a decorator in the module root | pattern |
 | [Queries with a shape of their own](#queries-and-read-models) | a query port and a read model | pattern |
 | [Caching](#caching) | a decorator over a port | pattern |
@@ -191,13 +191,29 @@ func (a *App) OutboxRelay() lifecycle.ComponentFunc {
 
 ## Events and the outbox
 
-*Pattern.* Events let a module react to another one without depending on it.
+*In core: the in-process bus; pattern: the outbox.* Events let a module react to another one without depending
+on it. `article` shows the publishing side: it announces `ArticleDeleted` after a delete.
 
 - The publishing module declares its events in `contract/`, with standard library types only:
-  `type ArticlePublished struct{ ID string; At time.Time }`.
-- The publisher's use case publishes through a port in its `ports.go`, which a gateway implements over an
-  in-process bus that the project adds in `internal/platform/events`. The subscribing module's `transport/`
-  receives them. The publisher never imports the subscriber.
+  `type ArticleDeleted struct{ ID string; At time.Time }`.
+- The publisher's use case publishes through a port in its `ports.go` (`ArticleEvents`), which a gateway
+  (`gateway/eventbus/`) implements over the bus in `internal/platform/events`. The publisher never imports the
+  subscriber.
+- The subscribing module's `transport/event/` holds the handler, which calls the module's use cases like an
+  HTTP handler does; it is the only package of the subscriber that names the publisher's `contract/`. Its
+  `module.go` offers a method that subscribes it, and `internal/app/modules.go` calls that method at start-up,
+  before the server runs: `featureModules.comment.Subscribe(bus)`, where `Subscribe` calls the `transport/event` package's
+  own `Subscribe(bus, useCases)`, which calls `events.Subscribe(bus, "comment.article-deleted", h.articleDeleted)`.
+- `Publish` runs the handlers of the event's exact type in the publisher's goroutine, each in a span of its own,
+  with the publisher's context: its deadline and cancellation apply to the handler. The type must be concrete;
+  a handler subscribed to an interface type never runs. A handler's error or panic is logged and stops
+  nothing, so the publisher's answer does not depend on its subscribers. Handlers run on every publishing
+  goroutine at once, so they are safe for concurrent use.
+- Delivery is at most once. An event is lost if the process stops between the change and its handlers, and
+  also when a handler fails, for example because the client went away and cancelled the request's context:
+  nothing retries it. Handlers are idempotent, and a subscriber that must not act on stale data checks it, as
+  a comment module checks that the article still exists before it shows a comment. An event that must not be
+  lost goes through the outbox below.
 - An event that must not be lost, such as one bound for a queue, goes into the module's outbox table, such as
   `article_outbox`, in the same unit of work as the change. The relay, a component of `cmd/server` in
   `<module>/transport/event/`, publishes the waiting rows and marks them sent (see
@@ -369,4 +385,4 @@ when the rollout ends.
    database.
 2. Each consumer's `gateway/<provider>/` calls that API instead of `api.go`. The consumers' use cases do not
    change.
-3. Events that crossed an in-process bus go through the outbox and a queue.
+3. Events that crossed the in-process bus go through the outbox and a queue.

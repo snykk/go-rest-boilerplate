@@ -27,6 +27,7 @@ type PageSize struct {
 // ArticleDeps are the ports and the settings an ArticleUsecase works with.
 type ArticleDeps struct {
 	Articles ArticleRepository
+	Events   ArticleEvents
 	Clock    Clock
 	IDs      IDGenerator
 	PageSize PageSize
@@ -36,6 +37,7 @@ type ArticleDeps struct {
 // ArticleView together with a non-nil error.
 type ArticleUsecase struct {
 	articles ArticleRepository
+	events   ArticleEvents
 	clock    Clock
 	ids      IDGenerator
 	pageSize PageSize
@@ -45,6 +47,7 @@ type ArticleUsecase struct {
 func NewArticleUsecase(deps ArticleDeps) *ArticleUsecase {
 	return &ArticleUsecase{
 		articles: deps.Articles,
+		events:   deps.Events,
 		clock:    deps.Clock,
 		ids:      deps.IDs,
 		pageSize: deps.PageSize,

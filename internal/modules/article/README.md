@@ -57,7 +57,8 @@ Index `articles_status_created_at_idx` serves the list filtered by status.
 ## Ports
 
 `usecase/ports.go` declares what the use cases need: `ArticleRepository` (implemented by
-`gateway/postgres.ArticleRepo`), `Clock` (`platform/clock.Real`) and `IDGenerator` (`platform/id.Generator`).
+`gateway/postgres.ArticleRepo`), `ArticleEvents` (`gateway/eventbus.ArticleEvents`), `Clock`
+(`platform/clock.Real`) and `IDGenerator` (`platform/id.Generator`).
 
 Edits and publishing go through `ArticleRepository.Update`, which applies the change inside one transaction
 that holds the article's row lock. Concurrent requests to one article therefore apply one after the other,
@@ -69,10 +70,13 @@ transport maps it to its own unexported `articleResponse`. No adapter holds the 
 
 ## Public API and events
 
-- `contract/`: `Article` (ID, slug, title, whether it is published) and `ErrNotFound`. Standard library only.
+- `contract/`: `Article` (ID, slug, title, whether it is published), `ErrNotFound` and the event
+  `ArticleDeleted` (ID, time). Standard library only.
 - `api.go`: `(*Module).API()` returns `API`, whose `Article(ctx, id)` looks an article up whatever its status.
   A consumer wraps it in its own `gateway/article/`.
-- Events: none.
+- `Delete` publishes `ArticleDeleted` on the application's event bus (`gateway/eventbus/`) after the row is
+  gone, and only then. Delivery is in process and at most once, so a subscriber also checks, when it matters,
+  that the article still exists.
 
 ## Dependencies
 
@@ -84,5 +88,5 @@ No other module.
 2. `usecase/ports.go`, `article.go` (`ArticleUsecase` and `ArticleView`), then one use case, such as `update.go`.
 3. `gateway/postgres/`: `article_repo.go`, `article_row.go`, then one method, such as `update.go`.
 4. `transport/rest/`: `routes.go`, `handler.go`, then one endpoint, such as `update.go`, and `errors.go`.
-5. `contract/contract.go` and `api.go`: what other modules see.
+5. `contract/contract.go`, `api.go` and `gateway/eventbus/`: what other modules see.
 6. `config.go`, then `module.go`.

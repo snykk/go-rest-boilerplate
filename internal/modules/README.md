@@ -24,10 +24,11 @@ and its tables. Modules are independent of each other; `internal/app` puts them 
 │   ├── <endpoint>.go       # one file per endpoint: handler, swag annotations, request type (+ <endpoint>_test.go)
 │   ├── response.go         # response bodies several endpoints share
 │   └── errors.go           # domain errors mapped to problem codes
-└── gateway/postgres/       # an adapter across the module's boundary: the database (see Gateways below)
-    ├── <aggregate>_repo.go # the repository type, its constructor, driver errors turned into domain errors
-    ├── <aggregate>_row.go  # row structs with db tags and their mapping to entities
-    └── <method>.go         # one file per repository method (+ <method>_integration_test.go)
+├── gateway/postgres/       # an adapter across the module's boundary: the database (see Gateways below)
+│   ├── <aggregate>_repo.go # the repository type, its constructor, driver errors turned into domain errors
+│   ├── <aggregate>_row.go  # row structs with db tags and their mapping to entities
+│   └── <method>.go         # one file per repository method (+ <method>_integration_test.go)
+└── gateway/eventbus/       # the events port over internal/platform/events (when the module publishes events)
 ```
 
 A file is named after its unit. When a package serves more than one aggregate, the name starts with the
@@ -54,8 +55,9 @@ and the events the module publishes. A technical capability (time, identifiers, 
 token signing) comes from a platform package whose type satisfies the use case's port directly, as
 `clock.Real` and `id.Generator` do in `article/module.go`; it needs no gateway.
 
-**Optional parts.** A module without business rules may skip `domain/`. A module that no other module calls
-has no `contract/` and no `api.go`. `article` has both, so the examples can build on it.
+**Optional parts.** A module without business rules may skip `domain/`. A module that no other module calls,
+and that publishes no events, has no `contract/`, no `api.go` and no `gateway/eventbus/`. `article` has all
+three, so the examples can build on it.
 
 ## The layers as Clean Architecture
 

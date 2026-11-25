@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 	time "time"
 
+	contract "github.com/snykk/go-rest-boilerplate/internal/modules/article/contract"
 	domain "github.com/snykk/go-rest-boilerplate/internal/modules/article/domain"
 	usecase "github.com/snykk/go-rest-boilerplate/internal/modules/article/usecase"
 	gomock "go.uber.org/mock/gomock"
@@ -115,6 +116,42 @@ func (m *MockArticleRepository) Update(ctx context.Context, id string, change fu
 func (mr *MockArticleRepositoryMockRecorder) Update(ctx, id, change any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockArticleRepository)(nil).Update), ctx, id, change)
+}
+
+// MockArticleEvents is a mock of ArticleEvents interface.
+type MockArticleEvents struct {
+	ctrl     *gomock.Controller
+	recorder *MockArticleEventsMockRecorder
+	isgomock struct{}
+}
+
+// MockArticleEventsMockRecorder is the mock recorder for MockArticleEvents.
+type MockArticleEventsMockRecorder struct {
+	mock *MockArticleEvents
+}
+
+// NewMockArticleEvents creates a new mock instance.
+func NewMockArticleEvents(ctrl *gomock.Controller) *MockArticleEvents {
+	mock := &MockArticleEvents{ctrl: ctrl}
+	mock.recorder = &MockArticleEventsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockArticleEvents) EXPECT() *MockArticleEventsMockRecorder {
+	return m.recorder
+}
+
+// Deleted mocks base method.
+func (m *MockArticleEvents) Deleted(ctx context.Context, event contract.ArticleDeleted) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Deleted", ctx, event)
+}
+
+// Deleted indicates an expected call of Deleted.
+func (mr *MockArticleEventsMockRecorder) Deleted(ctx, event any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deleted", reflect.TypeOf((*MockArticleEvents)(nil).Deleted), ctx, event)
 }
 
 // MockClock is a mock of Clock interface.
