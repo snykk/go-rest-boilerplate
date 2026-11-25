@@ -133,6 +133,8 @@ A module with both public and protected endpoints takes one group of each in its
   checks only who the caller is and its roles.
 - Sign-in, token issuing and refresh are features: they go in a module of their own, such as `identity`.
   Version `v0.2.0` shows one.
+- A sign-in module draws its verification codes, and its reset and refresh tokens, with `random.Generator`
+  from `internal/platform/random`.
 
 ## Background work
 

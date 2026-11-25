@@ -1,8 +1,8 @@
 # Platform
 
-Technical plumbing that every module may use and none owns: configuration, logging, IDs, time, validation,
-the database pool and units of work, the migrator, the HTTP server with its middleware, authentication, tracing
-and metrics, build information, and the process lifecycle.
+Technical plumbing that every module may use and none owns: configuration, logging, IDs, random codes and
+tokens, time, validation, the database pool and units of work, the migrator, the HTTP server with its
+middleware, authentication, tracing and metrics, build information, and the process lifecycle.
 
 ## What belongs here
 
@@ -29,6 +29,7 @@ module's `gateway/` or `transport/`.
 | `buildinfo` | `Get`, `Info`: the version and commit of the binary, from `-ldflags` or what the Go toolchain recorded |
 | `requestid` | `Header`, `With`, `From`, `Valid`: the request ID in a context, and the check for incoming IDs |
 | `id` | `New`, `Generator`: UUIDv7 identifiers |
+| `random` | `Generator`: from `crypto/rand`, a `Code` of six digits, each of the million equally likely, and a `Token` of 32 bytes in unpadded base64url |
 | `clock` | `Real`: the current time in UTC, in whole microseconds |
 | `validate` | `Struct`, `Errors`, `FieldError`: struct validation whose messages never repeat the submitted value |
 | `database` | `Open`: a pgx pool, pinged before use, with `WithTelemetry` for a span and a duration per query and the pool's statistics; `Querier`: a pool or a transaction, which gateways take so the same repository runs alone or in a unit of work |
