@@ -866,6 +866,180 @@ const docTemplate = `{
                 }
             }
         },
+        "/comments": {
+            "get": {
+                "description": "An article that does not exist or is a draft is not_found, never an empty page.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comments"
+                ],
+                "summary": "List the comments on a published article",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID (UUID) of a published article",
+                        "name": "article_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only the comments of the user with this ID (UUID)",
+                        "name": "author_id",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Page size; 0 or none means the server's default (20 unless configured), and a value above the server's maximum (100 unless configured) means the maximum",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Comments to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CommentList"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_query",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "The caller is the author, and the comment keeps the display name the author has now. An article that does not exist or is a draft is not_found, and so is a caller whose account is gone.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comments"
+                ],
+                "summary": "Comment on a published article",
+                "parameters": [
+                    {
+                        "description": "The article and the text",
+                        "name": "comment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AddCommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/Comment"
+                        }
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/comments/{id}": {
+            "delete": {
+                "description": "The comment's author may delete it, and so may an editor; anyone else is forbidden.",
+                "tags": [
+                    "comments"
+                ],
+                "summary": "Delete a comment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comment ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
         "/users/me": {
             "get": {
                 "produces": [
@@ -904,6 +1078,25 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "AddCommentRequest": {
+            "type": "object",
+            "required": [
+                "article_id",
+                "body"
+            ],
+            "properties": {
+                "article_id": {
+                    "description": "ArticleID is the ID of a published article.",
+                    "type": "string",
+                    "example": "0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c45"
+                },
+                "body": {
+                    "description": "Body is 1 to 2000 characters once trimmed, none of them NUL.",
+                    "type": "string",
+                    "example": "Thanks, this helped."
+                }
+            }
+        },
         "Article": {
             "type": "object",
             "properties": {
@@ -981,6 +1174,59 @@ const docTemplate = `{
                     "description": "NewPassword is 8 to 72 bytes.",
                     "type": "string",
                     "example": "battery-staple-horse"
+                }
+            }
+        },
+        "Comment": {
+            "type": "object",
+            "properties": {
+                "article_id": {
+                    "type": "string",
+                    "example": "0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c45"
+                },
+                "author_id": {
+                    "type": "string",
+                    "example": "0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c46"
+                },
+                "author_name": {
+                    "description": "AuthorName is the display name the author had when writing the comment.",
+                    "type": "string",
+                    "example": "Ada"
+                },
+                "body": {
+                    "type": "string",
+                    "example": "Thanks, this helped."
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c44"
+                }
+            }
+        },
+        "CommentList": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "Items is an empty array, never null, when the page holds no comments.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Comment"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },

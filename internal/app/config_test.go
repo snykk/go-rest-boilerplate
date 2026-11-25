@@ -12,7 +12,7 @@ import (
 const jwtSecret = "0123456789abcdef0123456789abcdef"
 
 // LoadConfig reads the platform's settings, the mailer's and every module's from one source, and reports the
-// problems of all of them in one error. It refuses the published development JWT secret in production.
+// problems of all of them in one error, the published development JWT secret in production among them.
 func TestLoadConfig(t *testing.T) {
 	tCases := []struct {
 		name         string
@@ -27,6 +27,7 @@ func TestLoadConfig(t *testing.T) {
 				"ARTICLE_MAX_PAGE_SIZE": "50",
 				"IDENTITY_JWT_SECRET":   jwtSecret,
 				"IDENTITY_ACCESS_TTL":   "5m",
+				"COMMENT_MAX_PAGE_SIZE": "30",
 			},
 		},
 		{
@@ -34,8 +35,15 @@ func TestLoadConfig(t *testing.T) {
 			env: map[string]string{
 				"ARTICLE_MAX_PAGE_SIZE": "0",
 				"MAIL_FROM":             "nobody",
+				"COMMENT_MAX_PAGE_SIZE": "0",
 			},
-			wantProblems: []string{"DATABASE_URL", "MAIL_FROM", "ARTICLE_MAX_PAGE_SIZE", "IDENTITY_JWT_SECRET"},
+			wantProblems: []string{
+				"DATABASE_URL",
+				"MAIL_FROM",
+				"ARTICLE_MAX_PAGE_SIZE",
+				"IDENTITY_JWT_SECRET",
+				"COMMENT_MAX_PAGE_SIZE",
+			},
 		},
 		{
 			name: "the development JWT secret of .env.example is refused in production",
@@ -46,6 +54,15 @@ func TestLoadConfig(t *testing.T) {
 				"IDENTITY_JWT_SECRET":       "development-secret-32-bytes-long",
 			},
 			wantProblems: []string{"IDENTITY_JWT_SECRET"},
+		},
+		{
+			name: "the development JWT secret in production is reported with the other problems",
+			env: map[string]string{
+				"APP_ENV":             "production",
+				"MAIL_FROM":           "nobody",
+				"IDENTITY_JWT_SECRET": "development-secret-32-bytes-long",
+			},
+			wantProblems: []string{"DATABASE_URL", "MAIL_FROM", "IDENTITY_JWT_SECRET"},
 		},
 	}
 
@@ -65,10 +82,11 @@ func TestLoadConfig(t *testing.T) {
 				t.Fatalf("LoadConfig = %v, want no error", err)
 			}
 			if got.Platform.Database.URL != "postgres://x" || got.Mail.Addr != "mail:25" ||
-				got.Article.MaxPageSize != 50 || got.Identity.AccessTTL != 5*time.Minute {
-				t.Errorf("LoadConfig = URL %q, mail %q, article max page size %d, access TTL %v; want %q, %q, 50, 5m",
-					got.Platform.Database.URL, got.Mail.Addr, got.Article.MaxPageSize, got.Identity.AccessTTL,
-					"postgres://x", "mail:25")
+				got.Article.MaxPageSize != 50 || got.Identity.AccessTTL != 5*time.Minute ||
+				got.Comment.MaxPageSize != 30 {
+				t.Errorf("LoadConfig = URL %q, mail %q, max pages %d and %d, access TTL %v; want %q, %q, 50 and 30, 5m",
+					got.Platform.Database.URL, got.Mail.Addr, got.Article.MaxPageSize, got.Comment.MaxPageSize,
+					got.Identity.AccessTTL, "postgres://x", "mail:25")
 			}
 		})
 	}

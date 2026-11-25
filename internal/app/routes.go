@@ -15,7 +15,8 @@ import (
 
 // routes is the application's route map: the platform routes at the root, the operator routes under /admin
 // when an admin token is configured, and every module mounted on the /v1 group. A request on the signed-in
-// group carries an access token of the identity module; article changes and drafts also need the editor role.
+// group carries an access token of the identity module, as adding or deleting a comment needs; article changes
+// and drafts also need the editor role.
 func routes(router *httpserver.Router, config Config, deps Deps, featureModules modules) {
 	router.Handle(http.MethodGet, "/health", httpserver.Health())
 	router.Handle(http.MethodGet, "/ready", httpserver.Ready(deps.Log, 2*time.Second, httpserver.Check{
@@ -38,4 +39,5 @@ func routes(router *httpserver.Router, config Config, deps Deps, featureModules 
 	signedIn := v1.Group("", auth.Authenticate(verifier, "Bearer", deps.Log))
 	featureModules.article.RegisterRoutes(v1, signedIn.Group("", auth.Require(auth.Role(identitycontract.RoleEditor))))
 	featureModules.identity.RegisterRoutes(v1, signedIn)
+	featureModules.comment.RegisterRoutes(v1, signedIn)
 }

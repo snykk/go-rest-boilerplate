@@ -24,6 +24,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/modules/identity"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/identity/contract"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/identity/usecase"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/id"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/lifecycle"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/logger"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/mailer"
@@ -239,9 +240,10 @@ func wantProblem(t *testing.T, recorder *httptest.ResponseRecorder, status int, 
 
 // NewHandler serves the application end to end on a real database: the article lifecycle for an editor, with
 // changes refused to anyone else; the identity flows from registration to sign-out, concurrent refreshes and the
-// reuse of a spent refresh token, password resets and lockouts; request IDs that follow the caller's trace; readiness; a Swagger UI that can
-// load its scripts; and an operator endpoint for the log level that exists only with an admin token and
-// requires it.
+// reuse of a spent refresh token, password resets and lockouts; comments on published articles, which a reader
+// cannot delete for another and an editor can; request IDs that follow the caller's trace; readiness; a Swagger
+// UI that can load its scripts; and an operator endpoint for the log level that exists only with an admin token
+// and requires it.
 func TestNewHandler(t *testing.T) {
 	f := newFixture(t)
 	f.provision(t, "editor@example.com", "editor-password", contract.RoleReader, contract.RoleEditor)
@@ -262,6 +264,8 @@ func TestNewHandler(t *testing.T) {
 		func(t *testing.T) { resendCooldown(t, f) })
 	t.Run("a code guessed at too often still holds the cooldown", func(t *testing.T) { exhaustedCode(t, f) })
 	t.Run("an unknown email gets the same answer and no mail", func(t *testing.T) { unknownEmail(t, f) })
+	t.Run("a reader comments on a published article and cannot delete another's comment, which an editor can",
+		func(t *testing.T) { commenting(t, f, editor) })
 	platformRoutes(t, f)
 }
 
@@ -625,6 +629,92 @@ func unknownEmail(t *testing.T, f *fixture) {
 	if after := len(f.mail.Messages()); after != before {
 		t.Errorf("messages after requests for an unknown email = %d, want %d", after, before)
 	}
+}
+
+func commenting(t *testing.T, f *fixture, editor string) {
+	const email, password = "grace@example.com", "reader-password"
+	readerID := f.provision(t, email, password, contract.RoleReader)
+	reader := f.signIn(t, email, password).access
+	articleID := f.publish(t, editor, "commented")
+	recorder := f.do("POST", "/v1/articles", `{"slug":"not-yet","title":"Draft"}`, editor)
+	wantStatus(t, recorder, 201, "create a draft")
+	draftID := field(t, recorder, "id").(string)
+
+	recorder = f.do("POST", "/v1/comments", commentBody(articleID, "First!"), reader)
+	wantStatus(t, recorder, 201, "a reader comments")
+	if field(t, recorder, "author_id") != readerID || field(t, recorder, "author_name") != "Test user" {
+		t.Errorf("a reader comments: body %s, want the reader as the author, with their display name", recorder.Body)
+	}
+	byReader := field(t, recorder, "id").(string)
+	recorder = f.do("POST", "/v1/comments", commentBody(articleID, "Thanks for reading."), editor)
+	wantStatus(t, recorder, 201, "the editor comments")
+	byEditor := field(t, recorder, "id").(string)
+
+	wantProblem(t, f.do("POST", "/v1/comments", commentBody(articleID, "Anonymous"), ""), 401, "unauthenticated",
+		"comment without a token")
+	wantProblem(t, f.do("POST", "/v1/comments", commentBody(draftID, "Too early"), reader), 404, "not_found",
+		"comment on a draft")
+	wantProblem(t, f.do("POST", "/v1/comments", commentBody("commented", "Wrong ID"), reader), 422,
+		"validation_failed", "comment on an article ID that is not a UUID")
+	wantProblem(t, f.do("PATCH", "/v1/articles/"+articleID, `{"title":"Mine now"}`, reader), 403, "forbidden",
+		"a reader changes the article")
+
+	list := "/v1/comments?article_id=" + articleID
+	if got, want := commentIDs(t, f.do("GET", list, "", "")), []string{byEditor, byReader}; !slices.Equal(got, want) {
+		t.Errorf("anyone lists the comments: %v, want %v, newest first", got, want)
+	}
+	byAuthor := list + "&author_id=" + readerID
+	if got, want := commentIDs(t, f.do("GET", byAuthor, "", "")), []string{byReader}; !slices.Equal(got, want) {
+		t.Errorf("list the reader's comments: %v, want %v", got, want)
+	}
+	wantProblem(t, f.do("GET", "/v1/comments?article_id="+draftID, "", ""), 404, "not_found",
+		"list the comments of a draft")
+	wantProblem(t, f.do("GET", "/v1/comments?article_id="+id.New(), "", ""), 404, "not_found",
+		"list the comments of an article that never existed")
+	wantProblem(t, f.do("GET", "/v1/comments", "", ""), 400, "invalid_query", "list without an article")
+
+	wantProblem(t, f.do("DELETE", "/v1/comments/"+byEditor, "", reader), 403, "forbidden",
+		"the reader deletes the editor's comment")
+	wantStatus(t, f.do("DELETE", "/v1/comments/"+byReader, "", editor), 204, "the editor deletes the reader's comment")
+	wantProblem(t, f.do("DELETE", "/v1/comments/"+byReader, "", reader), 404, "not_found",
+		"the reader deletes the comment the editor deleted")
+	if got, want := commentIDs(t, f.do("GET", list, "", "")), []string{byEditor}; !slices.Equal(got, want) {
+		t.Errorf("list after the deletion: %v, want %v", got, want)
+	}
+}
+
+// publish creates an article with slug as editor and publishes it, and returns its ID.
+func (f *fixture) publish(t *testing.T, editor, slug string) string {
+	t.Helper()
+	recorder := f.do("POST", "/v1/articles", `{"slug":"`+slug+`","title":"Title","body":"Text"}`, editor)
+	wantStatus(t, recorder, 201, "create "+slug)
+	articleID := field(t, recorder, "id").(string)
+	wantStatus(t, f.do("POST", "/v1/articles/"+articleID+"/publish", "", editor), 200, "publish "+slug)
+	return articleID
+}
+
+func commentBody(articleID, text string) string {
+	return `{"article_id":"` + articleID + `","body":"` + text + `"}`
+}
+
+// commentIDs returns the IDs of the comments a list answered with, in order. It fails the test unless the list
+// answered 200.
+func commentIDs(t *testing.T, recorder *httptest.ResponseRecorder) []string {
+	t.Helper()
+	wantStatus(t, recorder, 200, "list comments")
+	var page struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &page); err != nil {
+		t.Fatalf("body %s is not a list of comments: %v", recorder.Body, err)
+	}
+	ids := make([]string, len(page.Items))
+	for i, item := range page.Items {
+		ids[i] = item.ID
+	}
+	return ids
 }
 
 func platformRoutes(t *testing.T, f *fixture) {

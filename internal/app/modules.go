@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/snykk/go-rest-boilerplate/internal/modules/article"
+	"github.com/snykk/go-rest-boilerplate/internal/modules/comment"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/identity"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/events"
 )
@@ -10,6 +11,7 @@ import (
 type modules struct {
 	article  *article.Module
 	identity *identity.Module
+	comment  *comment.Module
 }
 
 // newModules builds every module on the shared resources, one event bus and its own settings. A module that
@@ -28,14 +30,22 @@ func newModules(config Config, deps Deps) (modules, error) {
 	if err != nil {
 		return modules{}, err
 	}
+	articles := article.New(article.Deps{
+		Pool:   deps.Pool,
+		Log:    deps.Log,
+		Events: bus,
+		Config: config.Article,
+	})
 
 	return modules{
-		article: article.New(article.Deps{
-			Pool:   deps.Pool,
-			Log:    deps.Log,
-			Events: bus,
-			Config: config.Article,
-		}),
+		article:  articles,
 		identity: users,
+		comment: comment.New(comment.Deps{
+			Pool:     deps.Pool,
+			Log:      deps.Log,
+			Articles: articles.API(),
+			Authors:  users.API(),
+			Config:   config.Comment,
+		}),
 	}, nil
 }

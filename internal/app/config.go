@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/snykk/go-rest-boilerplate/internal/modules/article"
+	"github.com/snykk/go-rest-boilerplate/internal/modules/comment"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/identity"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/config"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/mailer"
@@ -20,27 +21,40 @@ type Config struct {
 	Mail     mailer.Config
 	Article  article.Config
 	Identity identity.Config
+	Comment  comment.Config
 }
 
 // LoadConfig reads every setting from source, the platform's (see config.FromEnv), the mailer's (see
-// mailer.LoadConfig) and each module's, and reports every invalid or missing one in one error. Once they are
-// valid, it refuses IDENTITY_JWT_SECRET in production when the secret is the published development value.
+// mailer.LoadConfig) and each module's, and reports every invalid or missing one in one error. That error also
+// names IDENTITY_JWT_SECRET when APP_ENV is production and the secret is the published development value.
 func LoadConfig(source config.Source) (Config, error) {
 	platform, platformErr := config.FromEnv(source)
 	mail, mailErr := mailer.LoadConfig(source)
 	articles, articlesErr := article.LoadConfig(source)
 	users, usersErr := identity.LoadConfig(source)
-	if err := errors.Join(platformErr, mailErr, articlesErr, usersErr); err != nil {
+	comments, commentsErr := comment.LoadConfig(source)
+	secretErr := refuseDevelopmentSecret(source)
+	if err := errors.Join(platformErr, mailErr, articlesErr, usersErr, commentsErr, secretErr); err != nil {
 		return Config{}, err
-	}
-	if platform.Production() && users.JWTSecret == developmentJWTSecret {
-		return Config{}, errors.New(
-			"invalid configuration: IDENTITY_JWT_SECRET: must not be the development value in production")
 	}
 	return Config{
 		Platform: platform,
 		Mail:     mail,
 		Article:  articles,
 		Identity: users,
+		Comment:  comments,
 	}, nil
+}
+
+// refuseDevelopmentSecret reports IDENTITY_JWT_SECRET when APP_ENV is production and the secret is
+// developmentJWTSecret. It reads both settings from source itself, because the platform's and the identity
+// module's configurations are empty when they have problems of their own, and this one must be reported with
+// them.
+func refuseDevelopmentSecret(source config.Source) error {
+	reader := config.NewReader(source)
+	if reader.String("APP_ENV", "") == "production" &&
+		reader.String("IDENTITY_JWT_SECRET", "") == developmentJWTSecret {
+		reader.Fail("IDENTITY_JWT_SECRET", "must not be the development value in production")
+	}
+	return reader.Err()
 }

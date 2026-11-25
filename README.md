@@ -118,6 +118,8 @@ counts as unset.
 | `IDENTITY_BCRYPT_COST` | `12` | From 10 to 14 |
 | `IDENTITY_LOGIN_ATTEMPTS` | `5` | Failed sign-ins in a row that lock an account |
 | `IDENTITY_LOCKOUT` | `15m` | How long a locked account stays locked |
+| `COMMENT_DEFAULT_PAGE_SIZE` | `20` | Comments in a list that asks for no `limit` |
+| `COMMENT_MAX_PAGE_SIZE` | `100` | The most comments a list returns; not below `COMMENT_DEFAULT_PAGE_SIZE` |
 
 A setting whose name starts with a module's name, such as `ARTICLE_`, belongs to that module and is read by
 its `config.go`. Every invalid or missing setting is reported at start-up in one error.
@@ -146,6 +148,9 @@ its `config.go`. Every invalid or missing setting is reported at start-up in one
 | PATCH | `/v1/articles/{id}` | editor | 200 |
 | POST | `/v1/articles/{id}/publish` | editor | 200 |
 | DELETE | `/v1/articles/{id}` | editor | 204 |
+| POST | `/v1/comments` | signed in | 201, a comment on a published article |
+| GET | `/v1/comments?article_id=&author_id=&limit=&offset=` | anyone | 200, the comments on a published article, newest first |
+| DELETE | `/v1/comments/{id}` | the comment's author, or an editor | 204 |
 
 A signed-in request carries `Authorization: Bearer <access_token>`; without a valid one it answers 401
 `unauthenticated`, and without the role it needs, 403 `forbidden`. Everyone who registers is a reader; an
@@ -166,8 +171,9 @@ Errors are `application/problem+json`:
 
 A `422 validation_failed` problem adds `"errors": [{"field": "title", "rule": "required", "message": "is
 required"}]`. Every response carries `X-Request-ID`. The error codes of each endpoint are listed in the
-module cards, [internal/modules/article/README.md](internal/modules/article/README.md) and
-[internal/modules/identity/README.md](internal/modules/identity/README.md), and in the OpenAPI document at
+module cards, [internal/modules/article/README.md](internal/modules/article/README.md),
+[internal/modules/identity/README.md](internal/modules/identity/README.md) and
+[internal/modules/comment/README.md](internal/modules/comment/README.md), and in the OpenAPI document at
 `/swagger/doc.json`.
 
 ## Observability

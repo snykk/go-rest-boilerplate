@@ -1,5 +1,19 @@
 basePath: /v1
 definitions:
+  AddCommentRequest:
+    properties:
+      article_id:
+        description: ArticleID is the ID of a published article.
+        example: 0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c45
+        type: string
+      body:
+        description: Body is 1 to 2000 characters once trimmed, none of them NUL.
+        example: Thanks, this helped.
+        type: string
+    required:
+    - article_id
+    - body
+    type: object
   Article:
     properties:
       body:
@@ -56,6 +70,45 @@ definitions:
     required:
     - current_password
     - new_password
+    type: object
+  Comment:
+    properties:
+      article_id:
+        example: 0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c45
+        type: string
+      author_id:
+        example: 0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c46
+        type: string
+      author_name:
+        description: AuthorName is the display name the author had when writing the
+          comment.
+        example: Ada
+        type: string
+      body:
+        example: Thanks, this helped.
+        type: string
+      created_at:
+        type: string
+      id:
+        example: 0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c44
+        type: string
+    type: object
+  CommentList:
+    properties:
+      items:
+        description: Items is an empty array, never null, when the page holds no comments.
+        items:
+          $ref: '#/definitions/Comment'
+        type: array
+      limit:
+        example: 20
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      total:
+        example: 1
+        type: integer
     type: object
   CreateArticleRequest:
     properties:
@@ -839,6 +892,125 @@ paths:
       summary: Ask for a new verification code
       tags:
       - auth
+  /comments:
+    get:
+      description: An article that does not exist or is a draft is not_found, never
+        an empty page.
+      parameters:
+      - description: ID (UUID) of a published article
+        in: query
+        name: article_id
+        required: true
+        type: string
+      - description: Only the comments of the user with this ID (UUID)
+        in: query
+        name: author_id
+        type: string
+      - description: Page size; 0 or none means the server's default (20 unless configured),
+          and a value above the server's maximum (100 unless configured) means the
+          maximum
+        in: query
+        minimum: 0
+        name: limit
+        type: integer
+      - description: Comments to skip
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CommentList'
+        "400":
+          description: invalid_query
+          schema:
+            $ref: '#/definitions/Problem'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: List the comments on a published article
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      description: The caller is the author, and the comment keeps the display name
+        the author has now. An article that does not exist or is a draft is not_found,
+        and so is a caller whose account is gone.
+      parameters:
+      - description: The article and the text
+        in: body
+        name: comment
+        required: true
+        schema:
+          $ref: '#/definitions/AddCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/Comment'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
+      summary: Comment on a published article
+      tags:
+      - comments
+  /comments/{id}:
+    delete:
+      description: The comment's author may delete it, and so may an editor; anyone
+        else is forbidden.
+      parameters:
+      - description: Comment ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
+      summary: Delete a comment
+      tags:
+      - comments
   /users/me:
     get:
       produces:
