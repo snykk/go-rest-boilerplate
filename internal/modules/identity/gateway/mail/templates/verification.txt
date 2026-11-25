@@ -1,0 +1,4 @@
+Your verification code for {{.Service}} is {{.Code}}.
+
+It expires in {{.Lifetime}}.
+If you did not create an account, ignore this message.
