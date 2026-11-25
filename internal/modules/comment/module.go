@@ -1,7 +1,8 @@
 // Package comment is the comment module: signed-in users comment on published articles, anyone reads the
 // comments, and a comment's author or an editor deletes it. It asks the article module whether an article is
-// published and the identity module for an author's display name, each through that module's API. Its layers
-// are wired together here; the rest of the application sees only Module.
+// published and the identity module for an author's display name, each through that module's API, and it removes
+// an article's comments when the article module announces that the article was deleted. Its layers are wired
+// together here; the rest of the application sees only Module.
 package comment
 
 import (
@@ -12,9 +13,11 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/modules/comment/gateway/article"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/comment/gateway/identity"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/comment/gateway/postgres"
+	"github.com/snykk/go-rest-boilerplate/internal/modules/comment/transport/event"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/comment/transport/rest"
 	"github.com/snykk/go-rest-boilerplate/internal/modules/comment/usecase"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/clock"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/events"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/httpserver"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/id"
 )
@@ -30,9 +33,10 @@ type Deps struct {
 	Config  Config
 }
 
-// Module serves the comment endpoints.
+// Module serves the comment endpoints and reacts to the events of other modules.
 type Module struct {
-	rest *rest.Handler
+	rest     *rest.Handler
+	useCases *usecase.CommentUsecase
 }
 
 // New builds the comment module over deps.
@@ -45,7 +49,7 @@ func New(deps Deps) *Module {
 		IDs:      id.Generator{},
 		PageSize: usecase.PageSize{Default: deps.Config.DefaultPageSize, Max: deps.Config.MaxPageSize},
 	})
-	return &Module{rest: rest.NewHandler(useCases, deps.Log)}
+	return &Module{rest: rest.NewHandler(useCases, deps.Log), useCases: useCases}
 }
 
 // RegisterRoutes adds the comment endpoints relative to the groups' prefixes: the list to public, and adding
@@ -53,4 +57,11 @@ func New(deps Deps) *Module {
 // identity module.
 func (m *Module) RegisterRoutes(public, signedIn *httpserver.Router) {
 	m.rest.Routes(public, signedIn)
+}
+
+// Subscribe makes the module react to the events of other modules announced on bus: the comments of an article
+// are removed when the article module announces that it was deleted. Call it at start-up, before the first
+// event is published.
+func (m *Module) Subscribe(bus *events.Bus) {
+	event.Subscribe(bus, m.useCases)
 }

@@ -2,7 +2,8 @@
 
 Comments on published articles. A signed-in user comments on an article once it is published; anyone reads the
 comments; the comment's author or an editor deletes one. The module asks the `article` module whether an
-article is published and the `identity` module for the author's display name, each through that module's API.
+article is published and the `identity` module for the author's display name, each through that module's API. It
+reacts to the `article` module's `ArticleDeleted` event by removing the article's comments.
 
 ## Endpoints
 
@@ -28,6 +29,18 @@ Comments live under `/comments`, not `/articles/{id}/comments`: `ServeMux` refus
 beside the article module's `GET /articles/drafts/{id}`, since a path such as `/articles/drafts/comments`
 matches both and neither is more specific.
 
+## Events
+
+`Subscribe(bus)` subscribes the module on the application's event bus, which `internal/app` calls at start-up.
+
+| Event | From | Handler | Effect |
+|---|---|---|---|
+| `ArticleDeleted` | `article/contract` | `comment.article-deleted` | `DeleteForArticle` removes every comment on the article |
+
+Delivery is in process and at most once. The handler returns a use case's failure to the bus, which logs it with
+the article's ID, and nothing retries the event; the comments of that article stay in the table, and the list
+answers 404 for an article that no longer exists, so they are never shown.
+
 ## Settings
 
 Read by `config.go`; the application reports an invalid value at start-up.
@@ -45,7 +58,8 @@ Read by `config.go`; the application reports an invalid value at start-up.
 - The caller who wrote a comment may delete it, and so may anyone with the `editor` role; anyone else gets
   `forbidden`. The rule sits in the `Delete` use case; the transport passes on who calls and whether they are an
   editor.
-- `DeleteForArticle` removes every comment on an article; calling it again changes nothing. All times are UTC.
+- `DeleteForArticle` removes every comment on an article, and is how the module reacts to `ArticleDeleted`;
+  calling it again changes nothing. All times are UTC.
 
 ## Table: `comments`
 
@@ -75,6 +89,8 @@ Index `comments_article_id_created_at_idx` serves the list of one article's comm
 - `article`, through `gateway/article/`: an anti-corruption layer over `article.API`, behind its own small `API`
   interface. `Published(ctx, id)` is true for a published article, and false, with no error, for a draft and
   for an ID the article module reports as `contract.ErrNotFound`.
+- `article`, through `transport/event/`: the handler of `contract.ArticleDeleted`, the only package of the module
+  that names that event.
 - `identity`, through `gateway/identity/`: the same over `identity.API`. `DisplayName(ctx, userID)` turns
   `contract.ErrNotFound` into `domain.ErrAuthorNotFound`.
 - The transport reads the `editor` role name from `identity/contract`.
@@ -88,4 +104,5 @@ No module depends on `comment`.
 3. `gateway/article/` and `gateway/identity/`: the two anti-corruption layers.
 4. `gateway/postgres/`: `comment_repo.go`, `comment_row.go`, then one method, such as `list.go`.
 5. `transport/rest/`: `routes.go`, `handler.go`, then one endpoint, such as `add.go`, and `errors.go`.
-6. `config.go`, then `module.go`.
+6. `transport/event/`: `handler.go` (`Subscribe`), then `article_deleted.go`.
+7. `config.go`, then `module.go`.

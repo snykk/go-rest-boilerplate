@@ -241,9 +241,9 @@ func wantProblem(t *testing.T, recorder *httptest.ResponseRecorder, status int, 
 // NewHandler serves the application end to end on a real database: the article lifecycle for an editor, with
 // changes refused to anyone else; the identity flows from registration to sign-out, concurrent refreshes and the
 // reuse of a spent refresh token, password resets and lockouts; comments on published articles, which a reader
-// cannot delete for another and an editor can; request IDs that follow the caller's trace; readiness; a Swagger
-// UI that can load its scripts; and an operator endpoint for the log level that exists only with an admin token
-// and requires it.
+// cannot delete for another and an editor can, and which go when their article is deleted; request IDs that
+// follow the caller's trace; readiness; a Swagger UI that can load its scripts; and an operator endpoint for the
+// log level that exists only with an admin token and requires it.
 func TestNewHandler(t *testing.T) {
 	f := newFixture(t)
 	f.provision(t, "editor@example.com", "editor-password", contract.RoleReader, contract.RoleEditor)
@@ -266,6 +266,7 @@ func TestNewHandler(t *testing.T) {
 	t.Run("an unknown email gets the same answer and no mail", func(t *testing.T) { unknownEmail(t, f) })
 	t.Run("a reader comments on a published article and cannot delete another's comment, which an editor can",
 		func(t *testing.T) { commenting(t, f, editor) })
+	t.Run("deleting an article deletes its comments", func(t *testing.T) { deletedArticle(t, f, editor) })
 	platformRoutes(t, f)
 }
 
@@ -681,6 +682,34 @@ func commenting(t *testing.T, f *fixture, editor string) {
 	if got, want := commentIDs(t, f.do("GET", list, "", "")), []string{byEditor}; !slices.Equal(got, want) {
 		t.Errorf("list after the deletion: %v, want %v", got, want)
 	}
+}
+
+func deletedArticle(t *testing.T, f *fixture, editor string) {
+	articleID := f.publish(t, editor, "doomed")
+	wantStatus(t, f.do("POST", "/v1/comments", commentBody(articleID, "First."), editor), 201, "the first comment")
+	wantStatus(t, f.do("POST", "/v1/comments", commentBody(articleID, "Second."), editor), 201, "the second comment")
+	if got := f.commentCount(t, articleID); got != 2 {
+		t.Fatalf("comments before the deletion = %d, want 2", got)
+	}
+
+	wantStatus(t, f.do("DELETE", "/v1/articles/"+articleID, "", editor), 204, "delete the article")
+
+	wantProblem(t, f.do("GET", "/v1/comments?article_id="+articleID, "", ""), 404, "not_found",
+		"list the comments of the deleted article")
+	if got := f.commentCount(t, articleID); got != 0 {
+		t.Errorf("comments after the deletion = %d, want 0", got)
+	}
+}
+
+// commentCount returns how many comments are stored on the article with articleID, whatever its state.
+func (f *fixture) commentCount(t *testing.T, articleID string) int {
+	t.Helper()
+	var count int
+	err := f.deps.Pool.QueryRow(t.Context(), `SELECT count(*) FROM comments WHERE article_id = $1`, articleID).Scan(&count)
+	if err != nil {
+		t.Fatalf("count the comments of article %s: %v", articleID, err)
+	}
+	return count
 }
 
 // publish creates an article with slug as editor and publishes it, and returns its ID.

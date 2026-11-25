@@ -37,15 +37,18 @@ func newModules(config Config, deps Deps) (modules, error) {
 		Config: config.Article,
 	})
 
+	comments := comment.New(comment.Deps{
+		Pool:     deps.Pool,
+		Log:      deps.Log,
+		Articles: articles.API(),
+		Authors:  users.API(),
+		Config:   config.Comment,
+	})
+	comments.Subscribe(bus)
+
 	return modules{
 		article:  articles,
 		identity: users,
-		comment: comment.New(comment.Deps{
-			Pool:     deps.Pool,
-			Log:      deps.Log,
-			Articles: articles.API(),
-			Authors:  users.API(),
-			Config:   config.Comment,
-		}),
+		comment:  comments,
 	}, nil
 }
