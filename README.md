@@ -95,6 +95,13 @@ counts as unset.
 | `METRICS_EXPORT_INTERVAL` | `60s` | How often metrics are pushed |
 | `ADMIN_TOKEN` | none | Bearer token of the operator endpoints under `/admin`, at least 32 characters; unset, they do not exist |
 | `DATABASE_URL` | required | pgx connection string; pool settings through URL parameters such as `pool_max_conns` |
+| `MAIL_SMTP_ADDR` | `localhost:1025` | Host and port of the SMTP server. The default is Mailpit from `deployment/compose.yml`, published on the host at `localhost:1025` (the `api` container uses `mailpit:1025`); its inbox is at `http://localhost:8025` |
+| `MAIL_FROM` | `no-reply@example.com` | The sender of every message, with an optional display name such as `Blog <blog@example.com>` |
+| `MAIL_SMTP_USERNAME` | none | Authenticates with PLAIN when set; sent only over STARTTLS or to the local host |
+| `MAIL_SMTP_PASSWORD` | none | The password for `MAIL_SMTP_USERNAME` |
+| `MAIL_SMTP_STARTTLS` | `false` | `true` upgrades the connection with STARTTLS and fails when the server does not offer it |
+| `MAIL_TIMEOUT` | `10s` | The limit of one delivery as a whole |
+| `MAIL_QUEUE_SIZE` | `100` | Messages held in memory before new ones are dropped |
 | `ARTICLE_DEFAULT_PAGE_SIZE` | `20` | Articles in a list that asks for no `limit` |
 | `ARTICLE_MAX_PAGE_SIZE` | `100` | The most articles a list returns; not below `ARTICLE_DEFAULT_PAGE_SIZE` |
 

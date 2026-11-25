@@ -1,5 +1,9 @@
-# Local stack: Postgres, then the migrations once, then the API on :8080. Configuration is passed as
+# Local stack: Postgres, Mailpit, then the migrations once, then the API on :8080. Configuration is passed as
 # environment variables only; no .env file is read inside the containers.
+#
+# Mail: the API sends through Mailpit, a mail server that keeps every message instead of delivering it. The
+# container reaches it at mailpit:1025, an API run on the host at localhost:1025; read the messages in its inbox
+# at http://localhost:8025.
 #
 # Telemetry: OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 docker compose -f deployment/compose.yml
 # --profile telemetry up --build also starts an OpenTelemetry Collector, which sends traces to Jaeger (UI at
@@ -27,11 +31,15 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
       METRICS_EXPORT_INTERVAL: "${METRICS_EXPORT_INTERVAL:-}"
       ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+      MAIL_SMTP_ADDR: mailpit:1025
     ports: ["8080:8080"]
-    depends_on: { migrate: { condition: service_completed_successfully } }
+    depends_on: { migrate: { condition: service_completed_successfully }, mailpit: { condition: service_started } }
     # After SIGTERM, requests get HTTP_SHUTDOWN_TIMEOUT (10s), the components a second more, then the resources
     # up to 10s to close and flush telemetry. Docker's default of 10s would kill the process midway.
     stop_grace_period: 25s
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["1025:1025", "8025:8025"]
   otel-collector:
     image: otel/opentelemetry-collector:0.140.0
     profiles: [telemetry]
