@@ -17,6 +17,7 @@ import (
 	"github.com/snykk/go-rest-boilerplate/internal/platform/httpserver"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/lifecycle"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/logger"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/mailer"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/telemetry"
 )
 
@@ -26,17 +27,18 @@ const stopMargin = time.Second
 
 // App is one process: the resources it opened and the modules built on them.
 type App struct {
-	cfg     Config
-	log     *slog.Logger
-	handler http.Handler
-	closers lifecycle.Closers
+	cfg       Config
+	log       *slog.Logger
+	mailQueue *mailer.Queue
+	handler   http.Handler
+	closers   lifecycle.Closers
 }
 
-// New builds the logger and the telemetry, opens the database pool, and builds the modules and the HTTP
-// handler, registering a closer for each resource as it opens it. It also installs the telemetry as
-// OpenTelemetry's global tracer provider, meter provider and propagator, for code that asks otel for a tracer or
-// a meter, and logs the errors OpenTelemetry reports, such as failed exports. When a step fails, New closes what
-// it had opened and returns the error.
+// New builds the logger and the telemetry, opens the database pool, builds the mail queue over the SMTP
+// server, and builds the modules and the HTTP handler, registering a closer for each resource as it opens it. It
+// also installs the telemetry as OpenTelemetry's global tracer provider, meter provider and propagator, for code
+// that asks otel for a tracer or a meter, and logs the errors OpenTelemetry reports, such as failed exports.
+// When a step fails, New closes what it had opened and returns the error.
 func New(ctx context.Context, config Config) (*App, error) {
 	application := &App{cfg: config}
 	if err := application.open(ctx); err != nil {
@@ -92,12 +94,19 @@ func (a *App) open(ctx context.Context) error {
 		return nil
 	})
 
-	a.handler = NewHandler(a.cfg, Deps{
+	a.mailQueue = mailer.NewQueue(mailer.NewSMTP(a.cfg.Mail), a.log, a.cfg.Mail.QueueSize,
+		platform.HTTP.ShutdownTimeout)
+	handler, err := NewHandler(a.cfg, Deps{
 		Log:       a.log,
 		Level:     level,
 		Pool:      pool,
 		Telemetry: providers,
+		Mail:      a.mailQueue,
 	})
+	if err != nil {
+		return err
+	}
+	a.handler = handler
 	return nil
 }
 
@@ -116,6 +125,13 @@ func (a *App) HTTPServer() lifecycle.ComponentFunc {
 	return lifecycle.ComponentFunc(func(ctx context.Context) error {
 		return httpserver.Run(ctx, config, a.handler, a.log)
 	})
+}
+
+// MailQueue returns the component that sends the email the modules queue until its context ends. It then sends
+// what the queue still holds for up to cfg.Platform.HTTP.ShutdownTimeout, so it stops within the time Run gives
+// the components; a message still held after that is dropped and counted in the log.
+func (a *App) MailQueue() lifecycle.ComponentFunc {
+	return a.mailQueue.Run
 }
 
 // Run runs the components with lifecycle.Run. Once ctx ends they get cfg.Platform.HTTP.ShutdownTimeout and one

@@ -20,6 +20,11 @@ import (
 //	@description	Minimal REST core: platform packages and the article reference module.
 //	@license.name	MIT
 //	@BasePath		/v1
+//
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				An access token from POST /auth/login, sent as "Bearer <access_token>".
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -45,5 +50,5 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	return application.Run(ctx, application.HTTPServer())
+	return application.Run(ctx, application.HTTPServer(), application.MailQueue())
 }

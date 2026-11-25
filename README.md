@@ -47,12 +47,13 @@ Requires Docker.
 ```sh
 docker compose -f deployment/compose.yml up --build -d
 curl localhost:8080/ready
-curl -X POST localhost:8080/v1/articles -H 'Content-Type: application/json' \
-  -d '{"slug":"hello-world","title":"Hello, world","body":"The first article."}'
+curl -X POST localhost:8080/v1/auth/register -H 'Content-Type: application/json' \
+  -d '{"email":"ada@example.com","password":"correct-horse-battery","display_name":"Ada"}'
 docker compose -f deployment/compose.yml down -v
 ```
 
-The stack starts Postgres, applies the migrations once, then serves the API on `:8080`. The Swagger UI is at
+The stack starts Postgres, applies the migrations once, starts Mailpit, then serves the API on `:8080`. The
+verification code of the registration is in Mailpit's inbox at <http://localhost:8025>. The Swagger UI is at
 <http://localhost:8080/swagger/index.html>.
 
 ## Local development
@@ -104,24 +105,51 @@ counts as unset.
 | `MAIL_QUEUE_SIZE` | `100` | Messages held in memory before new ones are dropped |
 | `ARTICLE_DEFAULT_PAGE_SIZE` | `20` | Articles in a list that asks for no `limit` |
 | `ARTICLE_MAX_PAGE_SIZE` | `100` | The most articles a list returns; not below `ARTICLE_DEFAULT_PAGE_SIZE` |
+| `IDENTITY_JWT_SECRET` | required | Signs and verifies access tokens (HS256); at least 32 bytes, random, kept secret; the development value of `.env.example` is refused in production |
+| `IDENTITY_JWT_ISSUER` | `go-rest-boilerplate` | The `iss` claim of an access token |
+| `IDENTITY_JWT_AUDIENCE` | `go-rest-boilerplate` | The `aud` claim of an access token |
+| `IDENTITY_ACCESS_TTL` | `15m` | Lifetime of an access token, which stays valid until then after a sign-out; at least `1m` |
+| `IDENTITY_REFRESH_TTL` | `720h` | Lifetime of a refresh token; at least `1m` |
+| `IDENTITY_REFRESH_REUSE_GRACE` | `10s` | How long after a refresh the spent token may come again without being taken as stolen |
+| `IDENTITY_CODE_TTL` | `10m` | Lifetime of an email verification code; at least `1m` |
+| `IDENTITY_CODE_ATTEMPTS` | `5` | Wrong guesses that end a verification code |
+| `IDENTITY_RESET_TTL` | `30m` | Lifetime of a password reset token; at least `1m` |
+| `IDENTITY_RESEND_COOLDOWN` | `60s` | How long after a verification code or a reset token was issued a request for another one answers as usual but issues and mails nothing |
+| `IDENTITY_BCRYPT_COST` | `12` | From 10 to 14 |
+| `IDENTITY_LOGIN_ATTEMPTS` | `5` | Failed sign-ins in a row that lock an account |
+| `IDENTITY_LOCKOUT` | `15m` | How long a locked account stays locked |
 
 A setting whose name starts with a module's name, such as `ARTICLE_`, belongs to that module and is read by
 its `config.go`. Every invalid or missing setting is reported at start-up in one error.
 
 ## API
 
-| Method | Path | Success |
-|---|---|---|
-| GET | `/health` | 200 while the process serves |
-| GET | `/ready` | 200 when the database answers, 503 otherwise |
-| POST | `/v1/articles` | 201 with `Location` |
-| GET | `/v1/articles?limit=&offset=` | 200, published articles, newest first |
-| GET | `/v1/articles/{id}` | 200 for a published article, 404 for a draft |
-| GET | `/v1/articles/drafts?limit=&offset=` | 200, drafts, newest first |
-| GET | `/v1/articles/drafts/{id}` | 200 for a draft |
-| PATCH | `/v1/articles/{id}` | 200 |
-| POST | `/v1/articles/{id}/publish` | 200 |
-| DELETE | `/v1/articles/{id}` | 204 |
+| Method | Path | Who | Success |
+|---|---|---|---|
+| GET | `/health` | anyone | 200 while the process serves |
+| GET | `/ready` | anyone | 200 when the database answers, 503 otherwise |
+| POST | `/v1/auth/register` | anyone | 201, an unverified user; the code goes by email |
+| POST | `/v1/auth/verification/resend` | anyone | 202 |
+| POST | `/v1/auth/verification` | anyone | 204 |
+| POST | `/v1/auth/login` | anyone | 200, an access token and a refresh token |
+| POST | `/v1/auth/refresh` | anyone | 200, the next pair |
+| POST | `/v1/auth/logout` | anyone | 204 |
+| POST | `/v1/auth/password/forgot` | anyone | 202; the reset token goes by email |
+| POST | `/v1/auth/password/reset` | anyone | 204 |
+| POST | `/v1/auth/password/change` | signed in | 200, a new pair |
+| GET | `/v1/users/me` | signed in | 200 |
+| POST | `/v1/articles` | editor | 201 with `Location` |
+| GET | `/v1/articles?limit=&offset=` | anyone | 200, published articles, newest first |
+| GET | `/v1/articles/{id}` | anyone | 200 for a published article, 404 for a draft |
+| GET | `/v1/articles/drafts?limit=&offset=` | editor | 200, drafts, newest first |
+| GET | `/v1/articles/drafts/{id}` | editor | 200 for a draft |
+| PATCH | `/v1/articles/{id}` | editor | 200 |
+| POST | `/v1/articles/{id}/publish` | editor | 200 |
+| DELETE | `/v1/articles/{id}` | editor | 204 |
+
+A signed-in request carries `Authorization: Bearer <access_token>`; without a valid one it answers 401
+`unauthenticated`, and without the role it needs, 403 `forbidden`. Everyone who registers is a reader; an
+editor is an account an operator provisions, since no endpoint grants a role.
 
 Errors are `application/problem+json`:
 
@@ -138,8 +166,9 @@ Errors are `application/problem+json`:
 
 A `422 validation_failed` problem adds `"errors": [{"field": "title", "rule": "required", "message": "is
 required"}]`. Every response carries `X-Request-ID`. The error codes of each endpoint are listed in the
-module card, [internal/modules/article/README.md](internal/modules/article/README.md), and in the OpenAPI
-document at `/swagger/doc.json`.
+module cards, [internal/modules/article/README.md](internal/modules/article/README.md) and
+[internal/modules/identity/README.md](internal/modules/identity/README.md), and in the OpenAPI document at
+`/swagger/doc.json`.
 
 ## Observability
 

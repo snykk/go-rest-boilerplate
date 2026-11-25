@@ -44,6 +44,19 @@ definitions:
         example: 1
         type: integer
     type: object
+  ChangePasswordRequest:
+    properties:
+      current_password:
+        example: correct-horse-battery
+        type: string
+      new_password:
+        description: NewPassword is 8 to 72 bytes.
+        example: battery-staple-horse
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
   CreateArticleRequest:
     properties:
       body:
@@ -71,6 +84,34 @@ definitions:
         description: Rule is the validate tag that failed, such as "required".
         type: string
     type: object
+  ForgotPasswordRequest:
+    properties:
+      email:
+        example: ada@example.com
+        type: string
+    required:
+    - email
+    type: object
+  LoginRequest:
+    properties:
+      email:
+        example: ada@example.com
+        type: string
+      password:
+        example: correct-horse-battery
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  LogoutRequest:
+    properties:
+      refresh_token:
+        example: Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r
+        type: string
+    required:
+    - refresh_token
+    type: object
   Problem:
     properties:
       code:
@@ -92,6 +133,76 @@ definitions:
       type:
         type: string
     type: object
+  RefreshRequest:
+    properties:
+      refresh_token:
+        example: Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r
+        type: string
+    required:
+    - refresh_token
+    type: object
+  RegisterRequest:
+    properties:
+      display_name:
+        description: DisplayName is 1 to 50 characters, none of them a control character.
+        example: Ada
+        type: string
+      email:
+        example: ada@example.com
+        type: string
+      password:
+        description: Password is 8 to 72 bytes.
+        example: correct-horse-battery
+        type: string
+    required:
+    - display_name
+    - email
+    - password
+    type: object
+  ResendVerificationRequest:
+    properties:
+      email:
+        example: ada@example.com
+        type: string
+    required:
+    - email
+    type: object
+  ResetPasswordRequest:
+    properties:
+      password:
+        description: Password is the new password, 8 to 72 bytes.
+        example: battery-staple-horse
+        type: string
+      token:
+        description: Token is the reset token mailed to the account.
+        example: Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r
+        type: string
+    required:
+    - password
+    - token
+    type: object
+  TokenPair:
+    properties:
+      access_expires_at:
+        type: string
+      access_token:
+        description: 'AccessToken goes with each request as "Authorization: Bearer
+          <access_token>" until it expires.'
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      refresh_expires_at:
+        type: string
+      refresh_token:
+        description: 'RefreshToken gets the next pair from POST /auth/refresh, once:
+          the refresh spends it.'
+        example: Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r
+        type: string
+      token_type:
+        enum:
+        - Bearer
+        example: Bearer
+        type: string
+    type: object
   UpdateArticleRequest:
     properties:
       body:
@@ -103,6 +214,45 @@ definitions:
       title:
         example: Hello again
         type: string
+    type: object
+  User:
+    properties:
+      created_at:
+        type: string
+      display_name:
+        example: Ada
+        type: string
+      email:
+        example: ada@example.com
+        type: string
+      id:
+        example: 0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c44
+        type: string
+      roles:
+        description: Roles is an empty array, never null, for a user with no role.
+        example:
+        - reader
+        items:
+          type: string
+        type: array
+      verified:
+        description: Verified is true once the user has confirmed their email with
+          the code they were sent.
+        example: false
+        type: boolean
+    type: object
+  VerifyRequest:
+    properties:
+      code:
+        description: Code is the six digits mailed to the email.
+        example: "042917"
+        type: string
+      email:
+        example: ada@example.com
+        type: string
+    required:
+    - code
+    - email
     type: object
 info:
   contact: {}
@@ -347,4 +497,374 @@ paths:
       summary: Get a draft
       tags:
       - articles
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Returns an access token and a refresh token for a verified account.
+        Wrong passwords lock the account for a while once too many have been tried.
+      parameters:
+      - description: The email and password
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TokenPair'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "401":
+          description: invalid_credentials
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: email_not_verified
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+        "423":
+          description: account_locked
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Sign in
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revokes the refresh token and every token rotated from the same
+        sign-in. An access token stays valid until it expires.
+      parameters:
+      - description: The refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/LogoutRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Sign out
+      tags:
+      - auth
+  /auth/password/change:
+    post:
+      consumes:
+      - application/json
+      description: Sets the new password when the current one is right, revokes every
+        refresh token of the account and returns the pair of a new sign-in. A wrong
+        current password counts toward the lockout as a failed sign-in does.
+      parameters:
+      - description: The current and the new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TokenPair'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "401":
+          description: unauthenticated or invalid_credentials
+          schema:
+            $ref: '#/definitions/Problem'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+        "423":
+          description: account_locked
+          schema:
+            $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
+      summary: Change the password
+      tags:
+      - auth
+  /auth/password/forgot:
+    post:
+      consumes:
+      - application/json
+      description: Mails a reset token, which replaces the one sent before, when the
+        email belongs to a verified account whose last token was issued at least IDENTITY_RESEND_COOLDOWN
+        (60s by default) ago. The answer is the same for any email, so it does not
+        tell whether an account exists or a token was sent.
+      parameters:
+      - description: The email of the account
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ForgotPasswordRequest'
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Ask for a password reset
+      tags:
+      - auth
+  /auth/password/reset:
+    post:
+      consumes:
+      - application/json
+      description: Sets the new password with the mailed token, spends the token,
+        ends any lockout of the account and revokes every refresh token of the account.
+      parameters:
+      - description: The token and the new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed or invalid_token
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Reset the password
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Spends the refresh token and returns the next pair. A token spent
+        moments ago, as by another tab refreshing at the same time, is refused and
+        changes nothing; a token spent earlier is taken as stolen, and every token
+        of its sign-in is revoked.
+      parameters:
+      - description: The refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TokenPair'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Refresh the tokens
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates an unverified account with the role reader and mails a
+        verification code to its email. The account signs in once the email is verified
+        with POST /auth/verification.
+      parameters:
+      - description: The new account
+        in: body
+        name: account
+        required: true
+        schema:
+          $ref: '#/definitions/RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/User'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "409":
+          description: email_taken
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Register an account
+      tags:
+      - auth
+  /auth/verification:
+    post:
+      consumes:
+      - application/json
+      description: Marks the email verified when the code is the one mailed to it.
+        A wrong code counts as an attempt; an expired code, or one guessed at too
+        often, is spent, and the user asks for a new one.
+      parameters:
+      - description: The email and its code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/VerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed, invalid_code, code_expired or too_many_attempts
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Verify an email
+      tags:
+      - auth
+  /auth/verification/resend:
+    post:
+      consumes:
+      - application/json
+      description: Mails a new code, which replaces the one sent before, when the
+        email belongs to an unverified account whose last code was issued at least
+        IDENTITY_RESEND_COOLDOWN (60s by default) ago. The answer is the same for
+        any email, so it does not tell whether an account exists or a code was sent.
+      parameters:
+      - description: The email to verify
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ResendVerificationRequest'
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Ask for a new verification code
+      tags:
+      - auth
+  /users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/User'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
+      summary: Get the caller's profile
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: An access token from POST /auth/login, sent as "Bearer <access_token>".
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

@@ -7,13 +7,15 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	_ "github.com/snykk/go-rest-boilerplate/api/openapi" // registers the document served at /swagger/doc.json
+	identitycontract "github.com/snykk/go-rest-boilerplate/internal/modules/identity/contract"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/auth"
+	"github.com/snykk/go-rest-boilerplate/internal/platform/auth/jwt"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/httpserver"
 )
 
 // routes is the application's route map: the platform routes at the root, the operator routes under /admin
-// when an admin token is configured, and every module mounted on the /v1 group. A group that needs its own
-// middleware, such as authentication, is created here.
+// when an admin token is configured, and every module mounted on the /v1 group. A request on the signed-in
+// group carries an access token of the identity module; article changes and drafts also need the editor role.
 func routes(router *httpserver.Router, config Config, deps Deps, featureModules modules) {
 	router.Handle(http.MethodGet, "/health", httpserver.Health())
 	router.Handle(http.MethodGet, "/ready", httpserver.Ready(deps.Log, 2*time.Second, httpserver.Check{
@@ -32,5 +34,8 @@ func routes(router *httpserver.Router, config Config, deps Deps, featureModules 
 	}
 
 	v1 := router.Group("/v1")
-	featureModules.article.RegisterRoutes(v1, v1)
+	verifier := jwt.NewVerifier(config.Identity.JWT())
+	signedIn := v1.Group("", auth.Authenticate(verifier, "Bearer", deps.Log))
+	featureModules.article.RegisterRoutes(v1, signedIn.Group("", auth.Require(auth.Role(identitycontract.RoleEditor))))
+	featureModules.identity.RegisterRoutes(v1, signedIn)
 }

@@ -32,6 +32,8 @@ services:
       METRICS_EXPORT_INTERVAL: "${METRICS_EXPORT_INTERVAL:-}"
       ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
       MAIL_SMTP_ADDR: mailpit:1025
+      # A development value; a deployment sets its own random secret of at least 32 bytes.
+      IDENTITY_JWT_SECRET: "${IDENTITY_JWT_SECRET:-development-secret-32-bytes-long}"
     ports: ["8080:8080"]
     depends_on: { migrate: { condition: service_completed_successfully }, mailpit: { condition: service_started } }
     # After SIGTERM, requests get HTTP_SHUTDOWN_TIMEOUT (10s), the components a second more, then the resources

@@ -368,6 +368,539 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Returns an access token and a refresh token for a verified account. Wrong passwords lock the account for a while once too many have been tried.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Sign in",
+                "parameters": [
+                    {
+                        "description": "The email and password",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TokenPair"
+                        }
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_credentials",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "email_not_verified",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "423": {
+                        "description": "account_locked",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "description": "Revokes the refresh token and every token rotated from the same sign-in. An access token stays valid until it expires.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Sign out",
+                "parameters": [
+                    {
+                        "description": "The refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/change": {
+            "post": {
+                "description": "Sets the new password when the current one is right, revokes every refresh token of the account and returns the pair of a new sign-in. A wrong current password counts toward the lockout as a failed sign-in does.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change the password",
+                "parameters": [
+                    {
+                        "description": "The current and the new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TokenPair"
+                        }
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthenticated or invalid_credentials",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "423": {
+                        "description": "account_locked",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/password/forgot": {
+            "post": {
+                "description": "Mails a reset token, which replaces the one sent before, when the email belongs to a verified account whose last token was issued at least IDENTITY_RESEND_COOLDOWN (60s by default) ago. The answer is the same for any email, so it does not tell whether an account exists or a token was sent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Ask for a password reset",
+                "parameters": [
+                    {
+                        "description": "The email of the account",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/reset": {
+            "post": {
+                "description": "Sets the new password with the mailed token, spends the token, ends any lockout of the account and revokes every refresh token of the account.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Reset the password",
+                "parameters": [
+                    {
+                        "description": "The token and the new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed or invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "description": "Spends the refresh token and returns the next pair. A token spent moments ago, as by another tab refreshing at the same time, is refused and changes nothing; a token spent earlier is taken as stolen, and every token of its sign-in is revoked.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Refresh the tokens",
+                "parameters": [
+                    {
+                        "description": "The refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TokenPair"
+                        }
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Creates an unverified account with the role reader and mails a verification code to its email. The account signs in once the email is verified with POST /auth/verification.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register an account",
+                "parameters": [
+                    {
+                        "description": "The new account",
+                        "name": "account",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "409": {
+                        "description": "email_taken",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verification": {
+            "post": {
+                "description": "Marks the email verified when the code is the one mailed to it. A wrong code counts as an attempt; an expired code, or one guessed at too often, is spent, and the user asks for a new one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Verify an email",
+                "parameters": [
+                    {
+                        "description": "The email and its code",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/VerifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed, invalid_code, code_expired or too_many_attempts",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verification/resend": {
+            "post": {
+                "description": "Mails a new code, which replaces the one sent before, when the email belongs to an unverified account whose last code was issued at least IDENTITY_RESEND_COOLDOWN (60s by default) ago. The answer is the same for any email, so it does not tell whether an account exists or a code was sent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Ask for a new verification code",
+                "parameters": [
+                    {
+                        "description": "The email to verify",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ResendVerificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "description": "malformed_json",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "413": {
+                        "description": "body_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "422": {
+                        "description": "validation_failed",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get the caller's profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "definitions": {
@@ -433,6 +966,24 @@ const docTemplate = `{
                 }
             }
         },
+        "ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "example": "correct-horse-battery"
+                },
+                "new_password": {
+                    "description": "NewPassword is 8 to 72 bytes.",
+                    "type": "string",
+                    "example": "battery-staple-horse"
+                }
+            }
+        },
         "CreateArticleRequest": {
             "type": "object",
             "required": [
@@ -471,6 +1022,47 @@ const docTemplate = `{
                 }
             }
         },
+        "ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                }
+            }
+        },
+        "LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "correct-horse-battery"
+                }
+            }
+        },
+        "LogoutRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r"
+                }
+            }
+        },
         "Problem": {
             "type": "object",
             "properties": {
@@ -502,6 +1094,101 @@ const docTemplate = `{
                 }
             }
         },
+        "RefreshRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r"
+                }
+            }
+        },
+        "RegisterRequest": {
+            "type": "object",
+            "required": [
+                "display_name",
+                "email",
+                "password"
+            ],
+            "properties": {
+                "display_name": {
+                    "description": "DisplayName is 1 to 50 characters, none of them a control character.",
+                    "type": "string",
+                    "example": "Ada"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                },
+                "password": {
+                    "description": "Password is 8 to 72 bytes.",
+                    "type": "string",
+                    "example": "correct-horse-battery"
+                }
+            }
+        },
+        "ResendVerificationRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                }
+            }
+        },
+        "ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "token"
+            ],
+            "properties": {
+                "password": {
+                    "description": "Password is the new password, 8 to 72 bytes.",
+                    "type": "string",
+                    "example": "battery-staple-horse"
+                },
+                "token": {
+                    "description": "Token is the reset token mailed to the account.",
+                    "type": "string",
+                    "example": "Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r"
+                }
+            }
+        },
+        "TokenPair": {
+            "type": "object",
+            "properties": {
+                "access_expires_at": {
+                    "type": "string"
+                },
+                "access_token": {
+                    "description": "AccessToken goes with each request as \"Authorization: Bearer \u003caccess_token\u003e\" until it expires.",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "refresh_expires_at": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "description": "RefreshToken gets the next pair from POST /auth/refresh, once: the refresh spends it.",
+                    "type": "string",
+                    "example": "Zx8kQm4pR2v9sT1uW3yA5bC7dE0fG6hJ8kL2mN4pQ6r"
+                },
+                "token_type": {
+                    "type": "string",
+                    "enum": [
+                        "Bearer"
+                    ],
+                    "example": "Bearer"
+                }
+            }
+        },
         "UpdateArticleRequest": {
             "type": "object",
             "properties": {
@@ -518,6 +1205,67 @@ const docTemplate = `{
                     "example": "Hello again"
                 }
             }
+        },
+        "User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "Ada"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c44"
+                },
+                "roles": {
+                    "description": "Roles is an empty array, never null, for a user with no role.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "reader"
+                    ]
+                },
+                "verified": {
+                    "description": "Verified is true once the user has confirmed their email with the code they were sent.",
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "VerifyRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "email"
+            ],
+            "properties": {
+                "code": {
+                    "description": "Code is the six digits mailed to the email.",
+                    "type": "string",
+                    "example": "042917"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "ada@example.com"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "An access token from POST /auth/login, sent as \"Bearer \u003caccess_token\u003e\".",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

@@ -20,7 +20,10 @@ func TestNew(t *testing.T) {
 
 	for _, tc := range tCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config, err := app.LoadConfig(env(map[string]string{"DATABASE_URL": unreachable}))
+			config, err := app.LoadConfig(env(map[string]string{
+				"DATABASE_URL":        unreachable,
+				"IDENTITY_JWT_SECRET": jwtSecret,
+			}))
 			if err != nil {
 				t.Fatalf("LoadConfig = %v", err)
 			}
