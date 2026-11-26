@@ -5,6 +5,10 @@ All notable changes to go-rest-boilerplate, newest first. The format follows
 Changed, Removed and Fixed, in that order. Versions follow [Semantic Versioning](https://semver.org/) with a
 `v` prefix.
 
+Each version is an annotated git tag on `master`. Merging a release's pull request tags its merge commit, and
+the release workflow publishes the version's section below as the GitHub Release notes;
+[RELEASING.md](RELEASING.md) describes the flow.
+
 ## Versioning guide
 
 Before v1.0.0:
@@ -53,6 +57,9 @@ Before v1.0.0:
 - **Guides for people and coding agents**: AGENTS.md with the rules, a README at each decision point, and
   `docs/extending.md`, which places the capabilities the core does not ship, such as background jobs, an
   outbox or caching.
+- **A release flow**: changes reach `master` through release branches and pull requests, with CI on both,
+  and merging a release's pull request tags it and publishes its GitHub Release from this changelog
+  ([RELEASING.md](RELEASING.md)).
 
 ### Changed
 

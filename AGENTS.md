@@ -18,6 +18,8 @@ change code. The READMEs it links add the details for their folders.
 | `api/openapi` | The generated OpenAPI document. Never edit it by hand. |
 | `docs/` | `extending.md`: where each common capability plugs in, such as jobs, events, caching or tracing. |
 | `deployment/` | `Dockerfile` (distroless, nonroot), `compose.yml` (Postgres, the migrations once, the API; a `telemetry` profile with an OpenTelemetry Collector and Jaeger) and `otel-collector.yaml`. |
+| `.github/` | `workflows/ci.yml` (the checks below), `workflows/release.yml` and `scripts/release.sh` (the tag and the GitHub Release of a merged release), `workflows/security.yml` (a weekly vulnerability scan). |
+| `CHANGELOG.md`, `RELEASING.md` | Every release, newest first; how a change reaches `master` through a release branch and a pull request. |
 
 The reference module is `article`; its card is [internal/modules/article/README.md](internal/modules/article/README.md).
 A capability the core lacks, such as background jobs, an outbox or caching, goes where
@@ -235,8 +237,11 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
 
 - Code, comments, documentation and commit messages are written in English.
 - Commit messages read `<type>(<scope>): <title>`, a blank line, then a body of one paragraph that says what
-  the commit adds and why, wrapped at 72 columns. Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`. No
-  AI or co-author attribution lines.
+  the commit adds and why, wrapped at 72 columns. Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`,
+  `ci`. No AI or co-author attribution lines.
+- Work happens on a topic branch named `<type>/<what it does>`, which records what it changes under
+  `## Unreleased` in CHANGELOG.md, and reaches `master` through a release branch and a pull request, as
+  [RELEASING.md](RELEASING.md) describes.
 - While a branch is unpushed, a fix to one of its commits is folded into that commit
   (`git commit --fixup=<sha>`, then `git rebase --autosquash <base>`) instead of being added as a new commit.
 
@@ -252,8 +257,9 @@ All of these pass:
 
 ## Never
 
-- Push branches or tags, create or move a tag, or open a pull request without the owner's explicit
-  instruction.
+- Push to `master`, merge a pull request, or create, push or move a tag. Pushing topic
+  and release branches and opening a release's pull request once its CI passes are the steps of
+  [RELEASING.md](RELEASING.md); anything beyond them needs the owner's explicit instruction.
 - Edit `api/openapi/` or a `*_mock_test.go` file by hand; regenerate them.
 - Keep mutable test state at package level: no global mocks and no shared fixtures that tests change.
 - Import another module except through its `contract/` package.

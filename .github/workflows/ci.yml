@@ -1,8 +1,10 @@
 name: CI
 
+# Changes reach master through release branches and pull requests (RELEASING.md), so CI runs on both before
+# anything is merged.
 on:
   push:
-    branches: [master]
+    branches: [master, "release/**"]
   pull_request:
     branches: [master]
 

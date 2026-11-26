@@ -1,0 +1,117 @@
+# Publishes the releases of go-rest-boilerplate. Merging a pull request from release/vX.Y.Z into master
+# releases that version: this workflow puts the annotated tag vX.Y.Z on the merge commit, then publishes the
+# GitHub Release, titled with the tag, such as "v0.3.0", whose notes are the version's section of
+# CHANGELOG.md. A version tag pushed by hand is published the same way, and the workflow can run by hand
+# (workflow_dispatch) for an existing tag, to publish it or to replace its notes with the changelog on
+# master. RELEASING.md describes the whole process.
+#
+# A tag that this workflow pushes starts no other workflow, as GitHub does for every push made with
+# GITHUB_TOKEN, so the same run publishes its release.
+
+name: release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master]
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish, such as v0.3.0"
+        required: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    name: Tag and publish the release
+    # A closed pull request counts only when it was merged from a release branch of this repository.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.merged &&
+      startsWith(github.event.pull_request.head.ref, 'release/v') &&
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # After a merge, the merge commit, which the tag goes on.
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
+          fetch-depth: 0
+
+      - name: Tag the merge commit
+        id: merged
+        if: github.event_name == 'pull_request'
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+          MERGE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          tag="${BRANCH#release/}"
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$BRANCH does not name a version such as release/v0.3.0"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "$(git rev-list --parents -n 1 "$MERGE_COMMIT" | wc -w)" -lt 3 ]; then
+            echo "::warning::$BRANCH was not merged with a merge commit, so master lost its topic merges"
+          fi
+          # A run that is started again finds its tag in place.
+          existing="$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)"
+          if [ -n "$existing" ]; then
+            if [ "$existing" != "$MERGE_COMMIT" ]; then
+              echo "::error::the tag $tag exists already, on $existing"
+              exit 1
+            fi
+            echo "The tag $tag is on the merge commit already."
+            exit 0
+          fi
+          bash .github/scripts/release.sh tag-message "$tag" "$TITLE" > tag-message.txt
+          echo "----- tag message -----"
+          cat tag-message.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -F tag-message.txt "$MERGE_COMMIT"
+          git push origin "refs/tags/$tag"
+
+      - name: Prepare the notes
+        id: meta
+        env:
+          MERGED_TAG: ${{ steps.merged.outputs.tag }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          case "$GITHUB_EVENT_NAME" in
+            pull_request) tag="$MERGED_TAG" ;;
+            workflow_dispatch) tag="$INPUT_TAG" ;;
+            *) tag="${GITHUB_REF#refs/tags/}" ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          git fetch -q --force origin "refs/tags/$tag:refs/tags/$tag"
+          bash .github/scripts/release.sh notes "$tag" > release-notes.md
+          echo "----- notes -----"
+          cat release-notes.md
+
+      # The repository's latest release is its newest version, whichever tag was published last. A run for a
+      # tag already published replaces its notes.
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          latest=false
+          if [ "$TAG" = "$(git tag -l 'v*.*.*' --sort=-v:refname | head -n 1)" ]; then
+            latest=true
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md --latest="$latest"
+          fi
