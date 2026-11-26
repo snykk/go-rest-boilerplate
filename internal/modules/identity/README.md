@@ -56,8 +56,11 @@ The verifier accepts an access token up to 10 seconds past its expiry, for clock
   no whitespace, quote, angle bracket or control character. One account per email, in any case.
 - `password`: 8 to 72 bytes (bcrypt reads no more), stored as a bcrypt hash.
 - `display_name`: trimmed, 1 to 50 characters, none of them a control character.
-- Roles: `reader` for every user who registers (`contract.RoleReader`). No endpoint grants a role; `Provision`
-  creates verified accounts with the roles an operator gives, such as `contract.RoleEditor`.
+- Roles: `reader` for every user who registers (`contract.RoleReader`). No endpoint grants a role. `Provision`
+  creates a verified account with the roles it is given, such as `contract.RoleEditor`, and only `cmd/seed`
+  calls it. In production an operator grants `editor` to a user who has verified their email with one SQL
+  statement on `users`, as "Editors in production" in the repository README shows; the new role is in the access
+  token issued at the user's next sign-in or refresh.
 - A user signs in once the email is verified. The code is six random digits, mailed, stored as a SHA-256 hash,
   and ends when it is used, expires, or has been guessed at `IDENTITY_CODE_ATTEMPTS` times. A new one replaces
   the old.
@@ -169,8 +172,7 @@ so they keep exported fields; their rules sit in the use cases, the store's cond
   Standard library only.
 - `api.go`: `(*Module).API()` returns `API`, whose `User(ctx, id)` looks a user up. A consumer wraps it in its
   own `gateway/identity/`.
-- `(*Module).Provision(ctx, input)`: verified accounts with roles, for seed data and operators; no route
-  reaches it.
+- `(*Module).Provision(ctx, input)`: a verified account with roles, for seed data; no route reaches it.
 
 ## Dependencies
 

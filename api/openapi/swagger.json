@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Minimal REST core: platform packages and the article reference module.",
+        "description": "A blog API: editors write and publish articles, readers register, verify their email and comment, and sign-in uses JWT access tokens with rotating refresh tokens.",
         "title": "Go REST Boilerplate API",
         "contact": {},
         "license": {
@@ -92,6 +92,18 @@
                             "$ref": "#/definitions/Problem"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "409": {
                         "description": "slug_taken",
                         "schema": {
@@ -110,7 +122,12 @@
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/drafts": {
@@ -150,8 +167,25 @@
                         "schema": {
                             "$ref": "#/definitions/Problem"
                         }
+                    },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/drafts/{id}": {
@@ -179,13 +213,30 @@
                             "$ref": "#/definitions/Article"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/{id}": {
@@ -239,13 +290,30 @@
                     "204": {
                         "description": "No Content"
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             },
             "patch": {
                 "consumes": [
@@ -289,6 +357,18 @@
                             "$ref": "#/definitions/Problem"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
@@ -313,7 +393,12 @@
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/{id}/publish": {
@@ -341,6 +426,18 @@
                             "$ref": "#/definitions/Article"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
@@ -359,7 +456,12 @@
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/auth/login": {

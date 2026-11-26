@@ -13,10 +13,13 @@ import (
 //	@Summary	List drafts
 //	@Tags		articles
 //	@Produce	json
+//	@Security	BearerAuth
 //	@Param		limit	query		int		false	"Page size; 0 or none means the server's default (20 unless configured), and a value above the server's maximum (100 unless configured) means the maximum"	minimum(0)
 //	@Param		offset	query		int		false	"Drafts to skip"	minimum(0)
 //	@Success	200		{object}	listResponse
 //	@Failure	400		{object}	httpserver.Problem	"invalid_query"
+//	@Failure	401		{object}	httpserver.Problem	"unauthenticated"
+//	@Failure	403		{object}	httpserver.Problem	"forbidden"
 //	@Router		/articles/drafts [get]
 func (h *Handler) listDrafts(w http.ResponseWriter, r *http.Request) {
 	limit, offset, problem := pageInput(r.URL.Query())

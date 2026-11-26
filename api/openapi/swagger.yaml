@@ -309,7 +309,9 @@ definitions:
     type: object
 info:
   contact: {}
-  description: 'Minimal REST core: platform packages and the article reference module.'
+  description: 'A blog API: editors write and publish articles, readers register,
+    verify their email and comment, and sign-in uses JWT access tokens with rotating
+    refresh tokens.'
   license:
     name: MIT
   title: Go REST Boilerplate API
@@ -369,6 +371,14 @@ paths:
           description: malformed_json
           schema:
             $ref: '#/definitions/Problem'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
         "409":
           description: slug_taken
           schema:
@@ -382,6 +392,8 @@ paths:
             or body_too_long
           schema:
             $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
       summary: Create a draft article
       tags:
       - articles
@@ -396,10 +408,20 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
         "404":
           description: not_found
           schema:
             $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
       summary: Delete an article
       tags:
       - articles
@@ -450,6 +472,14 @@ paths:
           description: malformed_json
           schema:
             $ref: '#/definitions/Problem'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
         "404":
           description: not_found
           schema:
@@ -466,6 +496,8 @@ paths:
           description: invalid_slug, invalid_title, invalid_body or body_too_long
           schema:
             $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
       summary: Update an article
       tags:
       - articles
@@ -484,6 +516,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/Article'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
         "404":
           description: not_found
           schema:
@@ -496,6 +536,8 @@ paths:
           description: empty_body
           schema:
             $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
       summary: Publish an article
       tags:
       - articles
@@ -525,6 +567,16 @@ paths:
           description: invalid_query
           schema:
             $ref: '#/definitions/Problem'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
       summary: List drafts
       tags:
       - articles
@@ -543,10 +595,20 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/Article'
+        "401":
+          description: unauthenticated
+          schema:
+            $ref: '#/definitions/Problem'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/Problem'
         "404":
           description: not_found
           schema:
             $ref: '#/definitions/Problem'
+      security:
+      - BearerAuth: []
       summary: Get a draft
       tags:
       - articles

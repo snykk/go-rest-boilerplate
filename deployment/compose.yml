@@ -5,11 +5,12 @@
 # container reaches it at mailpit:1025, an API run on the host at localhost:1025; read the messages in its inbox
 # at http://localhost:8025.
 #
-# Seed data: docker compose -f deployment/compose.yml --profile seed up seed --build creates a verified editor and a
-# reader (SEED_EDITOR_EMAIL, SEED_EDITOR_PASSWORD, SEED_READER_EMAIL and SEED_READER_PASSWORD set them; the defaults
-# are in the README), two published articles, a draft and two comments. It skips what exists, so it can run twice.
-# It is for local development only and refuses APP_ENV=production; its image is the separate `seed` target of the
-# Dockerfile, which the production image does not contain.
+# Seed data: docker compose -f deployment/compose.yml --profile seed run --build --rm seed creates a verified editor
+# and a reader (SEED_EDITOR_EMAIL, SEED_EDITOR_PASSWORD, SEED_READER_EMAIL and SEED_READER_PASSWORD set them; the
+# defaults are in the README), two published articles, a draft and two comments. It skips what exists, so it can
+# run twice. It is for local development only and refuses APP_ENV=production; its image is the separate `seed`
+# target of the Dockerfile, which the production image does not contain. Run it with `run --rm`, not `up seed`: the
+# container of `up` stays behind after `down` and then points at a network that no longer exists.
 #
 # Telemetry: OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 docker compose -f deployment/compose.yml
 # --profile telemetry up --build also starts an OpenTelemetry Collector, which sends traces to Jaeger (UI at

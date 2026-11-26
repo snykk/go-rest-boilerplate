@@ -7,9 +7,10 @@ change code. The READMEs it links add the details for their folders.
 
 | Path | Contents |
 |---|---|
-| `cmd/server` | The server binary: signals and configuration, then `app.New` and `Run` with the HTTP server component. It holds the general OpenAPI annotations. |
+| `cmd/server` | The server binary: signals and configuration, then `app.New` and `Run` with the HTTP server and mail queue components. It holds the general OpenAPI annotations. |
 | `cmd/migrate` | The migration binary: `up`, `down`, `status`, `create <name>`. |
-| `internal/app` | The composition root, the only package that knows every concrete type: `app.go` (the process lifecycle: `New`, `HTTPServer`, `Run`), `config.go` (the settings of the platform and of every module), `handler.go` (router and middleware), `modules.go` (every module and what it is built from) and `routes.go` (the route map). |
+| `cmd/seed` | Development seed data: two verified accounts, created through the identity module's `Provision`, and three articles and two comments, created through the application's handler in process. It skips what exists and refuses `APP_ENV=production`. It is built from the separate `seed` target of the Dockerfile, which the production image does not contain. |
+| `internal/app` | The composition root, the only package that knows every concrete type: `app.go` (the process lifecycle: `New`, `HTTPServer`, `MailQueue`, `Run`; the mail queue runs as a lifecycle component beside the HTTP server), `config.go` (the settings of the platform and of every module), `handler.go` (router and middleware), `modules.go` (every module and what it is built from) and `routes.go` (the route map). |
 | `internal/modules/<name>` | One feature module each, with its own layers. See [internal/modules/README.md](internal/modules/README.md). |
 | `internal/platform/*` | Technical plumbing shared by every module, with no business knowledge. See [internal/platform/README.md](internal/platform/README.md). |
 | `internal/archtest` | The import rules below, as a test. |
@@ -17,7 +18,7 @@ change code. The READMEs it links add the details for their folders.
 | `migrations/` | The SQL migrations of every module, embedded into the `migrate` binary. See [migrations/README.md](migrations/README.md). |
 | `api/openapi` | The generated OpenAPI document. Never edit it by hand. |
 | `docs/` | `extending.md`: where each common capability plugs in, such as jobs, events, caching or tracing. |
-| `deployment/` | `Dockerfile` (distroless, nonroot), `compose.yml` (Postgres, the migrations once, the API; a `telemetry` profile with an OpenTelemetry Collector and Jaeger) and `otel-collector.yaml`. |
+| `deployment/` | `Dockerfile` (distroless, nonroot; its default target is the production image and its `seed` target builds `cmd/seed`), `compose.yml` (Postgres, the migrations once, Mailpit, the API; a `seed` profile that runs the seed data; a `telemetry` profile with an OpenTelemetry Collector and Jaeger) and `otel-collector.yaml`. |
 | `.github/` | `workflows/ci.yml` (the checks below), `workflows/release.yml` and `scripts/release.sh` (the tag and the GitHub Release of a merged release), `workflows/security.yml` (a weekly vulnerability scan), and the issue forms and pull request template. |
 | `CHANGELOG.md`, `RELEASING.md` | Every release, newest first; how a change reaches `master` through a release branch and a pull request. |
 | `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` | How to propose a change, how to report a vulnerability privately, and the conduct expected of everyone taking part. |
@@ -65,6 +66,7 @@ maps them, with the places where this layout departs from the textbook on purpos
 | `make generate-check` | Fails when the committed mocks differ from freshly generated ones. |
 | `make openapi` | Regenerates `api/openapi` from the swag annotations. |
 | `make openapi-check` | Fails when the committed OpenAPI files differ from freshly generated ones. |
+| `make seed` | Creates the development accounts and sample content in the database `DATABASE_URL` names; safe to run twice, refuses `APP_ENV=production`. |
 | `make migrate-up`, `migrate-down`, `migrate-status` | Applies, rolls back or lists migrations (needs `DATABASE_URL`). |
 | `make migrate-create name=<module>_<action>` | Creates an empty migration in `migrations/`. |
 | `make docker-up`, `make docker-down` | Starts or stops the compose stack (`down` deletes its volume). |
@@ -190,8 +192,11 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
 
 - Configuration comes from environment variables, and from `./.env` when that file exists; the environment
   wins. A platform variable goes into `internal/platform/config`. A module's variable goes into the module's
-  `config.go`, read with a `config.Reader` and named after the module (`ARTICLE_MAX_PAGE_SIZE`). Every
-  variable also goes into `.env.example` and the configuration table in `README.md`.
+  `config.go`, read with a `config.Reader` and named after the module (`ARTICLE_MAX_PAGE_SIZE`). A platform
+  package with settings of its own reads them in its own `LoadConfig`, composed in `internal/app/config.go`:
+  the `MAIL_*` settings are read by `mailer.LoadConfig` (`internal/platform/mailer`), not by
+  `internal/platform/config`. Every variable also goes into `.env.example` and the configuration table in
+  `README.md`.
 - Every invalid or missing setting is reported at start-up in one error, the platform's and every module's
   together.
 

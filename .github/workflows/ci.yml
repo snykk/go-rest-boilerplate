@@ -1,12 +1,12 @@
 name: CI
 
-# Changes reach master through release branches and pull requests (RELEASING.md), so CI runs on both before
-# anything is merged.
+# Changes reach master and the example branches through release branches and pull requests (RELEASING.md), so
+# CI runs on both before anything is merged.
 on:
   push:
-    branches: [master, "release/**"]
+    branches: [master, "release/**", "examples/**"]
   pull_request:
-    branches: [master]
+    branches: [master, "examples/**"]
 
 permissions:
   contents: read
@@ -59,3 +59,51 @@ jobs:
           go-version: "1.26"
       - run: go build ./...
       - run: docker build -f deployment/Dockerfile .
+      - run: docker build --target seed -f deployment/Dockerfile .
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the stack
+        run: docker compose -f deployment/compose.yml up --build -d
+      - name: Wait for the API
+        run: |
+          for _ in $(seq 60); do
+            curl -fsS localhost:8080/ready && exit 0
+            sleep 2
+          done
+          echo "the API did not become ready" >&2
+          exit 1
+      - name: Seed the development data
+        run: docker compose -f deployment/compose.yml --profile seed run --build --rm seed
+      - name: Sign in as the seeded reader and comment
+        run: |
+          api=localhost:8080/v1
+          json='Content-Type: application/json'
+          token=$(curl -fsS -X POST $api/auth/login -H "$json" \
+            -d '{"email":"reader@example.com","password":"reader-password"}' \
+            | sed -E 's/.*"access_token":"([^"]+)".*/\1/')
+          article=$(curl -fsS "$api/articles?limit=1" | sed -E 's/.*"id":"([^"]+)".*/\1/')
+          curl -fsS -X POST $api/comments -H "$json" -H "Authorization: Bearer $token" \
+            -d "{\"article_id\":\"$article\",\"body\":\"Smoke test.\"}"
+      - name: Register and find the verification email
+        run: |
+          curl -fsS -X POST localhost:8080/v1/auth/register -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.com","password":"correct-horse-battery","display_name":"Smoke"}'
+          for _ in $(seq 15); do
+            grep -q 'smoke@example.com' <<<"$(curl -fsS localhost:8025/api/v1/messages)" && exit 0
+            sleep 1
+          done
+          echo "no verification email reached Mailpit" >&2
+          exit 1
+      - name: Show the logs of the stack
+        if: failure()
+        run: docker compose -f deployment/compose.yml --profile seed logs
+      - name: Stop the stack and delete its volume
+        if: always()
+        run: docker compose -f deployment/compose.yml --profile seed down -v

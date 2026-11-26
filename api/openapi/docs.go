@@ -99,6 +99,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/Problem"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "409": {
                         "description": "slug_taken",
                         "schema": {
@@ -117,7 +129,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/drafts": {
@@ -157,8 +174,25 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/Problem"
                         }
+                    },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/drafts/{id}": {
@@ -186,13 +220,30 @@ const docTemplate = `{
                             "$ref": "#/definitions/Article"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/{id}": {
@@ -246,13 +297,30 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             },
             "patch": {
                 "consumes": [
@@ -296,6 +364,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/Problem"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
@@ -320,7 +400,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/articles/{id}/publish": {
@@ -348,6 +433,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/Article"
                         }
                     },
+                    "401": {
+                        "description": "unauthenticated",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/Problem"
+                        }
+                    },
                     "404": {
                         "description": "not_found",
                         "schema": {
@@ -366,7 +463,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/Problem"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/auth/login": {
@@ -1523,7 +1625,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/v1",
 	Schemes:          []string{},
 	Title:            "Go REST Boilerplate API",
-	Description:      "Minimal REST core: platform packages and the article reference module.",
+	Description:      "A blog API: editors write and publish articles, readers register, verify their email and comment, and sign-in uses JWT access tokens with rotating refresh tokens.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

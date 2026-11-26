@@ -17,7 +17,7 @@ import (
 //
 //	@title			Go REST Boilerplate API
 //	@version		1.0
-//	@description	Minimal REST core: platform packages and the article reference module.
+//	@description	A blog API: editors write and publish articles, readers register, verify their email and comment, and sign-in uses JWT access tokens with rotating refresh tokens.
 //	@license.name	MIT
 //	@BasePath		/v1
 //

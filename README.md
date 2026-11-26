@@ -7,6 +7,9 @@ reference module, `article`, and the seams most services need: units of work, se
 authentication and in-process events. [docs/extending.md](docs/extending.md) shows where everything else plugs
 in, such as background jobs, an outbox, caching and rate limits.
 
+This branch, `examples/standard-blog`, is an example built on that core:
+[Examples: standard-blog](#examples-standard-blog) says what it adds to the core and how to try it.
+
 ## Features
 
 - `net/http` routing with `ServeMux` patterns, graceful shutdown, and health and readiness probes.
@@ -18,7 +21,8 @@ in, such as background jobs, an outbox, caching and rate limits.
   ports belong to the use cases, and a test enforces the import rules.
 - Units of work: repositories that run on a pool or on a transaction, so writes through several of them
   commit or roll back together; updates hold the entity's row lock.
-- An authentication seam: middleware for any credential scheme, with roles. No scheme is built in.
+- An authentication seam: middleware for any credential scheme, with roles. This example builds JWT sign-in
+  into that seam (`internal/platform/auth/jwt` and the `identity` module).
 - A process lifecycle: components that run and stop together, and resources closed in reverse order.
 - Production logging with `log/slog`, in text or JSON:
   - the service, version and environment on every record;
@@ -54,7 +58,7 @@ docker compose -f deployment/compose.yml down -v
 
 The stack starts Postgres, applies the migrations once, starts Mailpit, then serves the API on `:8080`. The
 verification code of the registration is in Mailpit's inbox at <http://localhost:8025>. The Swagger UI is at
-<http://localhost:8080/swagger/index.html>. `docker compose -f deployment/compose.yml --profile seed up seed --build`
+<http://localhost:8080/swagger/index.html>. `docker compose -f deployment/compose.yml --profile seed run --build --rm seed`
 adds an editor, a reader, three articles and two comments for local development; it can run again without
 adding them twice, and it refuses `APP_ENV=production`.
 
@@ -71,6 +75,130 @@ make run
 
 `make help` lists every target. [AGENTS.md](AGENTS.md) holds the rules for changing the code: architecture,
 conventions, and the definition of done.
+
+## Examples: standard-blog
+
+`examples/standard-blog` shows what a typical single-team service looks like once it grows from the core: several
+modules in one database, users who sign in, modules that call each other without breaking the import rules, and
+a module that reacts to another one through an event. Read its history as a learning path, and copy the
+patterns you need.
+
+### What it adds to `master`
+
+- **Mail.** `internal/platform/mailer` sends plain-text and HTML email over SMTP, through a bounded in-memory
+  queue that `cmd/server` runs beside the HTTP server. The compose stack runs Mailpit, which keeps every
+  message instead of delivering it.
+- **Sign-in.** `internal/platform/auth/jwt` signs and verifies HS256 access tokens, and `internal/platform/password`
+  and `internal/platform/random` hash passwords and draw codes. The `identity` module builds on them: register,
+  verify the email with a mailed code, sign in, refresh with rotating tokens, sign out, reset or change a password,
+  lock an account after repeated failures, and log security events. Users are `reader`s or `editor`s.
+- **Roles on the article routes.** Reading published articles stays public; creating, changing, publishing and
+  deleting them, and reading drafts, need a signed-in editor. `internal/app/routes.go` puts
+  `auth.Authenticate` and `auth.Require` on the groups, and the article module's code does not change; only its
+  endpoint annotations now declare the bearer scheme and the 401 and 403 answers in the OpenAPI document.
+- **A second module that calls two others.** `comment` lets a signed-in user comment on a published article. It
+  reaches `article` and `identity` only through their `contract/` packages, wrapped in its own
+  `gateway/article` and `gateway/identity`.
+- **An event against the direction of a dependency.** `article` publishes `ArticleDeleted` and `comment` removes
+  the article's comments, so `article` never knows `comment`.
+- **Seed data.** `cmd/seed` creates an editor, a reader, three articles and two comments for local development.
+
+### Run it
+
+```sh
+make docker-up        # Postgres, the migrations, Mailpit and the API on :8080
+docker compose -f deployment/compose.yml --profile seed run --build --rm seed
+```
+
+The second command is the seed data; `--rm` leaves no stopped container behind for `make docker-down` to miss.
+Mailpit's inbox, with the emails the API sends, is at <http://localhost:8025>. `make docker-down` stops the stack
+and deletes its database volume. With your own PostgreSQL, as in [Local development](#local-development),
+`make seed` creates the same data; run it after `make migrate-up`.
+
+The seed accounts are `editor@example.com` with the password `editor-password` and `reader@example.com` with
+`reader-password`. Their emails and passwords come from the `SEED_` settings, and running the seed again adds
+nothing twice.
+
+### Flows to try
+
+The commands below use `sed` to pick values out of the JSON answers; `jq` does the same where you have it.
+
+```sh
+api=localhost:8080/v1
+json='Content-Type: application/json'
+field() { sed -E "s/.*\"$1\":\"([^\"]+)\".*/\1/"; }
+login() {
+  curl -s -X POST $api/auth/login -H "$json" -d "{\"email\":\"$1\",\"password\":\"$2\"}" | field access_token
+}
+```
+
+**An editor writes and publishes an article, and anyone reads it.**
+
+```sh
+editor=$(login editor@example.com editor-password)
+article=$(curl -s -X POST $api/articles -H "$json" -H "Authorization: Bearer $editor" \
+  -d '{"slug":"my-first-post","title":"My first post","body":"Written by an editor."}' | field id)
+curl -s -o /dev/null -w '%{http_code}\n' $api/articles/$article                 # 404: a draft is not public
+curl -s $api/articles/drafts -H "Authorization: Bearer $editor"                  # the editor's drafts
+curl -s -X POST $api/articles/$article/publish -H "Authorization: Bearer $editor"
+curl -s $api/articles/$article                                                    # now anyone can read it
+```
+
+**A reader comments; only an editor writes articles.**
+
+```sh
+reader=$(login reader@example.com reader-password)
+curl -s -X POST $api/comments -H "$json" -H "Authorization: Bearer $reader" \
+  -d "{\"article_id\":\"$article\",\"body\":\"Nice post.\"}"
+curl -s "$api/comments?article_id=$article"                                       # anyone lists the comments
+curl -s -X POST $api/articles -H "$json" -H "Authorization: Bearer $reader" \
+  -d '{"slug":"nope","title":"Nope","body":"A reader may not."}'                  # 403 forbidden
+```
+
+**Deleting the article removes its comments.**
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE $api/articles/$article -H "Authorization: Bearer $editor"   # 204
+curl -s "$api/comments?article_id=$article"                                       # 404 not_found
+```
+
+**A new account registers, verifies the email, signs in, refreshes and signs out.**
+
+```sh
+curl -s -X POST $api/auth/register -H "$json" \
+  -d '{"email":"ada@example.com","password":"correct-horse-battery","display_name":"Ada"}'
+sleep 1                                                                          # the mail goes out in the background
+code=$(curl -s -G localhost:8025/api/v1/search --data-urlencode 'query=to:ada@example.com' \
+  | sed -E 's/.*verify your email address: ([0-9]{6}).*/\1/')                      # or read it at http://localhost:8025
+curl -s -X POST $api/auth/verification -H "$json" -d "{\"email\":\"ada@example.com\",\"code\":\"$code\"}"   # 204
+pair=$(curl -s -X POST $api/auth/login -H "$json" -d '{"email":"ada@example.com","password":"correct-horse-battery"}')
+curl -s $api/users/me -H "Authorization: Bearer $(echo "$pair" | field access_token)"
+pair=$(curl -s -X POST $api/auth/refresh -H "$json" -d "{\"refresh_token\":\"$(echo "$pair" | field refresh_token)\"}")
+curl -s -X POST $api/auth/logout -H "$json" -d "{\"refresh_token\":\"$(echo "$pair" | field refresh_token)\"}"   # 204
+```
+
+The password reset is the same shape: `POST /v1/auth/password/forgot` mails a token that
+`POST /v1/auth/password/reset` takes with the new password.
+
+### Learning path
+
+One commit per step, each of them building and passing its tests;
+`git log --reverse --oneline --no-merges master..HEAD` lists them in this order.
+
+| Step | Commit | What to read |
+|---|---|---|
+| 1 | `feat(mailer): add an SMTP mailer with a background queue and Mailpit` | `internal/platform/mailer`: a platform package with settings of its own, and a queue run as a lifecycle component |
+| 2 | `feat(jwt): add a JWT issuer and an authenticator that verifies it` | `internal/platform/auth/jwt`: a scheme that plugs into the authentication seam |
+| 3 | `feat(identity): add the domain of users, passwords, sessions and secrets` | `internal/modules/identity/domain`: entities that keep their state unexported |
+| 4 | `feat(identity): add use cases for sign-in, verification and resets` | `internal/modules/identity/usecase`: ports, a unit of work and security events |
+| 5 | `feat(password): add bcrypt password hashing with a constant-cost dummy` | `internal/platform/password`: a technical capability that satisfies a port without a gateway |
+| 6 | `feat(random): add uniform verification codes and URL-safe tokens` | `internal/platform/random` |
+| 7 | `feat(identity): add the Postgres and mail gateways and the tables` | `identity/gateway` and the migration: conditional updates, and mail from templates |
+| 8 | `feat(identity): add the REST endpoints and wire sign-in into the app` | `identity/transport/rest` and `internal/app`: where authentication meets the route groups |
+| 9 | `feat(comment): add comments on published articles through module APIs` | `comment/gateway/article` and `comment/gateway/identity`: calls between modules through `contract/` |
+| 10 | `feat(comment): remove a deleted article's comments on ArticleDeleted` | `comment/transport/event`: an event against the direction of a dependency |
+| 11 | `feat(seed): add seed data that runs twice` | `cmd/seed`: development data through the application's own handler |
+| 12 | `docs: describe the standard example and run CI on example branches` | this section, and CI on `examples/**` branches with a compose smoke test |
 
 ## Configuration
 
@@ -129,8 +257,9 @@ counts as unset.
 | `SEED_READER_PASSWORD` | `reader-password` | Local development only: the reader's password, 8 to 72 bytes |
 
 A setting whose name starts with a module's name, such as `ARTICLE_`, belongs to that module and is read by
-its `config.go`; the `SEED_` settings belong to `cmd/seed`. Every invalid or missing setting is reported at
-start-up in one error.
+its `config.go`; the `SEED_` settings belong to `cmd/seed`; and the `MAIL_` settings are read by
+`mailer.LoadConfig` in `internal/platform/mailer`, not by `internal/platform/config`. Every invalid or missing
+setting is reported at start-up in one error.
 
 `make seed` and the `SEED_` settings are for local development only: `cmd/seed` refuses to run with
 `APP_ENV=production`, and the production image, the default target of `deployment/Dockerfile`, does not contain it.
@@ -166,6 +295,22 @@ start-up in one error.
 A signed-in request carries `Authorization: Bearer <access_token>`; without a valid one it answers 401
 `unauthenticated`, and without the role it needs, 403 `forbidden`. Everyone who registers is a reader; an
 editor is an account an operator provisions, since no endpoint grants a role.
+
+### Editors in production
+
+Seed data is for development only. In production a user registers and verifies their email like anyone else,
+then an operator grants the editor role with one SQL statement on the `users` table of the `identity` module,
+whose `roles` column is `text[]`:
+
+```sql
+UPDATE users SET roles = array_append(roles, 'editor') WHERE email = 'ada@example.com' AND NOT 'editor' = ANY(roles);
+```
+
+Emails are stored in lower case. The statement can run twice without adding the role twice, and no password
+hash is ever written by hand. The role takes effect at the user's next sign-in or refresh; an access token
+already issued keeps the roles it was issued with until it expires (`IDENTITY_ACCESS_TTL`).
+
+### Errors
 
 Errors are `application/problem+json`:
 
@@ -240,13 +385,19 @@ cmd/seed                    development seed data: two accounts, three articles 
 internal/app                composition root: process lifecycle, modules, route map, middleware
 internal/modules/article    the reference module: domain, usecase, transport/rest, gateway/postgres,
                             gateway/eventbus, contract, api.go
-internal/platform/*         config, logger, telemetry, buildinfo, requestid, id, clock, validate, database,
-                            migrate, httpserver, auth, events, lifecycle
+internal/modules/identity   users and sign-in: domain, usecase, transport/rest, gateway/postgres,
+                            gateway/mail, contract, api.go
+internal/modules/comment    comments: domain, usecase, transport/rest, transport/event, gateway/postgres,
+                            gateway/article, gateway/identity
+internal/platform/*         config, logger, telemetry, buildinfo, requestid, id, random, clock, validate,
+                            database, migrate, httpserver, auth (and auth/jwt), password, mailer, events,
+                            lifecycle
 internal/archtest           the import rules as a test
 internal/testenv            Postgres for integration tests
 migrations/                 SQL migrations, embedded into the migrate binary
 api/openapi                 generated OpenAPI document
-deployment/                 Dockerfile, compose.yml and the OpenTelemetry Collector configuration
+deployment/                 Dockerfile (with a seed target), compose.yml (with Mailpit) and the OpenTelemetry
+                            Collector configuration
 docs/extending.md           where each common capability plugs in
 ```
 

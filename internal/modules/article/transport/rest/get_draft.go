@@ -12,8 +12,11 @@ import (
 //	@Summary	Get a draft
 //	@Tags		articles
 //	@Produce	json
+//	@Security	BearerAuth
 //	@Param		id	path		string	true	"Article ID (UUID)"
 //	@Success	200	{object}	articleResponse
+//	@Failure	401	{object}	httpserver.Problem	"unauthenticated"
+//	@Failure	403	{object}	httpserver.Problem	"forbidden"
 //	@Failure	404	{object}	httpserver.Problem	"not_found"
 //	@Router		/articles/drafts/{id} [get]
 func (h *Handler) getDraft(w http.ResponseWriter, r *http.Request) {

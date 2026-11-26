@@ -22,10 +22,13 @@ type createRequest struct {
 //	@Tags		articles
 //	@Accept		json
 //	@Produce	json
+//	@Security	BearerAuth
 //	@Param		article	body		createRequest		true	"The new article"
 //	@Success	201		{object}	articleResponse
 //	@Header		201		{string}	Location	"/v1/articles/drafts/{id}"
 //	@Failure	400		{object}	httpserver.Problem	"malformed_json"
+//	@Failure	401		{object}	httpserver.Problem	"unauthenticated"
+//	@Failure	403		{object}	httpserver.Problem	"forbidden"
 //	@Failure	409		{object}	httpserver.Problem	"slug_taken"
 //	@Failure	413		{object}	httpserver.Problem	"body_too_large"
 //	@Failure	422		{object}	httpserver.Problem	"validation_failed, invalid_slug, invalid_title, invalid_body or body_too_long"

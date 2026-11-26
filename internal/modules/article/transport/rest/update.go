@@ -20,10 +20,13 @@ type updateRequest struct {
 //	@Tags		articles
 //	@Accept		json
 //	@Produce	json
+//	@Security	BearerAuth
 //	@Param		id		path		string			true	"Article ID (UUID)"
 //	@Param		changes	body		updateRequest	true	"The fields to change"
 //	@Success	200		{object}	articleResponse
 //	@Failure	400		{object}	httpserver.Problem	"malformed_json"
+//	@Failure	401		{object}	httpserver.Problem	"unauthenticated"
+//	@Failure	403		{object}	httpserver.Problem	"forbidden"
 //	@Failure	404		{object}	httpserver.Problem	"not_found"
 //	@Failure	409		{object}	httpserver.Problem	"slug_taken or slug_locked"
 //	@Failure	413		{object}	httpserver.Problem	"body_too_large"

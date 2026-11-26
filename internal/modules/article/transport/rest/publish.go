@@ -11,8 +11,11 @@ import (
 //	@Summary	Publish an article
 //	@Tags		articles
 //	@Produce	json
+//	@Security	BearerAuth
 //	@Param		id	path		string	true	"Article ID (UUID)"
 //	@Success	200	{object}	articleResponse
+//	@Failure	401	{object}	httpserver.Problem	"unauthenticated"
+//	@Failure	403	{object}	httpserver.Problem	"forbidden"
 //	@Failure	404	{object}	httpserver.Problem	"not_found"
 //	@Failure	409	{object}	httpserver.Problem	"already_published"
 //	@Failure	422	{object}	httpserver.Problem	"empty_body"

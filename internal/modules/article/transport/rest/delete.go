@@ -8,8 +8,11 @@ import (
 //
 //	@Summary	Delete an article
 //	@Tags		articles
+//	@Security	BearerAuth
 //	@Param		id	path	string	true	"Article ID (UUID)"
 //	@Success	204
+//	@Failure	401	{object}	httpserver.Problem	"unauthenticated"
+//	@Failure	403	{object}	httpserver.Problem	"forbidden"
 //	@Failure	404	{object}	httpserver.Problem	"not_found"
 //	@Router		/articles/{id} [delete]
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
