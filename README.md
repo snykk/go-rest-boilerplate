@@ -229,8 +229,10 @@ running the packages one at a time (`make test-integration` does).
 |---|---|---|
 | [`v0.1.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.1.0) | go-rest-boilerplate initial release | Gin, layers versioned under `v1`, sqlx, JWT and OTP activation |
 | [`v0.2.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.2.0) | go-rest-boilerplate bounded contexts release | `users` and `auth` bounded contexts, refresh tokens, observability |
+| [`v0.3.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.3.0) | go-rest-boilerplate modular core release | A minimal modular monolith on `net/http`: one reference module, platform packages, architecture test |
 
-`git checkout v0.2.0` shows an earlier structure in full.
+`git checkout v0.2.0` shows an earlier structure in full. [CHANGELOG.md](CHANGELOG.md) records what each
+release changed, and [RELEASING.md](RELEASING.md) describes how a change becomes a release.
 
 ## License
 
