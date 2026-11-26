@@ -5,7 +5,7 @@
 COMPOSE := docker compose -f deployment/compose.yml
 
 .PHONY: help run test test-integration lint generate generate-check openapi openapi-check \
-	migrate-up migrate-down migrate-status migrate-create docker-up docker-down tidy
+	migrate-up migrate-down migrate-status migrate-create seed docker-up docker-down tidy
 
 help: ## List the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-18s %s\n", $$1, $$2}'
@@ -46,6 +46,9 @@ migrate-status: ## List the migrations and whether each is applied
 migrate-create: ## Create a migration: make migrate-create name=<module>_<action>
 	@test -n "$(name)" || { echo "usage: make migrate-create name=<module>_<action>"; exit 1; }
 	go run ./cmd/migrate create $(name)
+
+seed: ## Create the development accounts and sample content; safe to run twice
+	go run ./cmd/seed
 
 docker-up: ## Build and start Postgres, the migrations and the API
 	$(COMPOSE) up --build -d

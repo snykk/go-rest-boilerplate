@@ -24,7 +24,23 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -ldflags="${flags}" -o /out/server ./cmd/server && \
     go build -trimpath -ldflags="${flags}" -o /out/migrate ./cmd/migrate
 
-# Runtime stage: distroless static, no shell, runs as nonroot. The migrations are embedded in /app/migrate.
+# Seed target, for local development only: `docker build --target seed` builds an image of the development seed
+# data, which the compose `seed` profile uses. The default target below does not contain it.
+FROM builder AS seed-builder
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
+
+FROM gcr.io/distroless/static-debian12:nonroot AS seed
+
+WORKDIR /app
+COPY --from=seed-builder /out/seed /app/
+
+USER nonroot:nonroot
+ENTRYPOINT ["/app/seed"]
+
+# Runtime stage, the default target: distroless static, no shell, runs as nonroot. The migrations are embedded in
+# /app/migrate.
 FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app

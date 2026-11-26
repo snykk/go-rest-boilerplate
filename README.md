@@ -54,7 +54,9 @@ docker compose -f deployment/compose.yml down -v
 
 The stack starts Postgres, applies the migrations once, starts Mailpit, then serves the API on `:8080`. The
 verification code of the registration is in Mailpit's inbox at <http://localhost:8025>. The Swagger UI is at
-<http://localhost:8080/swagger/index.html>.
+<http://localhost:8080/swagger/index.html>. `docker compose -f deployment/compose.yml --profile seed up seed --build`
+adds an editor, a reader, three articles and two comments for local development; it can run again without
+adding them twice, and it refuses `APP_ENV=production`.
 
 ## Local development
 
@@ -63,6 +65,7 @@ Requires Go 1.26 or newer and a PostgreSQL server.
 ```sh
 cp .env.example .env      # then point DATABASE_URL at your database
 make migrate-up
+make seed     # optional, development only: an editor, a reader, three articles and two comments
 make run
 ```
 
@@ -120,9 +123,17 @@ counts as unset.
 | `IDENTITY_LOCKOUT` | `15m` | How long a locked account stays locked |
 | `COMMENT_DEFAULT_PAGE_SIZE` | `20` | Comments in a list that asks for no `limit` |
 | `COMMENT_MAX_PAGE_SIZE` | `100` | The most comments a list returns; not below `COMMENT_DEFAULT_PAGE_SIZE` |
+| `SEED_EDITOR_EMAIL` | `editor@example.com` | Local development only: the email of the editor `make seed` creates |
+| `SEED_EDITOR_PASSWORD` | `editor-password` | Local development only: the editor's password, 8 to 72 bytes |
+| `SEED_READER_EMAIL` | `reader@example.com` | Local development only: the email of the reader `make seed` creates |
+| `SEED_READER_PASSWORD` | `reader-password` | Local development only: the reader's password, 8 to 72 bytes |
 
 A setting whose name starts with a module's name, such as `ARTICLE_`, belongs to that module and is read by
-its `config.go`. Every invalid or missing setting is reported at start-up in one error.
+its `config.go`; the `SEED_` settings belong to `cmd/seed`. Every invalid or missing setting is reported at
+start-up in one error.
+
+`make seed` and the `SEED_` settings are for local development only: `cmd/seed` refuses to run with
+`APP_ENV=production`, and the production image, the default target of `deployment/Dockerfile`, does not contain it.
 
 ## API
 
@@ -224,7 +235,8 @@ module cards, [internal/modules/article/README.md](internal/modules/article/READ
 ## Project structure
 
 ```
-cmd/server, cmd/migrate     the two binaries
+cmd/server, cmd/migrate     the API and the migrations
+cmd/seed                    development seed data: two accounts, three articles and two comments
 internal/app                composition root: process lifecycle, modules, route map, middleware
 internal/modules/article    the reference module: domain, usecase, transport/rest, gateway/postgres,
                             gateway/eventbus, contract, api.go
