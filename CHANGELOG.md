@@ -97,6 +97,9 @@ stack, CI, a release workflow, and an AGENTS.md that states the rules for people
   ([93e98a0](https://github.com/snykk/go-rest-boilerplate/commit/93e98a05756da2c911bb26e4a0a8cd477797475b),
   [c81418a](https://github.com/snykk/go-rest-boilerplate/commit/c81418a92606e7d0506e37b792be3fff50d5f0c4),
   [9079751](https://github.com/snykk/go-rest-boilerplate/commit/907975160d99203788b1e28bb7184c9e87fc7258))
+- **Community files**: a code of conduct, a contributing guide, a security policy that takes reports through
+  GitHub's private vulnerability reporting, issue forms for bugs and feature requests, and a pull request
+  template.
 
 ### Changed
 

@@ -1,0 +1,76 @@
+name: Bug report
+description: Wrong behaviour, a crash or a failing check in the boilerplate, such as an endpoint, a platform package, the configuration, the build or the tests.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a security problem, do not open an issue: report it privately as SECURITY.md describes.
+        For a question, open a blank issue instead.
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      description: Choose every part that shows the bug.
+      multiple: true
+      options:
+        - HTTP server, routing or middleware
+        - The article module
+        - Configuration
+        - Database or migrations
+        - Logging, tracing or metrics
+        - Authentication
+        - Events
+        - Build, image or compose
+        - CI or the release workflow
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The smallest steps that show the bug, such as the settings and the request, or a test.
+      placeholder: |
+        HTTP_TRUSTED_PROXIES=10.0.0.0/8 make run
+        curl -i -X POST localhost:8080/v1/articles -d '{"slug": "a"}'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What should happen, and how you know (AGENTS.md, the OpenAPI document, an RFC).
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: What happens instead. Paste the response, the log record or the error as it is, without secrets.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: A release tag or a commit hash (git rev-parse --short HEAD).
+      placeholder: v0.3.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Optional. The Go, Docker and Postgres versions and the operating system, when they may matter.
+      placeholder: Go 1.26 on Ubuntu 24.04, Docker 29
+    validations:
+      required: false

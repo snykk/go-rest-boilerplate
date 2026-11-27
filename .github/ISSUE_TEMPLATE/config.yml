@@ -1,0 +1,6 @@
+# Blank issues stay open for anything the forms do not cover, such as a question.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/snykk/go-rest-boilerplate/security/advisories/new
+    about: Report it privately, as SECURITY.md describes; never in a public issue.

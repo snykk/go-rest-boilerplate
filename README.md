@@ -234,6 +234,11 @@ running the packages one at a time (`make test-integration` does).
 `git checkout v0.2.0` shows an earlier structure in full. [CHANGELOG.md](CHANGELOG.md) records what each
 release changed, and [RELEASING.md](RELEASING.md) describes how a change becomes a release.
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) describes how to propose a change, and [SECURITY.md](SECURITY.md) how to
+report a vulnerability privately. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 [MIT](LICENSE)
