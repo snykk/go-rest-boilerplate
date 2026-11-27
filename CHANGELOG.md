@@ -32,8 +32,8 @@ and goose migrations embedded in a `migrate` command. Around it come OpenTelemet
 over OTLP, an authentication seam with operator endpoints behind a static token, an in-process event bus, one
 lifecycle that shuts the process down gracefully, a client IP read only through trusted proxies, OpenAPI
 generated from annotations with Swagger UI, integration tests on testcontainers, a distroless image, a compose
-stack, CI, a release workflow, and an AGENTS.md that states the rules for people and coding agents, on Go
-1.26.
+stack, CI, a release workflow, guides for contributors and security reports, and an AGENTS.md that states the
+rules for people and coding agents, on Go 1.26.
 
 ### Added
 
@@ -100,6 +100,9 @@ stack, CI, a release workflow, and an AGENTS.md that states the rules for people
 - **Community files**: a code of conduct, a contributing guide, a security policy that takes reports through
   GitHub's private vulnerability reporting, issue forms for bugs and feature requests, and a pull request
   template.
+  ([42d4757](https://github.com/snykk/go-rest-boilerplate/commit/42d47571d10cb939021cac70bb9dcab021de6b73),
+  [c41864e](https://github.com/snykk/go-rest-boilerplate/commit/c41864eced42b0abee8a0cb1691aa301aa7ce407),
+  [9652943](https://github.com/snykk/go-rest-boilerplate/commit/9652943cf35696b5e8f413a964f7f1dd543b0f85))
 
 ### Changed
 
