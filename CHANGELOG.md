@@ -60,6 +60,9 @@ Before v1.0.0:
 - **A release flow**: changes reach `master` through release branches and pull requests, with CI on both,
   and merging a release's pull request tags it and publishes its GitHub Release from this changelog
   ([RELEASING.md](RELEASING.md)).
+- **Community files**: a code of conduct, a contributing guide, a security policy that takes reports through
+  GitHub's private vulnerability reporting, issue forms for bugs and feature requests, and a pull request
+  template.
 
 ### Changed
 
