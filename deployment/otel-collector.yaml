@@ -1,0 +1,25 @@
+# OpenTelemetry Collector of the local telemetry profile: it receives OTLP/HTTP from the API, sends the traces to
+# Jaeger and prints the metrics to its own log. In production, point the exporters at your tracing and metrics
+# backends instead.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  debug:
+    verbosity: normal
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]

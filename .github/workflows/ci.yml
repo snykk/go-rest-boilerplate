@@ -1,96 +1,61 @@
 name: CI
 
+# Changes reach master through release branches and pull requests (RELEASING.md), so CI runs on both before
+# anything is merged.
 on:
   push:
-    branches: [master, V2]
+    branches: [master, "release/**"]
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
-    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+          go-version: "1.26"
+      - uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.15.0
 
   test:
-    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
-      - name: Run tests
-        run: go test -race -coverprofile=coverage.out ./...
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: coverage.out
-
-  swag-drift:
-    name: OpenAPI Spec Drift
-    runs-on: ubuntu-latest
-    # Catches PRs that change a handler annotation or DTO struct but
-    # forget to run `make swag`. Without this, docs/swagger.* silently
-    # decays away from the actual API.
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.25"
-      - name: Install swag CLI
-        run: go install github.com/swaggo/swag/cmd/swag@latest
-      - name: Regenerate spec
-        env:
-          GOFLAGS: "-mod=mod"
-        run: swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
-      - name: Fail on diff
-        # If `git diff` shows changes after regeneration, the committed
-        # docs/ is stale. The diff is printed so the PR author can see
-        # exactly what's missing.
-        run: |
-          if ! git diff --exit-code -- docs/; then
-            echo "::error::docs/ is out of sync with handler annotations. Run 'make swag' locally and commit the result."
-            exit 1
-          fi
+          go-version: "1.26"
+      - run: go test -race ./...
 
   integration:
-    name: Integration Tests
     runs-on: ubuntu-latest
-    # ubuntu-latest comes with Docker pre-installed, so testcontainers-go
-    # can spin up Postgres and Redis without any extra setup. Pinned go
-    # version matches the unit-test job so build cache stays warm.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
-      # The harness uses go.mod (not vendor) for testcontainers-go because
-      # the deps are tag-gated; let the action resolve them on demand.
-      - name: Run integration tests
-        env:
-          GOFLAGS: "-mod=mod"
-        run: go test -tags=integration -race -timeout=10m ./...
+          go-version: "1.26"
+      - run: go test -race -tags=integration ./...
+
+  generated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - run: make generate-check openapi-check
 
   build:
-    name: Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
-      - name: Build binary
-        run: go build -o bin/api ./cmd/api/main.go
-      - name: Build Docker image
-        run: docker build -f deploy/Dockerfile .
+          go-version: "1.26"
+      - run: go build ./...
+      - run: docker build -f deployment/Dockerfile .

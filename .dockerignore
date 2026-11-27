@@ -1,0 +1,8 @@
+# The build context holds only what the image build needs; everything else, local files included, stays out.
+*
+!go.mod
+!go.sum
+!api/
+!cmd/
+!internal/
+!migrations/

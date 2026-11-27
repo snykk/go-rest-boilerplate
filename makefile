@@ -1,83 +1,57 @@
-MOCKERY_BIN := $(GOPATH)/bin/mockery
+# Development tasks. `make` or `make help` lists them.
 
-.PHONY: serve dev build tidy test test-cover mock mig-up mig-down seed lint fmt docker-up docker-down help \
-	pre-push ci-lint ci-test ci-test-integration ci-swag-check ci-build
+.DEFAULT_GOAL := help
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+COMPOSE := docker compose -f deployment/compose.yml
 
-serve: ## Run the API server
-	go run cmd/api/main.go
+.PHONY: help run test test-integration lint generate generate-check openapi openapi-check \
+	migrate-up migrate-down migrate-status migrate-create docker-up docker-down tidy
 
-dev: ## Run with hot-reload (requires: go install github.com/air-verse/air@latest)
-	air
+help: ## List the targets
+	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-18s %s\n", $$1, $$2}'
 
-build: ## Build the API binary
-	go build -o bin/api cmd/api/main.go
+run: ## Run the API; it reads .env when present
+	go run ./cmd/server
 
-tidy: ## Tidy and vendor dependencies
-	go mod tidy && go mod vendor
+test: ## Run the unit and architecture tests
+	go test ./...
 
-test: ## Run unit tests (mocks only — fast, no Docker)
-	go test -v ./...
-
-test-integration: ## Run integration tests (requires Docker; spins up Postgres + Redis)
-	go test -tags=integration -v ./...
-
-swag: ## Regenerate OpenAPI spec (docs/) from godoc annotations (requires: go install github.com/swaggo/swag/cmd/swag@latest)
-	$(GOPATH)/bin/swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
-
-test-cover: ## Run tests with coverage report
-	go test -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-
-mock: ## Generate mock for an interface (usage: make mock interface=Name dir=path filename=mock.name.go)
-	@echo "Generating mocks for interface $(interface) in directory $(dir)..."
-	@$(MOCKERY_BIN) --name=$(interface) --dir=$(dir) --output=./internal/mocks
-	cd ./internal/mocks && \
-	mv $(interface).go $(filename).go
-
-mig-up: ## Run database migrations (up)
-	go run cmd/migration/main.go -up
-
-mig-down: ## Run database migrations (down)
-	go run cmd/migration/main.go -down
-
-seed: ## Seed the database
-	go run cmd/seed/main.go
+test-integration: ## Run every test, including those against Postgres in Docker, one package at a time
+	go test -p 1 -tags=integration ./...
 
 lint: ## Run golangci-lint
 	golangci-lint run ./...
 
-fmt: ## Format all Go files
-	gofmt -w .
+generate: ## Regenerate the gomock mocks
+	go generate ./...
 
-docker-up: ## Start all services with Docker Compose
-	docker compose -f deploy/docker-compose.yml up --build -d
+generate-check: generate ## Fail when fresh mocks differ from the committed ones, a new file included
+	@! git status --porcelain --untracked-files=all -- '*_mock_test.go' | grep .
 
-docker-down: ## Stop all Docker Compose services
-	docker compose -f deploy/docker-compose.yml down
+openapi: ## Regenerate api/openapi from the handler annotations
+	go tool swag init -g cmd/server/main.go -o api/openapi --parseInternal --outputTypes go,json,yaml
 
-pre-push: ci-lint ci-test ci-swag-check ci-build ## Mirror CI checks locally before pushing (lint + test + swag drift + build)
-	@echo "All CI checks passed."
+openapi-check: openapi ## Fail when fresh OpenAPI files differ from the committed ones, a new file included
+	@! git status --porcelain --untracked-files=all -- api/openapi | grep .
 
-ci-lint: ## Run golangci-lint matching .github/workflows/ci.yml (auto-installs if missing)
-	@command -v golangci-lint >/dev/null 2>&1 || go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	golangci-lint run ./...
+migrate-up: ## Apply every pending migration
+	go run ./cmd/migrate up
 
-ci-test: ## Run unit tests with race + coverage matching CI
-	go test -race -coverprofile=coverage.out ./...
+migrate-down: ## Roll back the latest migration
+	go run ./cmd/migrate down
 
-ci-test-integration: ## Run integration tests matching CI (requires Docker)
-	GOFLAGS=-mod=mod go test -tags=integration -race -timeout=10m ./...
+migrate-status: ## List the migrations and whether each is applied
+	go run ./cmd/migrate status
 
-ci-swag-check: ## Verify docs/ is in sync with handler annotations
-	@command -v swag >/dev/null 2>&1 || go install github.com/swaggo/swag/cmd/swag@latest
-	GOFLAGS=-mod=mod swag init -g cmd/api/main.go --output docs --parseDependency --parseInternal
-	@if ! git diff --exit-code -- docs/; then \
-		echo "docs/ is out of sync with handler annotations. Run 'make swag' and commit the regenerated spec."; \
-		exit 1; \
-	fi
+migrate-create: ## Create a migration: make migrate-create name=<module>_<action>
+	@test -n "$(name)" || { echo "usage: make migrate-create name=<module>_<action>"; exit 1; }
+	go run ./cmd/migrate create $(name)
 
-ci-build: ## Build API binary matching CI build job
-	go build -o bin/api ./cmd/api/main.go
+docker-up: ## Build and start Postgres, the migrations and the API
+	$(COMPOSE) up --build -d
+
+docker-down: ## Stop the stack and delete its database volume
+	$(COMPOSE) down -v
+
+tidy: ## Tidy go.mod and go.sum
+	go mod tidy
