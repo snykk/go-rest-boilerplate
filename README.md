@@ -232,6 +232,11 @@ running the packages one at a time (`make test-integration` does).
 
 `git checkout v0.2.0` shows an earlier structure in full.
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) describes how to propose a change, and [SECURITY.md](SECURITY.md) how to
+report a vulnerability privately. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 [MIT](LICENSE)

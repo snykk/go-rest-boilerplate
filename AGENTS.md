@@ -18,8 +18,9 @@ change code. The READMEs it links add the details for their folders.
 | `api/openapi` | The generated OpenAPI document. Never edit it by hand. |
 | `docs/` | `extending.md`: where each common capability plugs in, such as jobs, events, caching or tracing. |
 | `deployment/` | `Dockerfile` (distroless, nonroot), `compose.yml` (Postgres, the migrations once, the API; a `telemetry` profile with an OpenTelemetry Collector and Jaeger) and `otel-collector.yaml`. |
-| `.github/` | `workflows/ci.yml` (the checks below), `workflows/release.yml` and `scripts/release.sh` (the tag and the GitHub Release of a merged release), `workflows/security.yml` (a weekly vulnerability scan). |
+| `.github/` | `workflows/ci.yml` (the checks below), `workflows/release.yml` and `scripts/release.sh` (the tag and the GitHub Release of a merged release), `workflows/security.yml` (a weekly vulnerability scan), and the issue forms and pull request template. |
 | `CHANGELOG.md`, `RELEASING.md` | Every release, newest first; how a change reaches `master` through a release branch and a pull request. |
+| `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` | How to propose a change, how to report a vulnerability privately, and the conduct expected of everyone taking part. |
 
 The reference module is `article`; its card is [internal/modules/article/README.md](internal/modules/article/README.md).
 A capability the core lacks, such as background jobs, an outbox or caching, goes where
