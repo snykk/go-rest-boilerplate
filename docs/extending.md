@@ -10,6 +10,7 @@ marked *in core* are built and tested; the others are patterns to follow when a 
 | [A module's own settings](#module-settings) | `<module>/config.go`, `internal/app/config.go` | in core |
 | [Authentication and roles](#authentication) | an `auth.Authenticator`, route groups in `internal/app/routes.go` | seam in core |
 | [Background work](#background-work): consumers, the outbox relay, scheduled jobs, tickers | components of `cmd/server`, `<module>/transport/event/`, `<module>/transport/cron/` | pattern |
+| [Email](#email) | `internal/platform/mailer`, a component of `cmd/server`, `<module>/gateway/mail/` | package in core, not wired |
 | [Events between modules](#events-and-the-outbox) | `<module>/contract/`, `internal/platform/events`; an outbox table and a relay for what must not be lost | in-process bus in core; outbox a pattern |
 | [Cross-cutting concerns for every transport](#cross-cutting-concerns-at-the-use-case-boundary) | a decorator in the module root | pattern |
 | [Queries with a shape of their own](#queries-and-read-models) | a query port and a read model | pattern |
@@ -184,6 +185,60 @@ func (a *App) OutboxRelay() lifecycle.ComponentFunc {
   from requests (a consumer backlog, jobs that slow the API, long grace periods, other credentials), add a role
   setting such as `SERVER_ROLES=api` and `SERVER_ROLES=events,cron`: the same image then runs as two
   deployments, each starting only its components. Until then, one deployment is simpler.
+
+## Email
+
+*Package in core, not wired.* `internal/platform/mailer` sends plain-text email, with an optional HTML version,
+over SMTP with STARTTLS and PLAIN when configured, and holds the SMTP password as a `config.Secret`. Its `Queue`
+sends in the background, so a request never waits for the mail server, and logs only a message's `Kind`. No
+module sends mail yet, so the application neither reads the `MAIL_*` settings nor runs the queue. The first
+feature that sends mail wires it:
+
+1. Add `Mail mailer.Config` to `app.Config` and compose `mailer.LoadConfig` into `app.LoadConfig`, so its
+   problems are reported with the others.
+2. Build `mailer.NewSMTP` and `mailer.NewQueue` in `app.open` and hand the queue to the modules in `Deps`.
+   Run the queue's `Run` as a `lifecycle` component in `cmd/server` beside the HTTP server, with a drain
+   timeout inside the shutdown budget of `HTTP_SHUTDOWN_TIMEOUT` and one second more. The drain ends once the
+   queue is empty; mail a request in flight hands over after that is dropped and logged (see the limits below):
+
+   ```go
+   sender := mailer.NewSMTP(a.cfg.Mail)
+   a.mail = mailer.NewQueue(sender, a.log, a.cfg.Mail.QueueSize, a.cfg.Platform.HTTP.ShutdownTimeout)
+
+   // MailQueue returns the component that sends queued mail and drains the queue once its context ends.
+   func (a *App) MailQueue() lifecycle.ComponentFunc { return a.mail.Run }
+   ```
+
+   `cmd/server` runs it with the rest: `application.Run(ctx, application.HTTPServer(), application.MailQueue())`.
+3. A module sends mail through a port of its own, in its own words
+   (`Notifications.SendVerification(ctx, to, code)`), implemented in `gateway/mail/` over `mailer.Enqueuer`.
+   The templates live in that gateway, so the use case never builds a message. `newModules` in
+   `internal/app/modules.go` hands the `Enqueuer` to the module's `Deps`.
+4. Tests hand the gateway a `mailer.Recorder` and read what it kept with `Messages`; use case tests mock the
+   port as usual.
+5. For local development, run Mailpit in `deployment/compose.yml`: it keeps every message instead of
+   delivering it, in an inbox at `http://localhost:8025`. Bind its ports to `127.0.0.1`, so neither the inbox
+   nor its SMTP port is reachable from the network:
+
+   ```yaml
+   services:
+     api:
+       environment:
+         MAIL_SMTP_ADDR: mailpit:1025
+     mailpit:
+       image: axllent/mailpit:v1.27
+       ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+   ```
+
+   An API run on the host reaches it at the default `localhost:1025`.
+6. Add the `MAIL_*` variables to `.env.example` and the configuration table in `README.md`, as for every
+   setting the application reads.
+
+The queue holds its messages in memory. A message it still holds when the process dies is lost; one it still
+holds when the drain timeout ends, or that a request in flight hands over during shutdown after the drain has
+ended, is dropped and logged. Mail that must not be lost goes through the outbox instead (see
+[Events and the outbox](#events-and-the-outbox)), whose relay sends it and marks the row sent only once the
+`Sender` succeeds.
 
 ## Events and the outbox
 

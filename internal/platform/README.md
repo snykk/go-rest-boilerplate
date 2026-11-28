@@ -2,8 +2,8 @@
 
 Technical plumbing that every module may use and none owns: configuration, logging, IDs, random codes and
 tokens, time, validation, the database pool and units of work, the migrator, the HTTP server with its
-middleware, authentication and password hashing, tracing and metrics, build information, and the process
-lifecycle.
+middleware, authentication and password hashing, tracing and metrics, build information, the process
+lifecycle, and email.
 
 ## What belongs here
 
@@ -41,3 +41,4 @@ module's `gateway/` or `transport/`.
 | `password` | `NewBcrypt`, `Bcrypt`: passwords hashed and compared with bcrypt at one cost; `CompareDummy` compares against a hash made once at the same cost, so a sign-in for an account that does not exist takes as long as one with a wrong password |
 | `events` | `NewBus`, `Subscribe`, `Publish`: an in-process event bus. Handlers of an event's exact type run in the publisher's goroutine, each in a span of its own; a handler's error or panic is logged and stops nothing. Delivery is at most once |
 | `lifecycle` | `Component`, `ComponentFunc`, `Run`: components that run together and stop together within a timeout; `Closers`: resources closed in reverse order |
+| `mailer` | `Message`, `Sender`, `Enqueuer`, `SMTP`, `Queue`, `Recorder`, `LoadConfig`, `MaxQueueSize`: plain-text email, with an optional HTML version sent as `multipart/alternative`, over SMTP (STARTTLS and PLAIN optional, one timeout for a whole delivery, the password a `config.Secret`); `SMTP` refuses a sender or a recipient whose address holds whitespace, a control character, `<` or `>`, or whose local part needs quotes, so no address can add a parameter to the SMTP envelope, and accepts addresses outside ASCII; a `Queue` holds up to `MaxQueueSize` (10,000) messages and sends them in the background through a `Sender` while its `Run`, a `lifecycle` component, runs; after `Run`'s context ends, the queue drains, sending what it holds for up to its drain timeout, then drops the rest and logs their number; once the drain ends, `Enqueue` drops every new message and logs it, as it does when the queue is full, so none is lost without a trace; a `Recorder` keeps messages in memory for tests. Only a message's `Kind` is logged, never its recipient, subject or body |

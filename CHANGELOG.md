@@ -35,6 +35,10 @@ Changes on `master` that are not in a release yet.
   verifies them as an `auth.Authenticator`, with the algorithm pinned and the expiry, subject, issuer and
   audience required; a secret shorter than 32 bytes or a missing issuer or audience stops the process at
   start-up. `docs/extending.md` shows how to mount it.
+- **Email over SMTP**: `internal/platform/mailer` sends plain text or `multipart/alternative` with STARTTLS
+  and PLAIN when configured, through a bounded in-memory queue that runs as a lifecycle component and logs
+  only a message's kind; it refuses an address that could add SMTP parameters. `docs/extending.md` shows how
+  to wire it.
 
 ### Changed
 
