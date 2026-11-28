@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/snykk/go-rest-boilerplate/internal/app"
+	platformconfig "github.com/snykk/go-rest-boilerplate/internal/platform/config"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/lifecycle"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/logger"
 	"github.com/snykk/go-rest-boilerplate/internal/platform/telemetry"
@@ -165,7 +166,7 @@ func TestNewHandler(t *testing.T) {
 		t.Errorf("log level with the token: level = %s, want DEBUG", level.Level())
 	}
 
-	config.Platform.Admin.Token = ""
+	config.Platform.Admin = platformconfig.Admin{}
 	withoutAdmin := app.NewHandler(config, app.Deps{
 		Log:       log,
 		Level:     level,

@@ -82,7 +82,7 @@ func (a *App) open(ctx context.Context) error {
 	otel.SetTextMapPropagator(providers.Propagator)
 	otel.SetErrorHandler(telemetry.ErrorHandler(a.log))
 
-	pool, err := database.Open(ctx, platform.Database.URL,
+	pool, err := database.Open(ctx, platform.Database.URL.Reveal(),
 		database.WithTelemetry(providers.TracerProvider, providers.MeterProvider))
 	if err != nil {
 		return err

@@ -56,7 +56,7 @@ func run(args []string) error {
 		return err
 	}
 
-	database, err := sql.Open("pgx", settings.URL)
+	database, err := sql.Open("pgx", settings.URL.Reveal())
 	if err != nil {
 		return err
 	}

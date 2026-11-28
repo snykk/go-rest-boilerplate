@@ -190,10 +190,15 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
 
 - Configuration comes from environment variables, and from `./.env` when that file exists; the environment
   wins. A platform variable goes into `internal/platform/config`. A module's variable goes into the module's
-  `config.go`, read with a `config.Reader` and named after the module (`ARTICLE_MAX_PAGE_SIZE`). Every
-  variable also goes into `.env.example` and the configuration table in `README.md`.
+  `config.go`, read with a `config.Reader` and named after the module (`ARTICLE_MAX_PAGE_SIZE`). A platform
+  package with settings of its own reads them in its own `LoadConfig`, which `internal/app/config.go` composes
+  once the package is wired, as `mailer.LoadConfig` reads `MAIL_*`. Every variable the application reads goes
+  into `.env.example` and the configuration table in `README.md`.
 - Every invalid or missing setting is reported at start-up in one error, the platform's and every module's
   together.
+- A secret setting (a password, a token, a key, a connection string with credentials) is held as
+  `config.Secret`, built with `config.NewSecret`. Only the code that hands it to a library, or checks a rule
+  on its value such as its length, calls `Reveal`; never compare secrets with `==`.
 
 ### Tests
 
