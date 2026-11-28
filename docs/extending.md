@@ -89,7 +89,8 @@ func (u *UnitOfWork) Do(ctx context.Context, work func(repositories usecase.Repo
    `usecase.PageSize`, never a type from `internal/platform`.
 4. Add the variable to `.env.example`, the configuration table in `README.md` and the module card.
 
-A secret, such as an API key, comes from the environment or a secret store, never from a committed file.
+A secret, such as an API key, comes from the environment or a secret store, never from a committed file, and the
+module's `Config` holds it as a `config.Secret`.
 
 ## Authentication
 

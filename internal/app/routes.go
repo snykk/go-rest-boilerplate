@@ -24,7 +24,7 @@ func routes(router *httpserver.Router, config Config, deps Deps, featureModules 
 		router.Handle(http.MethodGet, "/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 	}
 
-	if token := config.Platform.Admin.Token; token != "" {
+	if token := config.Platform.Admin.Token.Reveal(); token != "" {
 		operator := auth.Principal{ID: "operator", Roles: []string{"admin"}}
 		admin := router.Group("/admin", auth.Authenticate(auth.StaticToken(token, operator), "Bearer", deps.Log))
 		admin.Handle(http.MethodGet, "/log-level", httpserver.LogLevel(deps.Level, deps.Log))

@@ -34,7 +34,7 @@ func defaults(change func(*config.Config)) config.Config {
 		},
 		Log:       config.Log{Level: slog.LevelInfo, Format: "text", Source: true},
 		Telemetry: config.Telemetry{SampleRatio: 1, MetricInterval: time.Minute},
-		Database:  config.Database{URL: "postgres://x"},
+		Database:  config.Database{URL: config.NewSecret("postgres://x")},
 		Swagger:   true,
 	}
 	if change != nil {
@@ -99,7 +99,7 @@ func TestFromEnv(t *testing.T) {
 					SampleRatio:    0.1,
 					MetricInterval: 15 * time.Second,
 				}
-				want.Admin = config.Admin{Token: "tttttttttttttttttttttttttttttttt"}
+				want.Admin = config.Admin{Token: config.NewSecret("tttttttttttttttttttttttttttttttt")}
 			}),
 		},
 		{
@@ -242,8 +242,8 @@ func TestLoadDatabase(t *testing.T) {
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("LoadDatabase = %v, want an error: %t", err, tc.wantErr)
 			}
-			if database.URL != tc.wantURL {
-				t.Errorf("LoadDatabase URL = %q, want %q", database.URL, tc.wantURL)
+			if database.URL.Reveal() != tc.wantURL {
+				t.Errorf("LoadDatabase URL = %q, want %q", database.URL.Reveal(), tc.wantURL)
 			}
 		})
 	}
