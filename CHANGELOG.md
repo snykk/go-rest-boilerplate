@@ -26,6 +26,10 @@ Changes on `master` that are not in a release yet.
 - **Secret settings that never print**: `config.Secret` holds a setting such as a password or a token, and
   `fmt`, `log/slog` and JSON never show its value: they show `[REDACTED]` for the secret itself or an exported
   field that holds it, and at most a pointer through an unexported field. Only `Reveal` returns the value.
+- **Email over SMTP**: `internal/platform/mailer` sends plain text or `multipart/alternative` with STARTTLS
+  and PLAIN when configured, through a bounded in-memory queue that runs as a lifecycle component and logs
+  only a message's kind; it refuses an address that could add SMTP parameters. `docs/extending.md` shows how
+  to wire it.
 
 ### Changed
 
