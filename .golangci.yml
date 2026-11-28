@@ -2,6 +2,8 @@ version: "2"
 
 run:
   timeout: 5m
+  build-tags:
+    - integration
 
 linters:
   default: none
@@ -14,28 +16,32 @@ linters:
     - gocritic
     - ineffassign
     - misspell
+    - bodyclose
+    - revive
+    - modernize
   settings:
-    gosec:
-      excludes:
-        - G101
-    gocritic:
-      enabled-tags:
-        - diagnostic
-        - style
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+        - name: package-comments
   exclusions:
+    generated: lax
     paths:
-      - vendor
+      - api/openapi
     rules:
       - path: _test\.go
         linters:
           - gosec
           - errcheck
-      - path: internal/mocks/
-        linters:
-          - unused
-          - errcheck
+          - revive
 
 formatters:
   enable:
     - gofmt
     - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/snykk/go-rest-boilerplate

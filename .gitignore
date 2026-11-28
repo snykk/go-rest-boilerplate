@@ -1,13 +1,6 @@
-vendor/
-
-# Air hot-reload
-tmp/
-
-# Build output
-bin/
-
-# Coverage
+.env
+/bin/
+/tmp/
 coverage.out
 coverage.html
-# Logger test artifacts
 *.log

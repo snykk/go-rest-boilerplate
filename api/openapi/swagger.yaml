@@ -1,0 +1,350 @@
+basePath: /v1
+definitions:
+  Article:
+    properties:
+      body:
+        example: The first article.
+        type: string
+      created_at:
+        type: string
+      id:
+        example: 0193f0a2-6c1e-7b3d-9a52-3f0f6a1d2c44
+        type: string
+      published_at:
+        type: string
+      slug:
+        example: hello-world
+        type: string
+      status:
+        enum:
+        - draft
+        - published
+        example: draft
+        type: string
+      title:
+        example: Hello, world
+        type: string
+      updated_at:
+        type: string
+    type: object
+  ArticleList:
+    properties:
+      items:
+        description: Items is an empty array, never null, when the page holds no articles.
+        items:
+          $ref: '#/definitions/Article'
+        type: array
+      limit:
+        example: 20
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      total:
+        example: 1
+        type: integer
+    type: object
+  CreateArticleRequest:
+    properties:
+      body:
+        example: The first article.
+        type: string
+      slug:
+        example: hello-world
+        type: string
+      title:
+        example: Hello, world
+        type: string
+    required:
+    - slug
+    - title
+    type: object
+  FieldError:
+    properties:
+      field:
+        description: Field is the field's JSON name, such as "title".
+        type: string
+      message:
+        description: Message describes the rule; it never contains the submitted value.
+        type: string
+      rule:
+        description: Rule is the validate tag that failed, such as "required".
+        type: string
+    type: object
+  Problem:
+    properties:
+      code:
+        description: Code is a stable, machine-readable error code such as "slug_taken".
+        type: string
+      detail:
+        type: string
+      errors:
+        description: Errors lists the invalid fields of a validation problem.
+        items:
+          $ref: '#/definitions/FieldError'
+        type: array
+      request_id:
+        type: string
+      status:
+        type: integer
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  UpdateArticleRequest:
+    properties:
+      body:
+        example: An edited article.
+        type: string
+      slug:
+        example: hello-again
+        type: string
+      title:
+        example: Hello again
+        type: string
+    type: object
+info:
+  contact: {}
+  description: 'Minimal REST core: platform packages and the article reference module.'
+  license:
+    name: MIT
+  title: Go REST Boilerplate API
+  version: "1.0"
+paths:
+  /articles:
+    get:
+      parameters:
+      - description: Page size; 0 or none means the server's default (20 unless configured),
+          and a value above the server's maximum (100 unless configured) means the
+          maximum
+        in: query
+        minimum: 0
+        name: limit
+        type: integer
+      - description: Articles to skip
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ArticleList'
+        "400":
+          description: invalid_query
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: List published articles
+      tags:
+      - articles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: The new article
+        in: body
+        name: article
+        required: true
+        schema:
+          $ref: '#/definitions/CreateArticleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: /v1/articles/drafts/{id}
+              type: string
+          schema:
+            $ref: '#/definitions/Article'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "409":
+          description: slug_taken
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: validation_failed, invalid_slug, invalid_title, invalid_body
+            or body_too_long
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Create a draft article
+      tags:
+      - articles
+  /articles/{id}:
+    delete:
+      parameters:
+      - description: Article ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Delete an article
+      tags:
+      - articles
+    get:
+      parameters:
+      - description: Article ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Article'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Get a published article
+      tags:
+      - articles
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Article ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: The fields to change
+        in: body
+        name: changes
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateArticleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Article'
+        "400":
+          description: malformed_json
+          schema:
+            $ref: '#/definitions/Problem'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+        "409":
+          description: slug_taken or slug_locked
+          schema:
+            $ref: '#/definitions/Problem'
+        "413":
+          description: body_too_large
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: invalid_slug, invalid_title, invalid_body or body_too_long
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Update an article
+      tags:
+      - articles
+  /articles/{id}/publish:
+    post:
+      parameters:
+      - description: Article ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Article'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+        "409":
+          description: already_published
+          schema:
+            $ref: '#/definitions/Problem'
+        "422":
+          description: empty_body
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Publish an article
+      tags:
+      - articles
+  /articles/drafts:
+    get:
+      parameters:
+      - description: Page size; 0 or none means the server's default (20 unless configured),
+          and a value above the server's maximum (100 unless configured) means the
+          maximum
+        in: query
+        minimum: 0
+        name: limit
+        type: integer
+      - description: Drafts to skip
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ArticleList'
+        "400":
+          description: invalid_query
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: List drafts
+      tags:
+      - articles
+  /articles/drafts/{id}:
+    get:
+      parameters:
+      - description: Article ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Article'
+        "404":
+          description: not_found
+          schema:
+            $ref: '#/definitions/Problem'
+      summary: Get a draft
+      tags:
+      - articles
+swagger: "2.0"
