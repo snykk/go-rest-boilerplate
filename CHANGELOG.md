@@ -21,6 +21,11 @@ Before v1.0.0:
 
 Changes on `master` that are not in a release yet.
 
+### Added
+
+- **Password hashing**: `internal/platform/password` hashes and compares passwords with bcrypt at a configured
+  cost, and `CompareDummy` makes a sign-in for an unknown account take as long as one with a wrong password.
+
 ## [v0.3.0] - 2026-11-27
 
 The third release rebuilds go-rest-boilerplate as a minimal modular monolith on the standard library's
