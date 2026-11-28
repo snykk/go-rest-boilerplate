@@ -29,6 +29,8 @@ Changes on `master` that are not in a release yet.
 - **Random codes and tokens**: `internal/platform/random` draws six-digit codes, each of the million equally
   likely, and 32-byte tokens in unpadded base64url from `crypto/rand`, for verification codes and reset or
   refresh tokens.
+- **Password hashing**: `internal/platform/password` hashes and compares passwords with bcrypt at a configured
+  cost, and `CompareDummy` makes a sign-in for an unknown account take as long as one with a wrong password.
 
 ### Changed
 
