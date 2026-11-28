@@ -21,30 +21,44 @@ Before v1.0.0:
 
 Changes on `master` that are not in a release yet.
 
+## [v0.4.0] - 2026-11-28
+
+The fourth release adds the platform packages a service needs to sign users in and to email them: HS256 access
+tokens that plug into the authentication seam, bcrypt password hashing that takes as long for an unknown
+account as for a known one, uniform random codes and URL-safe tokens, and an SMTP mailer with a bounded
+background queue. Secret settings become a type that never prints, so a password, a token or a connection
+string stays out of logs and formatted output, and the extension guide shows how to wire each package.
+
 ### Added
 
 - **Secret settings that never print**: `config.Secret` holds a setting such as a password or a token, and
   `fmt`, `log/slog` and JSON never show its value: they show `[REDACTED]` for the secret itself or an exported
   field that holds it, and at most a pointer through an unexported field. Only `Reveal` returns the value.
+  ([cbe2535](https://github.com/snykk/go-rest-boilerplate/commit/cbe253506210fc56d8e6ea827e089011d390c187))
 - **Random codes and tokens**: `internal/platform/random` draws six-digit codes, each of the million equally
   likely, and 32-byte tokens in unpadded base64url from `crypto/rand`, for verification codes and reset or
   refresh tokens.
+  ([a769d6a](https://github.com/snykk/go-rest-boilerplate/commit/a769d6af0c28f104aa14760875c94d67bed4ac20))
 - **Password hashing**: `internal/platform/password` hashes and compares passwords with bcrypt at a configured
   cost, and `CompareDummy` makes a sign-in for an unknown account take as long as one with a wrong password.
+  ([93d31fd](https://github.com/snykk/go-rest-boilerplate/commit/93d31fd2b2b2d750ac72145a42ad8cb1285ee6a1))
 - **JWT access tokens**: `internal/platform/auth/jwt` signs HS256 tokens for a subject and its roles and
   verifies them as an `auth.Authenticator`, with the algorithm pinned and the expiry, subject, issuer and
   audience required; a secret shorter than 32 bytes or a missing issuer or audience stops the process at
   start-up. `docs/extending.md` shows how to mount it.
+  ([77e65ec](https://github.com/snykk/go-rest-boilerplate/commit/77e65ecc3bc400b4771351154b43d8ef137a123b))
 - **Email over SMTP**: `internal/platform/mailer` sends plain text or `multipart/alternative` with STARTTLS
   and PLAIN when configured, through a bounded in-memory queue that runs as a lifecycle component and logs
   only a message's kind; it refuses an address that could add SMTP parameters. `docs/extending.md` shows how
   to wire it.
+  ([5c48c96](https://github.com/snykk/go-rest-boilerplate/commit/5c48c96e15343d92af1bba6b155f0f11b09f7932))
 
 ### Changed
 
 - **`ADMIN_TOKEN` and `DATABASE_URL` are secrets**: `config.Admin.Token` and `config.Database.URL` are
   `config.Secret`, so code that sets them builds them with `config.NewSecret` and code that reads them calls
   `Reveal`.
+  ([cbe2535](https://github.com/snykk/go-rest-boilerplate/commit/cbe253506210fc56d8e6ea827e089011d390c187))
 
 ## [v0.3.0] - 2026-11-27
 
@@ -182,6 +196,7 @@ docker-compose, and unit tests on testify mocks, on Go 1.19.
 Its known issues are listed in its
 [GitHub Release](https://github.com/snykk/go-rest-boilerplate/releases/tag/v0.1.0).
 
+[v0.4.0]: https://github.com/snykk/go-rest-boilerplate/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/snykk/go-rest-boilerplate/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/snykk/go-rest-boilerplate/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/snykk/go-rest-boilerplate/releases/tag/v0.1.0
