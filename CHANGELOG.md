@@ -21,6 +21,12 @@ Before v1.0.0:
 
 Changes on `master` that are not in a release yet.
 
+### Added
+
+- **Random codes and tokens**: `internal/platform/random` draws six-digit codes, each of the million equally
+  likely, and 32-byte tokens in unpadded base64url from `crypto/rand`, for verification codes and reset or
+  refresh tokens.
+
 ## [v0.3.0] - 2026-11-27
 
 The third release rebuilds go-rest-boilerplate as a minimal modular monolith on the standard library's
