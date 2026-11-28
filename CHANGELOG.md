@@ -26,6 +26,10 @@ Changes on `master` that are not in a release yet.
 - **Secret settings that never print**: `config.Secret` holds a setting such as a password or a token, and
   `fmt`, `log/slog` and JSON never show its value: they show `[REDACTED]` for the secret itself or an exported
   field that holds it, and at most a pointer through an unexported field. Only `Reveal` returns the value.
+- **JWT access tokens**: `internal/platform/auth/jwt` signs HS256 tokens for a subject and its roles and
+  verifies them as an `auth.Authenticator`, with the algorithm pinned and the expiry, subject, issuer and
+  audience required; a secret shorter than 32 bytes or a missing issuer or audience stops the process at
+  start-up. `docs/extending.md` shows how to mount it.
 
 ### Changed
 
