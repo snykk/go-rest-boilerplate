@@ -23,7 +23,7 @@ module's `gateway/` or `transport/`.
 
 | Package | Provides |
 |---|---|
-| `config` | `LoadSource`, `FromEnv`, `LoadDatabase` and `Reader`: settings from the environment and an optional `./.env`, every problem reported at once; a module reads its own settings with a `Reader` |
+| `config` | `LoadSource`, `FromEnv`, `LoadDatabase`, `Reader` and `Secret`: settings from the environment and an optional `./.env`, every problem reported at once; a module reads its own settings with a `Reader`; `Secret` is a setting that formats, logs and encodes as `[REDACTED]` |
 | `logger` | `New`, `Options`: a `log/slog` logger in `text` or `json` with the given attributes on every record, `request_id`, `trace_id` and `span_id` from the context, the caller's `source`, and secrets redacted; its level may be a `slog.LevelVar` |
 | `telemetry` | `New`, `Config`, `Providers`: the OpenTelemetry tracer provider (sampling at a ratio), meter provider (with Go runtime metrics) and W3C propagator, pushing over OTLP/HTTP when a collector endpoint is set; `Shutdown` flushes both. The resource adds the host and a `service.instance.id`; a view drops `server.address` and `server.port` from the `http.server.*` metrics; `ErrorHandler` logs OpenTelemetry's own errors |
 | `buildinfo` | `Get`, `Info`: the version and commit of the binary, from `-ldflags` or what the Go toolchain recorded |

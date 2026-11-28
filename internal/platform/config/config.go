@@ -78,14 +78,14 @@ type Telemetry struct {
 
 // Admin configures the operator endpoints under /admin.
 type Admin struct {
-	// Token is the bearer token the operator endpoints require; empty leaves them unmounted.
-	Token string
+	// Token is the bearer token the operator endpoints require, held as a Secret; empty leaves them unmounted.
+	Token Secret
 }
 
 // Database configures the Postgres connection.
 type Database struct {
-	// URL is a pgx connection string.
-	URL string
+	// URL is a pgx connection string, held as a Secret because it may carry credentials.
+	URL Secret
 }
 
 // Production reports whether the service runs in production.
@@ -136,13 +136,13 @@ func FromEnv(source Source) (Config, error) {
 		MetricInterval: reader.Duration("METRICS_EXPORT_INTERVAL", time.Minute),
 	}
 
-	config.Admin = Admin{Token: reader.String("ADMIN_TOKEN", "")}
-	if config.Admin.Token != "" && len(config.Admin.Token) < minAdminTokenLen {
+	config.Admin = Admin{Token: NewSecret(reader.String("ADMIN_TOKEN", ""))}
+	if config.Admin.Token.Reveal() != "" && len(config.Admin.Token.Reveal()) < minAdminTokenLen {
 		reader.Fail("ADMIN_TOKEN", "must be at least 32 characters")
 	}
 
 	config.Swagger = reader.Bool("SWAGGER_ENABLED", !production)
-	config.Database = Database{URL: reader.Required("DATABASE_URL")}
+	config.Database = Database{URL: NewSecret(reader.Required("DATABASE_URL"))}
 
 	if err := reader.Err(); err != nil {
 		return Config{}, err
@@ -158,7 +158,7 @@ func LoadDatabase() (Database, error) {
 	}
 
 	reader := NewReader(source)
-	database := Database{URL: reader.Required("DATABASE_URL")}
+	database := Database{URL: NewSecret(reader.Required("DATABASE_URL"))}
 	if err := reader.Err(); err != nil {
 		return Database{}, err
 	}
