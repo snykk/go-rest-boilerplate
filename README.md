@@ -18,7 +18,12 @@ in, such as background jobs, an outbox, caching and rate limits.
   ports belong to the use cases, and a test enforces the import rules.
 - Units of work: repositories that run on a pool or on a transaction, so writes through several of them
   commit or roll back together; updates hold the entity's row lock.
-- An authentication seam: middleware for any credential scheme, with roles. No scheme is built in.
+- An authentication seam: middleware for any credential scheme, with roles. JWT access tokens plug into it,
+  with bcrypt password hashing and random codes and tokens for a sign-in module.
+- Email over SMTP through a bounded background queue, so a request never waits for the mail server. The core
+  does not wire it; a feature that sends mail does, as [docs/extending.md](docs/extending.md#email) shows.
+- Secret settings that never print: a password, a token or a connection string stays out of logs and
+  formatted output.
 - A process lifecycle: components that run and stop together, and resources closed in reverse order.
 - Production logging with `log/slog`, in text or JSON:
   - the service, version and environment on every record;
@@ -230,6 +235,7 @@ running the packages one at a time (`make test-integration` does).
 | [`v0.1.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.1.0) | go-rest-boilerplate initial release | Gin, layers versioned under `v1`, sqlx, JWT and OTP activation |
 | [`v0.2.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.2.0) | go-rest-boilerplate bounded contexts release | `users` and `auth` bounded contexts, refresh tokens, observability |
 | [`v0.3.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.3.0) | go-rest-boilerplate modular core release | A minimal modular monolith on `net/http`: one reference module, platform packages, architecture test |
+| [`v0.4.0`](https://github.com/snykk/go-rest-boilerplate/tree/v0.4.0) | go-rest-boilerplate platform packages release | JWT access tokens, password hashing, random codes and tokens, an SMTP mailer, and secret settings that never print |
 
 `git checkout v0.2.0` shows an earlier structure in full. [CHANGELOG.md](CHANGELOG.md) records what each
 release changed, and [RELEASING.md](RELEASING.md) describes how a change becomes a release.
