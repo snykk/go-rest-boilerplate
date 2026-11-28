@@ -26,6 +26,9 @@ Changes on `master` that are not in a release yet.
 - **Secret settings that never print**: `config.Secret` holds a setting such as a password or a token, and
   `fmt`, `log/slog` and JSON never show its value: they show `[REDACTED]` for the secret itself or an exported
   field that holds it, and at most a pointer through an unexported field. Only `Reveal` returns the value.
+- **Random codes and tokens**: `internal/platform/random` draws six-digit codes, each of the million equally
+  likely, and 32-byte tokens in unpadded base64url from `crypto/rand`, for verification codes and reset or
+  refresh tokens.
 
 ### Changed
 
