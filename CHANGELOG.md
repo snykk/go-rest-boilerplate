@@ -31,6 +31,10 @@ Changes on `master` that are not in a release yet.
   refresh tokens.
 - **Password hashing**: `internal/platform/password` hashes and compares passwords with bcrypt at a configured
   cost, and `CompareDummy` makes a sign-in for an unknown account take as long as one with a wrong password.
+- **JWT access tokens**: `internal/platform/auth/jwt` signs HS256 tokens for a subject and its roles and
+  verifies them as an `auth.Authenticator`, with the algorithm pinned and the expiry, subject, issuer and
+  audience required; a secret shorter than 32 bytes or a missing issuer or audience stops the process at
+  start-up. `docs/extending.md` shows how to mount it.
 
 ### Changed
 

@@ -96,25 +96,11 @@ module's `Config` holds it as a `config.Secret`.
 
 *Seam in core.* `internal/platform/auth` holds what every scheme shares: the caller (`Principal`), the
 middleware that identifies it (`Authenticate`) and the one that checks its roles (`Require`). The scheme
-itself is an `Authenticator`, such as a JWT verifier in `internal/platform/auth/jwt`:
-
-```go
-func (v *Verifier) Authenticate(r *http.Request) (auth.Principal, error) {
-	scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " ")
-	if !ok || !strings.EqualFold(scheme, "Bearer") {
-		return auth.Principal{}, auth.ErrUnauthenticated
-	}
-	claims, err := v.verify(token) // signature, expiry, issuer, audience
-	if err != nil {
-		return auth.Principal{}, fmt.Errorf("%w: %v", auth.ErrUnauthenticated, err)
-	}
-	return auth.Principal{ID: claims.Subject, Roles: claims.Roles}, nil
-}
-```
-
-An error that does not wrap `ErrUnauthenticated`, such as an unreachable key server, answers 500 and is
-logged. Build the verifier in `app.open` from its settings, register a closer for anything it runs in the
-background, and mount it on route groups in `internal/app/routes.go`:
+itself is an `Authenticator`; `internal/platform/auth/jwt` provides one for HS256 access tokens. Build the
+verifier in `app.open` from the module's settings: `jwt.NewVerifier` refuses a secret shorter than
+`jwt.MinSecretLength` bytes, an empty issuer or audience and a negative leeway, and its error stops start-up.
+Register a closer for anything a custom scheme runs in the background, and mount the verifier on route groups
+in `internal/app/routes.go`:
 
 ```go
 v1 := router.Group("/v1")
@@ -134,10 +120,15 @@ A module with both public and protected endpoints takes one group of each in its
   checks only who the caller is and its roles.
 - Sign-in, token issuing and refresh are features: they go in a module of their own, such as `identity`.
   Version `v0.2.0` shows one.
+- A sign-in module signs tokens with `jwt.NewIssuer`, which also takes a positive `TTL` and a clock, and
+  returns the token with the time it expires. Its `LoadConfig` reads the secret with `config.NewSecret`, so the
+  value never prints, and reports one shorter than `jwt.MinSecretLength` together with its other settings.
 - A sign-in module hashes passwords with `password.NewBcrypt` and, for an unknown account, compares with
   `CompareDummy`, so the answer takes as long as for a wrong password.
 - A sign-in module draws its verification codes, and its reset and refresh tokens, with `random.Generator`
   from `internal/platform/random`.
+- An error from an authenticator that does not wrap `ErrUnauthenticated`, such as an unreachable key server,
+  answers 500 and is logged.
 
 ## Background work
 
