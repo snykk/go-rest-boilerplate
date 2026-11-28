@@ -37,7 +37,8 @@ func NewSMTP(config Config) *SMTP {
 // a multipart/alternative message whose text/plain part comes before its text/html part, both in UTF-8 and
 // quoted-printable, between boundaries drawn at random. It connects, upgrades the connection with STARTTLS
 // when the Config asks for it, authenticates with PLAIN when it has a username, and sends. The whole delivery
-// is bounded by the Config's Timeout and by ctx.
+// is bounded by the Config's Timeout and by ctx; when either ends it first, the error wraps the context's
+// error, context.DeadlineExceeded or context.Canceled.
 //
 // Before it connects, Send refuses a sender or a recipient that is not an email address, or whose address
 // could end the angle brackets of the SMTP envelope or add a parameter to it: an address that holds
@@ -72,9 +73,6 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 		return fmt.Errorf("mailer: connect: %w", err)
 	}
 	defer func() { _ = connection.Close() }()
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = connection.SetDeadline(deadline)
-	}
 	stop := context.AfterFunc(ctx, func() { _ = connection.Close() })
 	defer stop()
 
