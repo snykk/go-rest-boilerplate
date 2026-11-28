@@ -21,6 +21,18 @@ Before v1.0.0:
 
 Changes on `master` that are not in a release yet.
 
+### Added
+
+- **Secret settings that never print**: `config.Secret` holds a setting such as a password or a token, and
+  `fmt`, `log/slog` and JSON never show its value: they show `[REDACTED]` for the secret itself or an exported
+  field that holds it, and at most a pointer through an unexported field. Only `Reveal` returns the value.
+
+### Changed
+
+- **`ADMIN_TOKEN` and `DATABASE_URL` are secrets**: `config.Admin.Token` and `config.Database.URL` are
+  `config.Secret`, so code that sets them builds them with `config.NewSecret` and code that reads them calls
+  `Reveal`.
+
 ## [v0.3.0] - 2026-11-27
 
 The third release rebuilds go-rest-boilerplate as a minimal modular monolith on the standard library's
