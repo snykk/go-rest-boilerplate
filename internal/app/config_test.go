@@ -41,9 +41,9 @@ func TestLoadConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("LoadConfig = %v, want no error", err)
 			}
-			if got.Platform.Database.URL != "postgres://x" || got.Article.MaxPageSize != 50 {
+			if got.Platform.Database.URL.Reveal() != "postgres://x" || got.Article.MaxPageSize != 50 {
 				t.Errorf("LoadConfig = URL %q, article max page size %d; want %q, 50",
-					got.Platform.Database.URL, got.Article.MaxPageSize, "postgres://x")
+					got.Platform.Database.URL.Reveal(), got.Article.MaxPageSize, "postgres://x")
 			}
 		})
 	}

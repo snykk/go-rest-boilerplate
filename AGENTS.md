@@ -194,6 +194,9 @@ The steps in detail are in [internal/modules/README.md](internal/modules/README.
   variable also goes into `.env.example` and the configuration table in `README.md`.
 - Every invalid or missing setting is reported at start-up in one error, the platform's and every module's
   together.
+- A secret setting (a password, a token, a key, a connection string with credentials) is held as
+  `config.Secret`, built with `config.NewSecret`. Only the code that hands it to a library, or checks a rule
+  on its value such as its length, calls `Reveal`; never compare secrets with `==`.
 
 ### Tests
 
