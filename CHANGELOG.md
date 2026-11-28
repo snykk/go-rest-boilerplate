@@ -51,7 +51,8 @@ string stays out of logs and formatted output, and the extension guide shows how
   and PLAIN when configured, through a bounded in-memory queue that runs as a lifecycle component and logs
   only a message's kind; it refuses an address that could add SMTP parameters. `docs/extending.md` shows how
   to wire it.
-  ([5c48c96](https://github.com/snykk/go-rest-boilerplate/commit/5c48c96e15343d92af1bba6b155f0f11b09f7932))
+  ([5c48c96](https://github.com/snykk/go-rest-boilerplate/commit/5c48c96e15343d92af1bba6b155f0f11b09f7932),
+  [e8b4851](https://github.com/snykk/go-rest-boilerplate/commit/e8b48510a8e126093451c3a091f2db65f5b20220))
 
 ### Changed
 
